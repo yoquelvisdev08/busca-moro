@@ -1,0 +1,14 @@
+# SIPHON-X :: Lista de Dorks para descubrimiento de prospectos.
+# Una consulta por línea. Lineas que comienzan con # se ignoran.
+# Combinan operadores avanzados para detectar sitios deficientes/obsoletos.
+
+inurl:"wp-content" "powered by wordpress" intext:"abogados"
+intext:"powered by wordpress" intitle:"clinica dental"
+inurl:"index.php?option=com_" "Joomla"
+"Powered by Joomla" intext:"contacto"
+intitle:"index of" "wp-config.php"
+"made with prestashop" intext:"contacto"
+intext:"hecho con drupal" intext:"servicios"
+inurl:".php?id=" intext:"restaurante"
+inurl:"shop" intext:"contacto" intitle:"woocommerce"
+inurl:"/wp-admin" intext:"recuperar contraseña"

@@ -1,0 +1,5 @@
+# Pool de proxies. Formatos soportados:
+#   http://user:pass@host:port
+#   https://user:pass@host:port
+#   socks5://user:pass@host:port
+# Mantén este archivo fuera de control de versiones cuando contenga credenciales reales.

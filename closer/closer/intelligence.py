@@ -1,0 +1,166 @@
+"""Orquestación de generación de pain points + cold email."""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+from dataclasses import dataclass
+from typing import Any, Optional
+
+from closer.config import Settings
+from closer.llm_client import LLMClient
+from closer.prompts import COLD_EMAIL_SYSTEM, COLD_EMAIL_USER, PAIN_POINTS_SYSTEM, PAIN_POINTS_USER
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(slots=True)
+class GeneratedIntelligence:
+    model: str
+    language: str
+    tone: str
+    pain_points: list[dict[str, Any]]
+    cold_email_subject: Optional[str]
+    cold_email_body: Optional[str]
+    prompt_hash: str
+    tokens_input: Optional[int]
+    tokens_output: Optional[int]
+
+
+class IntelligenceEngine:
+    """Encapsula la lógica de generación con tolerancia a errores del modelo."""
+
+    def __init__(self, llm: LLMClient, settings: Settings) -> None:
+        self._llm = llm
+        self._settings = settings
+
+    async def generate(self, *, lead: dict[str, Any], audit: dict[str, Any]) -> GeneratedIntelligence:
+        pain_points_user = PAIN_POINTS_USER.format(
+            max_pain_points=self._settings.max_pain_points,
+            url=lead.get("url", ""),
+            company=lead.get("company_name") or self._infer_company(lead),
+            lighthouse_score=audit.get("lighthouse_score"),
+            performance_score=audit.get("performance_score"),
+            seo_score=audit.get("seo_score"),
+            accessibility_score=audit.get("accessibility_score"),
+            best_practices_score=audit.get("best_practices_score"),
+            mobile_friendly=audit.get("mobile_friendly"),
+            has_ssl=audit.get("has_ssl"),
+            load_time_ms=audit.get("load_time_ms"),
+            fcp_ms=audit.get("first_contentful_paint_ms"),
+            lcp_ms=audit.get("largest_contentful_paint_ms"),
+            cls=audit.get("cumulative_layout_shift"),
+            tbt_ms=audit.get("total_blocking_time_ms"),
+            tech_stack=self._compact_tech_stack(audit.get("detected_tech") or lead.get("tech_stack") or {}),
+        )
+
+        pain_response = await self._llm.chat(
+            system=PAIN_POINTS_SYSTEM.format(language=self._settings.language),
+            user=pain_points_user,
+            json_response=True,
+            temperature=0.4,
+            max_tokens=self._settings.llm_max_tokens,
+        )
+        pain_payload = LLMClient.safe_json_loads(pain_response.content) or {}
+        pain_points = self._normalize_pain_points(pain_payload.get("pain_points", []))
+
+        email_user = COLD_EMAIL_USER.format(
+            company=lead.get("company_name") or self._infer_company(lead),
+            url=lead.get("url", ""),
+            pain_points=self._format_pain_points_for_prompt(pain_points),
+            lighthouse_score=audit.get("lighthouse_score"),
+            load_time_ms=audit.get("load_time_ms"),
+            mobile_friendly=audit.get("mobile_friendly"),
+            has_ssl=audit.get("has_ssl"),
+        )
+        email_response = await self._llm.chat(
+            system=COLD_EMAIL_SYSTEM.format(
+                tone=self._settings.tone,
+                language=self._settings.language,
+            ),
+            user=email_user,
+            json_response=True,
+            temperature=0.6,
+            max_tokens=self._settings.llm_max_tokens,
+        )
+        email_payload = LLMClient.safe_json_loads(email_response.content) or {}
+
+        subject = (email_payload.get("subject") or "").strip() or None
+        body = (email_payload.get("body") or "").strip() or None
+
+        prompt_hash = hashlib.sha256(
+            (pain_points_user + "||" + email_user).encode("utf-8")
+        ).hexdigest()
+
+        tokens_input = (pain_response.prompt_tokens or 0) + (email_response.prompt_tokens or 0) or None
+        tokens_output = (pain_response.completion_tokens or 0) + (email_response.completion_tokens or 0) or None
+
+        return GeneratedIntelligence(
+            model=self._settings.llm_model,
+            language=self._settings.language,
+            tone=self._settings.tone,
+            pain_points=pain_points,
+            cold_email_subject=subject,
+            cold_email_body=body,
+            prompt_hash=prompt_hash,
+            tokens_input=tokens_input,
+            tokens_output=tokens_output,
+        )
+
+    def _normalize_pain_points(self, raw: Any) -> list[dict[str, Any]]:
+        if not isinstance(raw, list):
+            return []
+        cleaned: list[dict[str, Any]] = []
+        for item in raw[: self._settings.max_pain_points]:
+            if not isinstance(item, dict):
+                continue
+            cleaned.append(
+                {
+                    "title": str(item.get("title", "")).strip(),
+                    "evidence": str(item.get("evidence", "")).strip(),
+                    "business_impact": str(item.get("business_impact", "")).strip(),
+                    "severity": str(item.get("severity", "medium")).strip().lower() or "medium",
+                }
+            )
+        return cleaned
+
+    @staticmethod
+    def _format_pain_points_for_prompt(points: list[dict[str, Any]]) -> str:
+        if not points:
+            return "(sin pain points detectados)"
+        lines: list[str] = []
+        for i, p in enumerate(points, start=1):
+            lines.append(
+                f"{i}. {p.get('title')} ({p.get('severity')}). "
+                f"Evidencia: {p.get('evidence')}. "
+                f"Impacto: {p.get('business_impact')}."
+            )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _compact_tech_stack(stack: dict[str, Any]) -> str:
+        """Reduce el tech_stack a un string corto para no inflar el prompt.
+
+        Mantener el prompt acotado abarata tokens y reduce latencia. Aplanamos
+        a ``clave=valor`` y truncamos a 400 caracteres.
+        """
+
+        if not stack:
+            return "(no detectado)"
+        flat: list[str] = []
+        for key, value in stack.items():
+            if isinstance(value, (str, int, float, bool)):
+                flat.append(f"{key}={value}")
+            else:
+                flat.append(f"{key}=present")
+        text = ", ".join(flat)
+        return text[:400]
+
+    @staticmethod
+    def _infer_company(lead: dict[str, Any]) -> str:
+        url = lead.get("url") or ""
+        from urllib.parse import urlparse
+
+        host = urlparse(url).hostname or url
+        host = host.replace("www.", "")
+        return host.split(".")[0].capitalize() if host else "su empresa"

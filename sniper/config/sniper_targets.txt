@@ -1,0 +1,5 @@
+# Sitios objetivo del Uptime Sniper.
+# Una URL por línea. Lineas que comienzan con # se ignoran.
+# Estos seeds se sincronizan con la tabla `sniper_targets` al arranque.
+# https://competidor-1.example.com
+# https://competidor-2.example.com

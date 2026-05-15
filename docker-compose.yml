@@ -1,0 +1,233 @@
+name: siphon-x
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+networks:
+  siphon-core:
+    driver: bridge
+    name: siphon-core
+  siphon-edge:
+    driver: bridge
+    name: siphon-edge
+
+volumes:
+  pg_data:
+    name: siphon-pg-data
+  redis_data:
+    name: siphon-redis-data
+  ollama_data:
+    name: siphon-ollama-data
+  npm_data:
+    name: siphon-npm-data
+  npm_letsencrypt:
+    name: siphon-npm-letsencrypt
+  screenshots:
+    name: siphon-screenshots
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: siphon-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-siphon}
+      POSTGRES_USER: ${POSTGRES_USER:-siphon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_env}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    networks:
+      - siphon-core
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-siphon} -d ${POSTGRES_DB:-siphon}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+
+  redis:
+    image: redis:7-alpine
+    container_name: siphon-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:-change_me_in_env}
+    volumes:
+      - redis_data:/data
+    networks:
+      - siphon-core
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-change_me_in_env}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+
+  # Ollama: LLM local opcional. Por defecto el Closer usa un proveedor remoto
+  # OpenAI-compatible (DeepSeek). Levanta Ollama solo si quieres self-host:
+  #   docker compose --profile llm-local up -d ollama
+  ollama:
+    image: ollama/ollama:latest
+    container_name: siphon-ollama
+    restart: unless-stopped
+    profiles: ["llm-local"]
+    environment:
+      OLLAMA_KEEP_ALIVE: 24h
+      OLLAMA_HOST: 0.0.0.0
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - siphon-core
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    logging: *default-logging
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: siphon-api
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      SERVICE_NAME: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - screenshots:/app/storage/screenshots
+    networks:
+      - siphon-core
+      - siphon-edge
+    ports:
+      - "8000:8000"
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+
+  scout:
+    build:
+      context: ./scout
+      dockerfile: Dockerfile
+    container_name: siphon-scout
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      SERVICE_NAME: scout
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - siphon-core
+    logging: *default-logging
+
+  auditor:
+    build:
+      context: ./auditor
+      dockerfile: Dockerfile
+    container_name: siphon-auditor
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      SERVICE_NAME: auditor
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    volumes:
+      - screenshots:/app/storage/screenshots
+    networks:
+      - siphon-core
+    shm_size: "2gb"
+    logging: *default-logging
+
+  closer:
+    build:
+      context: ./closer
+      dockerfile: Dockerfile
+    container_name: siphon-closer
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      SERVICE_NAME: closer
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - siphon-core
+    logging: *default-logging
+
+  sniper:
+    build:
+      context: ./sniper
+      dockerfile: Dockerfile
+    container_name: siphon-sniper
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      SERVICE_NAME: sniper
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    networks:
+      - siphon-core
+    logging: *default-logging
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: siphon-frontend
+    restart: unless-stopped
+    env_file: ./.env
+    depends_on:
+      - api
+    networks:
+      - siphon-edge
+    ports:
+      - "3000:80"
+    expose:
+      - "80"
+    logging: *default-logging
+
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: siphon-npm
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "${NPM_ADMIN_PORT:-81}:81"
+    environment:
+      DISABLE_IPV6: "true"
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    networks:
+      - siphon-edge
+    logging: *default-logging

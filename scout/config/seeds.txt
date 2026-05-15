@@ -1,0 +1,4 @@
+# Seeds directos (un host por línea) - útil para tests iniciales.
+# Las URLs vienen sin protocolo o con https:// según preferencia.
+# example.com
+# clinica-dental-ejemplo.es
