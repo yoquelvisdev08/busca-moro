@@ -6,14 +6,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/siphonx/scout/internal/enrichment"
 	"github.com/siphonx/scout/internal/fingerprint"
 )
 
-// Verdict resume si un sitio califica como prospecto.
+// Verdict resume si un sitio califica como prospecto con dual scoring.
 type Verdict struct {
-	Eligible bool
-	Reasons  []string
-	Score    int
+	Eligible          bool
+	ProblemScore      int
+	CommercialScore   int
+	TotalScore        int
+	Reasons           []string
+	CommercialSignals []string
+	Segment           string // "A", "B", "C", "D"
 }
 
 // Rules contiene los umbrales configurables.
@@ -33,38 +38,91 @@ func DefaultRules(loadThreshold time.Duration) Rules {
 	}
 }
 
-// Evaluate aplica las reglas y construye un Verdict con un score acumulado.
-func Evaluate(r *fingerprint.Result, rules Rules) Verdict {
-	v := Verdict{Score: 0}
+// Evaluate aplica dual scoring: problem + commercial potential.
+func Evaluate(r *fingerprint.Result, signals *enrichment.CommercialSignals, rules Rules) Verdict {
+	v := Verdict{}
 
+	// PROBLEM SCORING
 	if !r.HasSSL || !r.ValidCertificate {
-		v.Eligible = true
+		v.ProblemScore += 30
 		v.Reasons = append(v.Reasons, "ssl_missing_or_invalid")
-		v.Score += 30
 	}
 
 	if r.LoadTimeMs > rules.LoadTimeThreshold.Milliseconds() {
-		v.Eligible = true
+		v.ProblemScore += 25
 		v.Reasons = append(v.Reasons, "slow_load_time_"+strconv.FormatInt(r.LoadTimeMs, 10)+"ms")
-		v.Score += 25
 	}
 
 	if r.WordPress && r.WordPressVersion != "" && versionLessThan(r.WordPressVersion, rules.MinWordPress) {
-		v.Eligible = true
+		v.ProblemScore += 25
 		v.Reasons = append(v.Reasons, "wordpress_outdated_"+r.WordPressVersion)
-		v.Score += 25
 	}
 
 	if r.PHPVersion != "" && versionLessThan(r.PHPVersion, rules.MinPHP) {
-		v.Eligible = true
+		v.ProblemScore += 20
 		v.Reasons = append(v.Reasons, "php_outdated_"+r.PHPVersion)
-		v.Score += 20
 	}
 
 	if r.StatusCode >= 500 {
-		v.Eligible = true
+		v.ProblemScore += 15
 		v.Reasons = append(v.Reasons, "server_5xx")
-		v.Score += 15
+	}
+
+	// COMMERCIAL SCORING
+	if signals != nil {
+		if signals.HasEcommerce {
+			v.CommercialScore += 50
+			v.CommercialSignals = append(v.CommercialSignals, "has_ecommerce")
+		}
+		if signals.HasPaymentGateway {
+			v.CommercialScore += 40
+			v.CommercialSignals = append(v.CommercialSignals, "has_payment")
+		}
+		if signals.HasCRM || signals.HasBooking {
+			v.CommercialScore += 30
+			v.CommercialSignals = append(v.CommercialSignals, "has_crm_booking")
+		}
+		if signals.HasAnalytics {
+			v.CommercialScore += 20
+			v.CommercialSignals = append(v.CommercialSignals, "has_analytics")
+		}
+		if signals.HasBlog && signals.LastBlogDays > 0 && signals.LastBlogDays < 90 {
+			v.CommercialScore += 15
+			v.CommercialSignals = append(v.CommercialSignals, "active_blog")
+		}
+		if signals.SocialActivity {
+			v.CommercialScore += 15
+			v.CommercialSignals = append(v.CommercialSignals, "social_active")
+		}
+		if signals.IsPremiumHosting {
+			v.CommercialScore += 10
+			v.CommercialSignals = append(v.CommercialSignals, "premium_hosting")
+		}
+		if signals.HasPricingPage {
+			v.CommercialScore += 10
+			v.CommercialSignals = append(v.CommercialSignals, "has_pricing")
+		}
+		if signals.HasTestimonials {
+			v.CommercialScore += 10
+			v.CommercialSignals = append(v.CommercialSignals, "has_testimonials")
+		}
+	}
+
+	// TOTAL SCORE
+	v.TotalScore = v.ProblemScore + v.CommercialScore
+
+	// ELIGIBILITY: problem >= 20 AND commercial >= 20
+	v.Eligible = v.ProblemScore >= 20 && v.CommercialScore >= 20
+
+	// SEGMENT ASSIGNMENT
+	if v.CommercialScore >= 80 && v.ProblemScore >= 40 {
+		v.Segment = "A" // Enterprise
+	} else if v.CommercialScore >= 50 && v.ProblemScore >= 30 {
+		v.Segment = "B" // Professional
+	} else if v.CommercialScore >= 20 && v.ProblemScore >= 20 {
+		v.Segment = "C" // SMB
+	} else {
+		v.Segment = "D" // Not priority
 	}
 
 	return v

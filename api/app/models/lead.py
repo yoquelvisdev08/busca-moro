@@ -61,6 +61,13 @@ class Lead(Base):
         default=LeadStatus.new,
     )
     score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    commercial_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    segment: Mapped[str] = mapped_column(String(1), nullable=False, default="D")
+    revenue_signal: Mapped[str] = mapped_column(Text, nullable=False, default="none")
+    has_pricing_page: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    has_testimonials: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    content_freshness_days: Mapped[Optional[int]] = mapped_column(Integer)
+    commercial_signals: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
     notes: Mapped[Optional[str]] = mapped_column(Text)
     last_error: Mapped[Optional[str]] = mapped_column(Text)
     discovered_at: Mapped[datetime] = mapped_column(

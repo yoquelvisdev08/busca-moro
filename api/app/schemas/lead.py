@@ -27,6 +27,14 @@ class LeadCreate(LeadBase):
     tech_stack: dict[str, Any] = Field(default_factory=dict)
     has_ssl: Optional[bool] = None
     load_time_ms: Optional[int] = Field(default=None, ge=0)
+    score: int = 0
+    commercial_score: int = 0
+    segment: str = "D"
+    revenue_signal: str = "none"
+    has_pricing_page: bool = False
+    has_testimonials: bool = False
+    content_freshness_days: Optional[int] = None
+    commercial_signals: list[str] = Field(default_factory=list)
 
 
 class LeadUpdate(BaseModel):
@@ -37,6 +45,13 @@ class LeadUpdate(BaseModel):
     status: Optional[LeadStatus] = None
     score: Optional[int] = None
     notes: Optional[str] = None
+    commercial_score: Optional[int] = None
+    segment: Optional[str] = None
+    revenue_signal: Optional[str] = None
+    has_pricing_page: Optional[bool] = None
+    has_testimonials: Optional[bool] = None
+    content_freshness_days: Optional[int] = None
+    commercial_signals: Optional[list[str]] = None
 
 
 class LeadRead(LeadBase):
@@ -46,6 +61,13 @@ class LeadRead(LeadBase):
     normalized_domain: str
     status: LeadStatus
     score: int
+    commercial_score: int
+    segment: str
+    revenue_signal: str
+    has_pricing_page: bool
+    has_testimonials: bool
+    content_freshness_days: Optional[int] = None
+    commercial_signals: list[str]
     lighthouse_score: Optional[int] = None
     mobile_friendly: Optional[bool] = None
     has_ssl: Optional[bool] = None

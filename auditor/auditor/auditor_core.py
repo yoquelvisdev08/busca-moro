@@ -14,6 +14,7 @@ from typing import Any, Optional
 from playwright.async_api import Browser, async_playwright
 
 from auditor.config import Settings
+from auditor.content_analyzer import ContentAnalysis, analyze_content
 from auditor.extractors.contacts import extract_emails, extract_phones, extract_socials
 from auditor.lighthouse.runner import LighthouseReport, run_lighthouse
 from auditor.stealth.browser import apply_stealth, new_stealth_context
@@ -48,6 +49,7 @@ class AuditResult:
     error_message: Optional[str]
     started_at: datetime
     finished_at: datetime
+    content_analysis: Optional[dict[str, Any]] = None
 
     def to_payload(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -75,6 +77,7 @@ class Auditor:
         has_ssl: Optional[bool] = None
         detected_tech: dict[str, Any] = {}
         contacts: dict[str, Any] = {}
+        content_analysis: Optional[ContentAnalysis] = None
         error: Optional[str] = None
 
         async with async_playwright() as pw:
@@ -123,6 +126,7 @@ class Auditor:
                     "phones": extract_phones(html),
                     "socials": extract_socials(html),
                 }
+                content_analysis = analyze_content(html)
 
                 await context.close()
             except Exception as exc:  # noqa: BLE001
@@ -175,6 +179,7 @@ class Auditor:
             error_message=combined_error,
             started_at=started,
             finished_at=finished,
+            content_analysis=content_analysis.to_dict() if content_analysis else None,
         )
 
     async def _capture_above_the_fold(self, page, lead_id: str) -> Optional[str]:

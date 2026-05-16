@@ -103,6 +103,17 @@ CREATE TABLE IF NOT EXISTS leads (
     discovered_at       TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     audited_at          TIMESTAMPTZ,
     contacted_at        TIMESTAMPTZ,
+    revenue_signal      TEXT            DEFAULT 'none',
+    traffic_estimate    TEXT            DEFAULT 'unknown',
+    decision_maker_name TEXT,
+    decision_maker_title TEXT,
+    company_size        TEXT            DEFAULT 'unknown',
+    content_freshness_days INTEGER,
+    has_pricing_page    BOOLEAN         DEFAULT FALSE,
+    has_testimonials    BOOLEAN         DEFAULT FALSE,
+    competitor_sites    TEXT[]          NOT NULL DEFAULT '{}',
+    commercial_score    INTEGER         DEFAULT 0,
+    segment             CHAR(1)         DEFAULT 'D',
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     deleted_at          TIMESTAMPTZ,
@@ -121,6 +132,23 @@ DROP TRIGGER IF EXISTS trg_leads_updated_at ON leads;
 CREATE TRIGGER trg_leads_updated_at
     BEFORE UPDATE ON leads
     FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
+
+-- ============================================================================
+-- TABLA: lead_enrichment
+-- ----------------------------------------------------------------------------
+-- Datos de enriquecimiento comercial y señales detectadas por el Scout.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS lead_enrichment (
+    id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    lead_id             UUID            NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+    source              TEXT            NOT NULL,
+    field               TEXT            NOT NULL,
+    value               TEXT,
+    confidence          INTEGER         CHECK (confidence BETWEEN 0 AND 100),
+    enriched_at         TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_enrichment_lead ON lead_enrichment (lead_id);
 
 -- ============================================================================
 -- TABLA: audits

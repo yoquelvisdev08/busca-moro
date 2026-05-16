@@ -9,7 +9,12 @@ from typing import Any, Optional
 
 from closer.config import Settings
 from closer.llm_client import LLMClient
-from closer.prompts import COLD_EMAIL_SYSTEM, COLD_EMAIL_USER, PAIN_POINTS_SYSTEM, PAIN_POINTS_USER
+from closer.prompts import (
+    COLD_EMAIL_USER,
+    PAIN_POINTS_SYSTEM,
+    PAIN_POINTS_USER,
+    segment_system_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +69,12 @@ class IntelligenceEngine:
         pain_payload = LLMClient.safe_json_loads(pain_response.content) or {}
         pain_points = self._normalize_pain_points(pain_payload.get("pain_points", []))
 
+        segment = lead.get("segment") or "D"
+        system_prompt = segment_system_prompt(segment).format(
+            tone=self._settings.tone,
+            language=self._settings.language,
+        )
+
         email_user = COLD_EMAIL_USER.format(
             company=lead.get("company_name") or self._infer_company(lead),
             url=lead.get("url", ""),
@@ -74,10 +85,7 @@ class IntelligenceEngine:
             has_ssl=audit.get("has_ssl"),
         )
         email_response = await self._llm.chat(
-            system=COLD_EMAIL_SYSTEM.format(
-                tone=self._settings.tone,
-                language=self._settings.language,
-            ),
+            system=system_prompt,
             user=email_user,
             json_response=True,
             temperature=0.6,

@@ -26,6 +26,7 @@ import (
 
 	"github.com/siphonx/scout/internal/config"
 	"github.com/siphonx/scout/internal/discovery"
+	"github.com/siphonx/scout/internal/enrichment"
 	"github.com/siphonx/scout/internal/filters"
 	"github.com/siphonx/scout/internal/fingerprint"
 	"github.com/siphonx/scout/internal/logging"
@@ -224,7 +225,8 @@ func worker(
 			log.Warn("fingerprint_failed", "err", err)
 			continue
 		}
-		verdict := filters.Evaluate(res, rules)
+		signals := enrichment.DetectSignals(res.HTMLBody, res.FinalURL)
+		verdict := filters.Evaluate(res, signals, rules)
 		log.Info("fingerprinted",
 			"status", res.StatusCode,
 			"ssl", res.HasSSL,
@@ -232,7 +234,10 @@ func worker(
 			"wp", res.WordPress,
 			"eligible", verdict.Eligible,
 			"reasons", strings.Join(verdict.Reasons, ","),
-			"score", verdict.Score,
+			"problem_score", verdict.ProblemScore,
+			"commercial_score", verdict.CommercialScore,
+			"total_score", verdict.TotalScore,
+			"segment", verdict.Segment,
 		)
 
 		if !verdict.Eligible {
@@ -240,18 +245,27 @@ func worker(
 		}
 
 		body := map[string]any{
-			"url":              normalizeURL(res.FinalURL, cand.URL),
-			"tech_stack":       res.TechStack,
-			"has_ssl":          res.HasSSL,
-			"load_time_ms":     res.LoadTimeMs,
-			"discovery_source": string(cand.Source),
-			"discovery_query":  cand.Query,
+			"url":                    normalizeURL(res.FinalURL, cand.URL),
+			"score":                  verdict.TotalScore,
+			"problem_score":          verdict.ProblemScore,
+			"commercial_score":       verdict.CommercialScore,
+			"segment":                verdict.Segment,
+			"revenue_signal":         signals.RevenueSignal,
+			"has_pricing_page":       signals.HasPricingPage,
+			"has_testimonials":       signals.HasTestimonials,
+			"content_freshness_days": signals.LastBlogDays,
+			"tech_stack":             res.TechStack,
+			"has_ssl":                res.HasSSL,
+			"load_time_ms":           res.LoadTimeMs,
+			"discovery_source":       string(cand.Source),
+			"discovery_query":        cand.Query,
+			"commercial_signals":     verdict.CommercialSignals,
 		}
 		if err := postLead(ctx, apiClient, cfg.APIBaseURL, body); err != nil {
 			log.Error("api_publish_failed", "err", err)
 			continue
 		}
-		log.Info("lead_published")
+		log.Info("lead_published", "segment", verdict.Segment, "total_score", verdict.TotalScore)
 	}
 	return nil
 }

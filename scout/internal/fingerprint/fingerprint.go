@@ -4,6 +4,7 @@ package fingerprint
 import (
 	"context"
 	"crypto/tls"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -28,6 +29,7 @@ type Result struct {
 	Generator        string            `json:"generator,omitempty"`
 	Title            string            `json:"title,omitempty"`
 	TechStack        map[string]string `json:"tech_stack"`
+	HTMLBody         string            `json:"-"` // Raw HTML body for enrichment
 }
 
 // HTTPDoer abstrae *http.Client para facilitar tests.
@@ -71,6 +73,7 @@ func Inspect(ctx context.Context, client HTTPDoer, rawURL string) (*Result, erro
 
 	loadMs := time.Since(start).Milliseconds()
 
+	bodyBytes, _ := io.ReadAll(resp.Body)
 	res := &Result{
 		URL:        rawURL,
 		FinalURL:   resp.Request.URL.String(),
@@ -78,6 +81,7 @@ func Inspect(ctx context.Context, client HTTPDoer, rawURL string) (*Result, erro
 		HasSSL:     resp.Request.URL.Scheme == "https",
 		LoadTimeMs: loadMs,
 		TechStack:  map[string]string{},
+		HTMLBody:   string(bodyBytes),
 	}
 
 	if resp.TLS != nil {
@@ -94,7 +98,7 @@ func Inspect(ctx context.Context, client HTTPDoer, rawURL string) (*Result, erro
 		res.TechStack["server"] = res.ServerHeader
 	}
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(res.HTMLBody))
 	if err == nil {
 		res.Title = strings.TrimSpace(doc.Find("title").First().Text())
 		if gen, ok := doc.Find("meta[name='generator']").First().Attr("content"); ok {
