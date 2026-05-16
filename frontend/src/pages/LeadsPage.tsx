@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Sparkles, CheckSquare, Square, Filter, X } from "lucide-react";
@@ -23,6 +24,7 @@ interface Filters {
 }
 
 export function LeadsPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [pageSize] = useState(20);
@@ -307,7 +309,7 @@ export function LeadsPage() {
                       <tr
                         key={lead.id}
                         className={`${selected.has(lead.id) ? "bg-void-cyan-5" : ""} cursor-pointer`}
-                        onClick={() => toast(`Lead: ${lead.normalized_domain}\nScore: ${lead.score}\nSegmento: ${lead.segment ?? "N/A"}`)}
+                        onClick={() => navigate(`/leads/${lead.id}`)}
                       >
                         <td onClick={(e) => e.stopPropagation()}>
                           <button onClick={() => toggleSelect(lead.id)}>

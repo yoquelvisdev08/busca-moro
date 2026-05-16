@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     queue_sniper_alerts: str = Field(default="siphon:queue:sniper", alias="QUEUE_SNIPER_ALERTS")
     queue_dlq: str = Field(default="siphon:queue:dlq", alias="QUEUE_DLQ")
 
+    email_provider: str = Field(default="resend", alias="EMAIL_PROVIDER")
+    email_api_key: str = Field(default="", alias="EMAIL_API_KEY")
+    email_from: str = Field(default="outreach@siphonx.dev", alias="EMAIL_FROM")
+    email_from_name: str = Field(default="SIPHON-X Outreach", alias="EMAIL_FROM_NAME")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

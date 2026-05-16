@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,3 +27,13 @@ async def create_sales_intelligence(
     service = SalesIntelligenceService(session)
     intel = await service.record(payload)
     return SalesIntelligenceRead.model_validate(intel)
+
+
+@router.get("/lead/{lead_id}", response_model=list[SalesIntelligenceRead])
+async def list_intelligence_for_lead(
+    lead_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+) -> list[SalesIntelligenceRead]:
+    service = SalesIntelligenceService(session)
+    items = await service.list_for_lead(lead_id)
+    return [SalesIntelligenceRead.model_validate(i) for i in items]

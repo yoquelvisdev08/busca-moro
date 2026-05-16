@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.lead import Lead, LeadStatus
@@ -39,3 +41,11 @@ class SalesIntelligenceService:
         await self._session.commit()
         await self._session.refresh(intel)
         return intel
+
+    async def list_for_lead(self, lead_id: uuid.UUID) -> list[SalesIntelligence]:
+        result = await self._session.execute(
+            select(SalesIntelligence)
+            .where(SalesIntelligence.lead_id == lead_id)
+            .order_by(SalesIntelligence.generated_at.desc())
+        )
+        return list(result.scalars().all())

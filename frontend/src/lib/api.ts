@@ -75,6 +75,37 @@ export interface Audit {
   created_at: string;
   updated_at: string;
   screenshot_url: string | null;
+  lighthouse_score: number | null;
+  performance_score: number | null;
+  seo_score: number | null;
+  accessibility_score: number | null;
+  best_practices_score: number | null;
+  first_contentful_paint_ms: number | null;
+  largest_contentful_paint_ms: number | null;
+  cumulative_layout_shift: number | null;
+  total_blocking_time_ms: number | null;
+  screenshot_path: string | null;
+  extracted_contacts: Record<string, any>;
+}
+
+export interface SalesIntelligence {
+  id: string;
+  lead_id: string;
+  audit_id: string | null;
+  model: string;
+  pain_points: any[];
+  cold_email_subject: string | null;
+  cold_email_body: string | null;
+  language: string;
+  tone: string | null;
+  generated_at: string;
+}
+
+export interface LeadDetailResponse {
+  lead: Lead;
+  latest_audit: Audit | null;
+  audits: Audit[];
+  sales_intelligence: SalesIntelligence[];
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -131,5 +162,14 @@ export const api = {
   },
   triggerCloser(leadId: string) {
     return request<{ status: string }>(`/v1/leads/${leadId}/closer`, { method: "POST" });
+  },
+  getLeadDetail(id: string) {
+    return request<LeadDetailResponse>(`/v1/leads/${id}/detail`);
+  },
+  sendOutreachEmail(leadId: string) {
+    return request<{ status: string; message_id: string; outreach_id: string; recipient: string }>(
+      `/v1/outreach/send?lead_id=${leadId}`,
+      { method: "POST" }
+    );
   },
 };

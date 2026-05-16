@@ -132,3 +132,56 @@ async def trigger_closer(
         {"lead_id": str(lead.id)},
     )
     return {"status": "queued", "lead_id": str(lead.id)}
+
+
+@router.get("/{lead_id}/detail")
+async def get_lead_detail(
+    lead_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Aggregated detail: lead + latest audit + sales intel + contacts."""
+    from sqlalchemy import select
+    from app.models.audit import Audit
+    from app.models.lead import Lead
+    from app.models.sales_intelligence import SalesIntelligence
+    from app.schemas.audit import AuditRead
+    from app.schemas.lead import LeadRead
+    from app.schemas.sales_intelligence import SalesIntelligenceRead
+
+    # Get lead
+    result = await session.execute(select(Lead).where(Lead.id == lead_id))
+    lead = result.scalar_one_or_none()
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+    # Get latest audit
+    result = await session.execute(
+        select(Audit)
+        .where(Audit.lead_id == lead_id)
+        .order_by(Audit.created_at.desc())
+        .limit(1)
+    )
+    latest_audit = result.scalar_one_or_none()
+
+    # Get all audits
+    result = await session.execute(
+        select(Audit)
+        .where(Audit.lead_id == lead_id)
+        .order_by(Audit.created_at.desc())
+    )
+    all_audits = list(result.scalars().all())
+
+    # Get sales intelligence
+    result = await session.execute(
+        select(SalesIntelligence)
+        .where(SalesIntelligence.lead_id == lead_id)
+        .order_by(SalesIntelligence.generated_at.desc())
+    )
+    all_intel = list(result.scalars().all())
+
+    return {
+        "lead": LeadRead.model_validate(lead).model_dump(),
+        "latest_audit": AuditRead.model_validate(latest_audit).model_dump() if latest_audit else None,
+        "audits": [AuditRead.model_validate(a).model_dump() for a in all_audits],
+        "sales_intelligence": [SalesIntelligenceRead.model_validate(i).model_dump() for i in all_intel],
+    }
