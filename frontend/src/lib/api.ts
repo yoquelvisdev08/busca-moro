@@ -32,6 +32,12 @@ export interface Lead {
   contacted_at: string | null;
   tech_stack: Record<string, unknown>;
   social_links: Record<string, unknown>;
+  commercial_score: number | null;
+  segment: "A" | "B" | "C" | "D" | null;
+  revenue_signal: string | null;
+  has_pricing_page: boolean | null;
+  has_testimonials: boolean | null;
+  content_freshness_days: number | null;
 }
 
 export interface LeadListResponse {
@@ -62,6 +68,15 @@ export interface SniperTarget {
   last_checked_at: string | null;
 }
 
+export interface Audit {
+  id: string;
+  lead_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  screenshot_url: string | null;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -86,6 +101,24 @@ export const api = {
     if (params.status) search.set("status", params.status);
     const qs = search.toString();
     return request<LeadListResponse>(`/v1/leads${qs ? `?${qs}` : ""}`);
+  },
+  getLead(id: string) {
+    return request<Lead>(`/v1/leads/${id}`);
+  },
+  updateLead(id: string, data: Partial<Lead>) {
+    return request<Lead>(`/v1/leads/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
+  bulkUpdateLeads(ids: string[], data: Partial<Lead>) {
+    return request<{ updated: number }>(`/v1/leads/bulk`, {
+      method: "PATCH",
+      body: JSON.stringify({ ids, ...data }),
+    });
+  },
+  getAudit(leadId: string) {
+    return request<Audit>(`/v1/audits/lead/${leadId}`);
   },
   getQueueDepths() {
     return request<QueueDepths>("/v1/monitor/queues");
