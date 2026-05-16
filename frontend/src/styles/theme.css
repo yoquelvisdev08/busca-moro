@@ -1,33 +1,46 @@
 :root {
   color-scheme: dark;
 
-  --void-bg-0: #04060d;
-  --void-bg-1: #07091a;
-  --void-bg-2: #0c1228;
+  /* Stitch Design System — Void palette */
+  --void-bg-0: #07091a;
+  --void-bg-1: #0b0d1e;
+  --void-bg-2: #101223;
+  --void-surface: #1c1e30;
+  --void-surface-high: #27293b;
   --void-panel: rgba(12, 18, 40, 0.78);
-  --void-grid: rgba(99, 102, 241, 0.08);
 
   --void-cyan: #22d3ee;
   --void-cyan-soft: rgba(34, 211, 238, 0.18);
+  --void-cyan-glow: rgba(34, 211, 238, 0.3);
   --void-purple: #a855f7;
   --void-purple-soft: rgba(168, 85, 247, 0.18);
+  --void-purple-glow: rgba(168, 85, 247, 0.3);
   --void-magenta: #f472b6;
   --void-accent: #00ffe5;
 
-  --void-text: #d9e6ff;
+  --void-green: #22c55e;
+  --void-green-glow: rgba(34, 197, 94, 0.3);
+  --void-red: #ef4444;
+  --void-red-glow: rgba(239, 68, 68, 0.3);
+  --void-yellow: #eab308;
+  --void-orange: #f97316;
+
+  --void-text: #e0e0f9;
   --void-text-dim: #6b7ba0;
-  --void-text-muted: #4a5573;
-  --void-text-strong: #f5f7ff;
+  --void-text-muted: #94a3b8;
+  --void-text-strong: #f1f5f9;
 
-  --void-success: #22ee9c;
-  --void-warning: #ffb454;
-  --void-danger: #ff4d6d;
+  --void-success: #22c55e;
+  --void-warning: #eab308;
+  --void-danger: #ef4444;
 
-  --void-border: rgba(120, 134, 200, 0.22);
-  --void-border-strong: rgba(120, 134, 200, 0.45);
+  --void-border: #1e293b;
+  --void-border-strong: #334155;
+  --void-grid: rgba(99, 102, 241, 0.08);
 
   --font-mono: "JetBrains Mono", "Fira Code", "SFMono-Regular", Menlo, monospace;
-  --font-display: "Orbitron", "JetBrains Mono", monospace;
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   --shadow-glow-cyan: 0 0 24px rgba(34, 211, 238, 0.25);
   --shadow-glow-purple: 0 0 24px rgba(168, 85, 247, 0.22);

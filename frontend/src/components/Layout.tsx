@@ -4,6 +4,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Dashboard", glyph: "::" },
   { to: "/leads", label: "Leads", glyph: ">_" },
   { to: "/sniper", label: "Sniper", glyph: "[!]" },
+  { to: "/settings", label: "Settings", glyph: "⚙" },
 ];
 
 export function Layout() {
