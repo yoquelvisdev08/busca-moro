@@ -39,7 +39,13 @@ class IntelligenceEngine:
         self._llm = llm
         self._settings = settings
 
-    async def generate(self, *, lead: dict[str, Any], audit: dict[str, Any]) -> GeneratedIntelligence:
+    async def generate(
+        self,
+        *,
+        lead: dict[str, Any],
+        audit: dict[str, Any],
+        sender_profile: Optional[dict[str, Any]] = None,
+    ) -> GeneratedIntelligence:
         pain_points_user = PAIN_POINTS_USER.format(
             max_pain_points=self._settings.max_pain_points,
             url=lead.get("url", ""),
@@ -75,9 +81,17 @@ class IntelligenceEngine:
             language=self._settings.language,
         )
 
+        sp = sender_profile or {}
         email_user = COLD_EMAIL_USER.format(
             company=lead.get("company_name") or self._infer_company(lead),
             url=lead.get("url", ""),
+            sender_name=sp.get("name") or "Yoquelvis",
+            sender_title=sp.get("title") or "Desarrollador Web Full-Stack",
+            sender_website=sp.get("website") or "https://yoquelvis.dev",
+            sender_bio=sp.get("bio") or "",
+            sender_services=self._compact_list(sp.get("services")),
+            sender_tech_stack=self._compact_list(sp.get("tech_stack")),
+            sender_signature=sp.get("email_signature") or "",
             pain_points=self._format_pain_points_for_prompt(pain_points),
             lighthouse_score=audit.get("lighthouse_score"),
             load_time_ms=audit.get("load_time_ms"),
@@ -95,6 +109,11 @@ class IntelligenceEngine:
 
         subject = (email_payload.get("subject") or "").strip() or None
         body = (email_payload.get("body") or "").strip() or None
+
+        # Append sender signature to body if provided and not already present
+        signature = sp.get("email_signature", "")
+        if signature and body and signature.strip() not in body:
+            body = body.rstrip() + "\n\n" + signature.strip()
 
         prompt_hash = hashlib.sha256(
             (pain_points_user + "||" + email_user).encode("utf-8")
@@ -163,6 +182,14 @@ class IntelligenceEngine:
                 flat.append(f"{key}=present")
         text = ", ".join(flat)
         return text[:400]
+
+    @staticmethod
+    def _compact_list(items: Any) -> str:
+        if not items:
+            return "(no especificado)"
+        if isinstance(items, list):
+            return ", ".join(str(i) for i in items[:10])
+        return str(items)
 
     @staticmethod
     def _infer_company(lead: dict[str, Any]) -> str:

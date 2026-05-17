@@ -46,6 +46,19 @@ class APIClient:
                 return response.json()
         return None
 
+    async def get_sender_profile(self) -> Optional[dict[str, Any]]:
+        async for attempt in self._retries():
+            with attempt:
+                response = await self._client.get("/v1/sender-profile")
+                if response.status_code == 404:
+                    return None
+                response.raise_for_status()
+                data = response.json()
+                if data is None:
+                    return None
+                return data
+        return None
+
     def _retries(self) -> AsyncRetrying:
         return AsyncRetrying(
             stop=stop_after_attempt(4),

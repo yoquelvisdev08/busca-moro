@@ -1,52 +1,52 @@
 :root {
   color-scheme: dark;
 
-  /* Stitch Design System — Void palette */
-  --void-bg-0: #07091a;
-  --void-bg-1: #0b0d1e;
-  --void-bg-2: #101223;
-  --void-surface: #1c1e30;
-  --void-surface-high: #27293b;
-  --void-panel: rgba(12, 18, 40, 0.78);
+  /* Corporate Dark Palette */
+  --void-bg-0: #0a0a0c;
+  --void-bg-1: #111114;
+  --void-bg-2: #141418;
+  --void-surface: #141418;
+  --void-surface-high: #1c1c22;
+  --void-panel: #141418;
 
-  --void-cyan: #22d3ee;
-  --void-cyan-soft: rgba(34, 211, 238, 0.18);
-  --void-cyan-glow: rgba(34, 211, 238, 0.3);
-  --void-purple: #a855f7;
-  --void-purple-soft: rgba(168, 85, 247, 0.18);
-  --void-purple-glow: rgba(168, 85, 247, 0.3);
-  --void-magenta: #f472b6;
-  --void-accent: #00ffe5;
+  --void-cyan: #6366f1;
+  --void-cyan-soft: rgba(99, 102, 241, 0.18);
+  --void-cyan-glow: rgba(99, 102, 241, 0.3);
+  --void-purple: #8b5cf6;
+  --void-purple-soft: rgba(139, 92, 246, 0.18);
+  --void-purple-glow: rgba(139, 92, 246, 0.3);
+  --void-magenta: #ec4899;
+  --void-accent: #6366f1;
 
-  --void-green: #22c55e;
-  --void-green-glow: rgba(34, 197, 94, 0.3);
+  --void-green: #10b981;
+  --void-green-glow: rgba(16, 185, 129, 0.3);
   --void-red: #ef4444;
   --void-red-glow: rgba(239, 68, 68, 0.3);
-  --void-yellow: #eab308;
+  --void-yellow: #f59e0b;
   --void-orange: #f97316;
 
-  --void-text: #e0e0f9;
-  --void-text-dim: #6b7ba0;
-  --void-text-muted: #94a3b8;
-  --void-text-strong: #f1f5f9;
+  --void-text: #f0f0f5;
+  --void-text-dim: #8a8a93;
+  --void-text-muted: #6b6b75;
+  --void-text-strong: #ffffff;
 
-  --void-success: #22c55e;
-  --void-warning: #eab308;
+  --void-success: #10b981;
+  --void-warning: #f59e0b;
   --void-danger: #ef4444;
 
-  --void-border: #1e293b;
-  --void-border-strong: #334155;
-  --void-grid: rgba(99, 102, 241, 0.08);
+  --void-border: #2a2a30;
+  --void-border-strong: #3a3a42;
+  --void-grid: rgba(99, 102, 241, 0.04);
 
   --font-mono: "JetBrains Mono", "Fira Code", "SFMono-Regular", Menlo, monospace;
   --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-  --shadow-glow-cyan: 0 0 24px rgba(34, 211, 238, 0.25);
-  --shadow-glow-purple: 0 0 24px rgba(168, 85, 247, 0.22);
-  --radius-sm: 4px;
+  --shadow-glow-cyan: 0 0 24px rgba(99, 102, 241, 0.25);
+  --shadow-glow-purple: 0 0 24px rgba(139, 92, 246, 0.22);
+  --radius-sm: 8px;
   --radius-md: 8px;
-  --radius-lg: 14px;
+  --radius-lg: 8px;
 }
 
 * {
@@ -62,31 +62,17 @@ body,
 }
 
 body {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 14px;
   color: var(--void-text);
   background-color: var(--void-bg-0);
   background-image:
-    radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.08) 0%, transparent 35%),
-    radial-gradient(circle at 100% 0%, rgba(168, 85, 247, 0.10) 0%, transparent 40%),
-    linear-gradient(180deg, var(--void-bg-0) 0%, var(--void-bg-1) 100%);
+    radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.04) 0%, transparent 35%),
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.04) 0%, transparent 40%);
   background-attachment: fixed;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--void-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--void-grid) 1px, transparent 1px);
-  background-size: 48px 48px;
-  pointer-events: none;
-  z-index: 0;
-  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.7) 0%, transparent 75%);
 }
 
 ::selection {
@@ -100,13 +86,32 @@ a {
 }
 
 a:hover {
-  text-shadow: 0 0 12px var(--void-cyan);
+  color: #818cf8;
 }
 
 input,
 button,
 select,
 textarea {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 14px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--void-bg-0);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--void-border-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4a52;
 }

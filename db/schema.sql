@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS leads (
     competitor_sites    TEXT[]          NOT NULL DEFAULT '{}',
     commercial_score    INTEGER         DEFAULT 0,
     segment             CHAR(1)         DEFAULT 'D',
+    commercial_signals  TEXT[]          NOT NULL DEFAULT '{}',
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     deleted_at          TIMESTAMPTZ,
@@ -344,6 +345,37 @@ CREATE INDEX IF NOT EXISTS idx_proxy_enabled            ON proxy_pool (enabled);
 DROP TRIGGER IF EXISTS trg_proxy_updated_at ON proxy_pool;
 CREATE TRIGGER trg_proxy_updated_at
     BEFORE UPDATE ON proxy_pool
+    FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
+
+-- ============================================================================
+-- TABLA: sender_profile
+-- ----------------------------------------------------------------------------
+-- Perfil del remitente para personalizar cold outreach. Se espera una sola
+-- fila activa (la más reciente por updated_at). El scraper auto-llena
+-- campos desde yoquelvis.dev.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS sender_profile (
+    id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    name                TEXT            NOT NULL,
+    title               TEXT,
+    company             TEXT,
+    website             TEXT            NOT NULL DEFAULT 'https://yoquelvis.dev',
+    bio                 TEXT,
+    services            TEXT[]          NOT NULL DEFAULT '{}',
+    tech_stack          TEXT[]          NOT NULL DEFAULT '{}',
+    tone                TEXT            NOT NULL DEFAULT 'consultivo',
+    email_signature     TEXT            NOT NULL DEFAULT '',
+    is_active           BOOLEAN         NOT NULL DEFAULT TRUE,
+    scraped_at          TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sender_profile_active ON sender_profile (is_active) WHERE is_active = TRUE;
+
+DROP TRIGGER IF EXISTS trg_sender_profile_updated_at ON sender_profile;
+CREATE TRIGGER trg_sender_profile_updated_at
+    BEFORE UPDATE ON sender_profile
     FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
 
 -- ============================================================================

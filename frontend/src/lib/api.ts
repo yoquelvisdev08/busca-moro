@@ -8,6 +8,10 @@ export type LeadStatus =
   | "audited"
   | "enriched"
   | "contacted"
+  | "interested"
+  | "negotiation"
+  | "closed_won"
+  | "closed_lost"
   | "replied"
   | "won"
   | "rejected"
@@ -101,6 +105,23 @@ export interface SalesIntelligence {
   generated_at: string;
 }
 
+export interface SenderProfile {
+  id: string;
+  name: string;
+  title: string | null;
+  company: string | null;
+  website: string;
+  bio: string | null;
+  services: string[];
+  tech_stack: string[];
+  tone: string;
+  email_signature: string;
+  is_active: boolean;
+  scraped_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface LeadDetailResponse {
   lead: Lead;
   latest_audit: Audit | null;
@@ -166,9 +187,34 @@ export const api = {
   getLeadDetail(id: string) {
     return request<LeadDetailResponse>(`/v1/leads/${id}/detail`);
   },
-  sendOutreachEmail(leadId: string) {
+  sendOutreachEmail(leadId: string, subject?: string, body?: string) {
+    const params = new URLSearchParams();
+    params.set("lead_id", leadId);
+    if (subject) params.set("subject", subject);
+    if (body) params.set("body", body);
     return request<{ status: string; message_id: string; outreach_id: string; recipient: string }>(
-      `/v1/outreach/send?lead_id=${leadId}`,
+      `/v1/outreach/send?${params.toString()}`,
+      { method: "POST" }
+    );
+  },
+  getSenderProfile() {
+    return request<SenderProfile | null>("/v1/sender-profile");
+  },
+  createSenderProfile(data: Omit<SenderProfile, "id" | "created_at" | "updated_at" | "scraped_at">) {
+    return request<SenderProfile>("/v1/sender-profile", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+  updateSenderProfile(id: string, data: Partial<Omit<SenderProfile, "id" | "created_at" | "updated_at" | "scraped_at">>) {
+    return request<SenderProfile>(`/v1/sender-profile/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+  scrapeSenderProfile(website?: string) {
+    return request<{ success: boolean; message: string; profile: SenderProfile }>(
+      `/v1/sender-profile/scrape?website=${encodeURIComponent(website || "https://yoquelvis.dev")}`,
       { method: "POST" }
     );
   },

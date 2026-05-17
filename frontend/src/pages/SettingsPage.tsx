@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
   Crosshair,
   Eye,
+  Globe,
   Mail,
   RefreshCw,
   RotateCcw,
@@ -11,11 +12,12 @@ import {
   Search,
   Settings as SettingsIcon,
   TestTube,
+  User,
   Zap,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
-type ConfigSection = "scout" | "auditor" | "closer" | "email" | "sniper" | "system";
+type ConfigSection = "scout" | "auditor" | "closer" | "email" | "sniper" | "sender" | "system";
 
 interface ConfigState {
   scout: {
@@ -158,6 +160,7 @@ export function SettingsPage() {
     { id: "closer", label: "CLOSER", icon: <Zap className="w-4 h-4" /> },
     { id: "email", label: "EMAIL", icon: <Mail className="w-4 h-4" /> },
     { id: "sniper", label: "SNIPER", icon: <Crosshair className="w-4 h-4" /> },
+    { id: "sender", label: "SENDER", icon: <User className="w-4 h-4" /> },
     { id: "system", label: "SYSTEM", icon: <SettingsIcon className="w-4 h-4" /> },
   ];
 
@@ -404,6 +407,8 @@ export function SettingsPage() {
               />
             </ConfigPanel>
           )}
+
+          {activeSection === "sender" && <SenderProfilePanel />}
 
           {activeSection === "system" && (
             <div className="space-y-6">
@@ -714,6 +719,168 @@ function WorkerCard({
   );
 }
 
+function SenderProfilePanel() {
+  const queryClient = useQueryClient();
+
+  const { data: profile } = useQuery({
+    queryKey: ["sender-profile"],
+    queryFn: () => api.getSenderProfile(),
+  });
+
+  const [form, setForm] = useState({
+    name: "",
+    title: "",
+    company: "",
+    website: "https://yoquelvis.dev",
+    bio: "",
+    services: "",
+    tech_stack: "",
+    tone: "consultivo",
+    email_signature: "",
+  });
+
+  // Sync form when profile loads
+  useEffect(() => {
+    if (profile) {
+      setForm({
+        name: profile.name || "",
+        title: profile.title || "",
+        company: profile.company || "",
+        website: profile.website || "https://yoquelvis.dev",
+        bio: profile.bio || "",
+        services: (profile.services || []).join(", "),
+        tech_stack: (profile.tech_stack || []).join(", "),
+        tone: profile.tone || "consultivo",
+        email_signature: profile.email_signature || "",
+      });
+    }
+  }, [profile]);
+
+  const scrapeProfile = useMutation({
+    mutationFn: () => api.scrapeSenderProfile(form.website),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      queryClient.invalidateQueries({ queryKey: ["sender-profile"] });
+    },
+    onError: (e) => toast.error(`Error: ${(e as Error).message}`),
+  });
+
+  const saveProfile = useMutation({
+    mutationFn: () => {
+      const payload = {
+        name: form.name,
+        title: form.title || null,
+        company: form.company || null,
+        website: form.website,
+        bio: form.bio || null,
+        services: form.services.split(",").map((s) => s.trim()).filter(Boolean),
+        tech_stack: form.tech_stack.split(",").map((s) => s.trim()).filter(Boolean),
+        tone: form.tone,
+        email_signature: form.email_signature,
+        is_active: true,
+      };
+      if (profile?.id) {
+        return api.updateSenderProfile(profile.id, payload);
+      }
+      return api.createSenderProfile(payload as any);
+    },
+    onSuccess: () => {
+      toast.success("Perfil guardado correctamente");
+      queryClient.invalidateQueries({ queryKey: ["sender-profile"] });
+    },
+    onError: (e) => toast.error(`Error: ${(e as Error).message}`),
+  });
+
+  const updateField = (field: keyof typeof form, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <div className="space-y-6">
+      <ConfigPanel
+        title="SENDER PROFILE"
+        onSave={() => saveProfile.mutate()}
+      >
+        <div className="flex gap-3 mb-4">
+          <button
+            className="btn"
+            onClick={() => scrapeProfile.mutate()}
+            disabled={scrapeProfile.isPending}
+          >
+            <Globe className="w-4 h-4 mr-1" />
+            {scrapeProfile.isPending ? "Scrapeando..." : "Scrape my website"}
+          </button>
+          {profile?.scraped_at && (
+            <span className="text-xs text-gray-500 font-mono self-center">
+              Último scrape: {new Date(profile.scraped_at).toLocaleString()}
+            </span>
+          )}
+        </div>
+
+        <TextField
+          label="NAME"
+          value={form.name}
+          onChange={(v) => updateField("name", v)}
+        />
+        <TextField
+          label="TITLE"
+          value={form.title}
+          onChange={(v) => updateField("title", v)}
+        />
+        <TextField
+          label="COMPANY"
+          value={form.company}
+          onChange={(v) => updateField("company", v)}
+        />
+        <TextField
+          label="WEBSITE"
+          value={form.website}
+          onChange={(v) => updateField("website", v)}
+        />
+        <div className="field">
+          <label className="field-label">BIO</label>
+          <textarea
+            className="field-input w-full min-h-[80px] resize-y"
+            value={form.bio}
+            onChange={(e) => updateField("bio", e.target.value)}
+            placeholder="Short bio..."
+          />
+        </div>
+        <TextField
+          label="SERVICES (comma separated)"
+          value={form.services}
+          onChange={(v) => updateField("services", v)}
+        />
+        <TextField
+          label="TECH STACK (comma separated)"
+          value={form.tech_stack}
+          onChange={(v) => updateField("tech_stack", v)}
+        />
+        <SelectField
+          label="TONE"
+          value={form.tone}
+          options={[
+            { value: "consultivo", label: "Consultivo" },
+            { value: "directo", label: "Directo" },
+            { value: "tecnico", label: "Técnico" },
+            { value: "agresivo", label: "Agresivo" },
+          ]}
+          onChange={(v) => updateField("tone", v)}
+        />
+        <div className="field">
+          <label className="field-label">EMAIL SIGNATURE</label>
+          <textarea
+            className="field-input w-full min-h-[60px] resize-y"
+            value={form.email_signature}
+            onChange={(e) => updateField("email_signature", e.target.value)}
+            placeholder="--\nYour Name | Title\nwebsite.com"
+          />
+        </div>
+      </ConfigPanel>
+    </div>
+  );
+}
+
 function sectionLabel(id: ConfigSection): string {
   const labels: Record<ConfigSection, string> = {
     scout: "Scout",
@@ -721,6 +888,7 @@ function sectionLabel(id: ConfigSection): string {
     closer: "Closer",
     email: "Email",
     sniper: "Sniper",
+    sender: "Sender",
     system: "System",
   };
   return labels[id];

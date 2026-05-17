@@ -14,7 +14,7 @@ from typing import Any, Optional
 from playwright.async_api import Browser, async_playwright
 
 from auditor.config import Settings
-from auditor.content_analyzer import ContentAnalysis, analyze_content
+from auditor.content_analyzer import ContentAnalysis, analyze_content, to_dict as content_to_dict
 from auditor.extractors.contacts import extract_emails, extract_phones, extract_socials
 from auditor.lighthouse.runner import LighthouseReport, run_lighthouse
 from auditor.stealth.browser import apply_stealth, new_stealth_context
@@ -179,7 +179,7 @@ class Auditor:
             error_message=combined_error,
             started_at=started,
             finished_at=finished,
-            content_analysis=content_analysis.to_dict() if content_analysis else None,
+            content_analysis=content_to_dict(content_analysis) if content_analysis else None,
         )
 
     async def _capture_above_the_fold(self, page, lead_id: str) -> Optional[str]:

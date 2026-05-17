@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -19,6 +19,11 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  Edit3,
+  Eye,
+  Send,
+  User,
+  Link,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -503,9 +508,37 @@ function IntelligenceTab({ intel, allIntel }: any) {
 
 function OutreachTab({ lead }: any) {
   const queryClient = useQueryClient();
+  const [isPreview, setIsPreview] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+
+  // Fetch lead detail for intel
+  const { data: detail } = useQuery({
+    queryKey: ["lead-detail", lead.id],
+    queryFn: () => api.getLeadDetail(lead.id),
+    enabled: !!lead.id,
+  });
+
+  // Fetch sender profile
+  const { data: senderProfile } = useQuery({
+    queryKey: ["sender-profile"],
+    queryFn: () => api.getSenderProfile(),
+  });
+
+  const intel = detail?.sales_intelligence?.[0];
+
+  // Initialize subject/body from intel when available
+  useEffect(() => {
+    if (intel?.cold_email_subject && !subject) {
+      setSubject(intel.cold_email_subject);
+    }
+    if (intel?.cold_email_body && !body) {
+      setBody(intel.cold_email_body);
+    }
+  }, [intel]);
 
   const sendEmail = useMutation({
-    mutationFn: () => api.sendOutreachEmail(lead.id),
+    mutationFn: () => api.sendOutreachEmail(lead.id, subject, body),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["lead-detail", lead.id] });
       toast.success(`Email enviado a ${data.recipient}`);
@@ -513,17 +546,62 @@ function OutreachTab({ lead }: any) {
     onError: (e) => toast.error(`Error: ${(e as Error).message}`),
   });
 
+  const hasIntel = !!intel?.cold_email_subject;
+
   return (
     <div className="space-y-6">
+      {/* Sender Profile Info */}
+      {senderProfile && (
+        <div className="p-4 rounded border border-void-cyan-30 bg-void-cyan-5">
+          <div className="flex items-center gap-2 mb-2">
+            <User className="w-4 h-4 text-void-cyan" />
+            <span className="text-xs font-mono text-void-cyan">SENDER PROFILE</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="font-mono text-void-text">{senderProfile.name}</span>
+            {senderProfile.title && (
+              <span className="text-gray-400">· {senderProfile.title}</span>
+            )}
+            <a
+              href={senderProfile.website}
+              target="_blank"
+              rel="noreferrer"
+              className="text-void-cyan hover-underline flex items-center gap-1 text-xs"
+            >
+              <Link className="w-3 h-3" />
+              {senderProfile.website}
+            </a>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-mono text-void-cyan">OUTREACH MANAGER</h3>
-        <button
-          className="btn"
-          onClick={() => sendEmail.mutate()}
-          disabled={sendEmail.isPending}
-        >
-          {sendEmail.isPending ? "Enviando..." : "Enviar Cold Email"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="btn ghost"
+            onClick={() => setIsPreview(!isPreview)}
+            disabled={sendEmail.isPending}
+          >
+            {isPreview ? (
+              <>
+                <Edit3 className="w-4 h-4 mr-1" /> Editar
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4 mr-1" /> Preview
+              </>
+            )}
+          </button>
+          <button
+            className="btn"
+            onClick={() => sendEmail.mutate()}
+            disabled={sendEmail.isPending || !subject || !body}
+          >
+            <Send className="w-4 h-4 mr-1" />
+            {sendEmail.isPending ? "Enviando..." : "Send"}
+          </button>
+        </div>
       </div>
 
       {/* Status cards */}
@@ -539,6 +617,49 @@ function OutreachTab({ lead }: any) {
           </div>
         </div>
       </div>
+
+      {/* Email Editor / Preview */}
+      {hasIntel ? (
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-mono text-gray-400 mb-2 block">SUBJECT</label>
+            {isPreview ? (
+              <div className="p-3 rounded border border-void-border bg-void-bg font-mono text-sm">
+                {subject || intel.cold_email_subject}
+              </div>
+            ) : (
+              <input
+                type="text"
+                className="field-input w-full"
+                value={subject || intel.cold_email_subject || ""}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Email subject..."
+              />
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-mono text-gray-400 mb-2 block">BODY</label>
+            {isPreview ? (
+              <div className="p-4 rounded border border-void-border bg-void-bg">
+                <pre className="text-sm font-mono whitespace-pre-wrap text-void-text">
+                  {body || intel.cold_email_body}
+                </pre>
+              </div>
+            ) : (
+              <textarea
+                className="field-input w-full min-h-[240px] resize-y"
+                value={body || intel.cold_email_body || ""}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Email body..."
+              />
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="text-gray-500 font-mono text-sm">
+          Sin inteligencia de ventas disponible. Ejecutá el Closer primero para generar el cold email.
+        </div>
+      )}
 
       {/* Email history placeholder */}
       <div>

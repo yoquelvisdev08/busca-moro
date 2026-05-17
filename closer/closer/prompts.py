@@ -52,10 +52,21 @@ Reglas estrictas:
 - Máximo 130 palabras en el cuerpo. Sin emojis. Sin clichés ("¿cómo estás?",
   "espero que esto te encuentre bien").
 - No inventes precios ni promesas.
+- IMPORTANTE: En el email debes presentarte como el remitente descrito abajo.
+  Menciona tu nombre, tu expertise y enlaza a tu sitio web.
 """
 
 
 COLD_EMAIL_USER = """Escribe un cold email para el dueño de {company} (sitio {url}).
+
+Sobre el remitente (vos):
+- Nombre: {sender_name}
+- Título: {sender_title}
+- Sitio web: {sender_website}
+- Bio: {sender_bio}
+- Servicios: {sender_services}
+- Stack técnico: {sender_tech_stack}
+- Firma: {sender_signature}
 
 Pain points priorizados:
 {pain_points}

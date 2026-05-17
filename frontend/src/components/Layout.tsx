@@ -3,6 +3,7 @@ import { NavLink, Outlet } from "react-router-dom";
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", glyph: "::" },
   { to: "/leads", label: "Leads", glyph: ">_" },
+  { to: "/pipeline", label: "Pipeline", glyph: "▦" },
   { to: "/sniper", label: "Sniper", glyph: "[!]" },
   { to: "/settings", label: "Settings", glyph: "⚙" },
 ];

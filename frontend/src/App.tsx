@@ -4,6 +4,7 @@ import { Layout } from "@/components/Layout";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LeadDetailPage } from "@/pages/LeadDetailPage";
 import { LeadsPage } from "@/pages/LeadsPage";
+import { PipelinePage } from "@/pages/PipelinePage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { SniperPage } from "@/pages/SniperPage";
 
@@ -15,6 +16,7 @@ export function App() {
           <Route index element={<DashboardPage />} />
           <Route path="leads" element={<LeadsPage />} />
           <Route path="leads/:id" element={<LeadDetailPage />} />
+          <Route path="pipeline" element={<PipelinePage />} />
           <Route path="sniper" element={<SniperPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

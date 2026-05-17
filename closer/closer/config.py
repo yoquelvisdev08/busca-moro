@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     tone: str = Field(default="consultivo", alias="CLOSER_EMAIL_TONE")
     language: str = Field(default="es", alias="CLOSER_LANGUAGE")
 
+    sender_profile_url: str = Field(default="", alias="SENDER_PROFILE_URL")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

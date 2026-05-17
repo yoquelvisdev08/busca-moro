@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     email_from: str = Field(default="outreach@siphonx.dev", alias="EMAIL_FROM")
     email_from_name: str = Field(default="SIPHON-X Outreach", alias="EMAIL_FROM_NAME")
 
+    sender_profile_website: str = Field(default="https://yoquelvis.dev", alias="SENDER_PROFILE_WEBSITE")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

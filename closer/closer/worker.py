@@ -123,7 +123,12 @@ class CloserWorker:
                 log.warning("audit_not_found", extra={"lead_id": lead_id})
                 audit = {}
 
-            intel = await self._engine.generate(lead=lead, audit=audit)
+            # Fetch active sender profile
+            sender_profile = await self._api.get_sender_profile()
+
+            intel = await self._engine.generate(
+                lead=lead, audit=audit, sender_profile=sender_profile
+            )
 
             payload = {
                 "lead_id": str(lead_id),
