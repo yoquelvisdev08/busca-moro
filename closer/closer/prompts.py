@@ -103,6 +103,7 @@ Reglas estrictas:
   cuantitativo, CTA para una llamada de 15 min con agenda de valor.
 - Máximo 130 palabras. Sin emojis. Sin clichés.
 - No inventas precios ni promesas.
+- Preséntate con tu nombre y menciona tu sitio web en el cuerpo del email.
 """
 
 
@@ -120,6 +121,7 @@ Reglas estrictas:
   credibilidad, CTA blando para reunión de 15 minutos.
 - Máximo 130 palabras. Sin emojis. Sin clichés.
 - No inventas precios ni promesas.
+- Preséntate con tu nombre y menciona tu sitio web en el cuerpo del email.
 """
 
 
@@ -135,6 +137,7 @@ Reglas estrictas:
   2-3 frases de tranquilidad (lo resolvemos por vos), CTA blando.
 - Máximo 130 palabras. Sin emojis. Sin clichés.
 - No inventas precios ni promesas.
+- Preséntate con tu nombre y menciona tu sitio web en el cuerpo del email.
 """
 
 
@@ -150,6 +153,7 @@ Reglas estrictas:
   CTA para enviar el informe por email.
 - Máximo 130 palabras. Sin emojis. Sin clichés.
 - No inventas precios ni promesas.
+- Preséntate con tu nombre y menciona tu sitio web en el cuerpo del email.
 """
 
 
