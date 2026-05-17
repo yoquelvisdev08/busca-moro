@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Minus, Play, X } from "lucide-react";
+import toast from "react-hot-toast";
 
 import { api, type Lead, type QueueDepths } from "@/lib/api";
 
@@ -9,6 +10,12 @@ interface DashboardState {
   leads: Lead[];
   loading: boolean;
   error: string | null;
+}
+
+interface DiscoveryForm {
+  industry: string;
+  location: string;
+  numDorks: number;
 }
 
 function getGreeting() {
@@ -46,6 +53,13 @@ export function DashboardPage() {
     loading: true,
     error: null,
   });
+  const [showModal, setShowModal] = useState(false);
+  const [discoveryRunning, setDiscoveryRunning] = useState(false);
+  const [form, setForm] = useState<DiscoveryForm>({
+    industry: "",
+    location: "",
+    numDorks: 15,
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +86,40 @@ export function DashboardPage() {
     };
   }, []);
 
+  const handleStartDiscovery = async () => {
+    if (!form.industry.trim()) {
+      toast.error("Enter a business type to search for");
+      return;
+    }
+
+    setDiscoveryRunning(true);
+    toast.loading("Generating AI dorks...");
+
+    try {
+      const result = await api.startDiscovery({
+        industry: form.industry,
+        location: form.location,
+        numDorks: form.numDorks,
+      });
+
+      toast.dismiss();
+      toast.success(result.message);
+      setShowModal(false);
+
+      // Refresh data
+      const [queues, leads] = await Promise.all([
+        api.getQueueDepths(),
+        api.listLeads({ limit: 10 }),
+      ]);
+      setState({ queues, leads: leads.items, loading: false, error: null });
+    } catch (err) {
+      toast.dismiss();
+      toast.error(`Failed: ${(err as Error).message}`);
+    } finally {
+      setDiscoveryRunning(false);
+    }
+  };
+
   const totalLeads = state.leads.length;
   const contactedCount = state.leads.filter((l) => l.status === "contacted").length;
   const enrichedCount = state.leads.filter(
@@ -80,12 +128,22 @@ export function DashboardPage() {
 
   return (
     <section>
-      {/* Greeting */}
-      <div className="mb-6">
-        <h2 className="page-title" style={{ marginBottom: 4 }}>
-          {getGreeting()}, Operator
-        </h2>
-        <p className="text-gray-400 text-sm">{formatDate()}</p>
+      {/* Greeting + Start Discovery */}
+      <div className="dashboard-header">
+        <div>
+          <h2 className="page-title" style={{ marginBottom: 4 }}>
+            {getGreeting()}, Operator
+          </h2>
+          <p className="text-gray-400 text-sm">{formatDate()}</p>
+        </div>
+        <button
+          className="btn primary-lg"
+          onClick={() => setShowModal(true)}
+          disabled={discoveryRunning}
+        >
+          <Play className="w-4 h-4" />
+          {discoveryRunning ? "Running..." : "Start Discovery"}
+        </button>
       </div>
 
       {/* Stats Grid */}
@@ -129,8 +187,7 @@ export function DashboardPage() {
             <div className="empty">{state.error}</div>
           ) : state.leads.length === 0 ? (
             <div className="empty">
-              No leads yet. Start the Scout or add a lead via{" "}
-              <code>POST /v1/leads</code>.
+              No leads yet. Click <strong>"Start Discovery"</strong> to find your first leads.
             </div>
           ) : (
             <table className="console">
@@ -176,6 +233,73 @@ export function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* Discovery Modal */}
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Start Discovery</h3>
+              <button className="modal-close" onClick={() => setShowModal(false)}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="field">
+                <label className="field-label">What type of business?</label>
+                <input
+                  className="field-input"
+                  type="text"
+                  placeholder="e.g. dental clinics, law firms, restaurants"
+                  value={form.industry}
+                  onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                  autoFocus
+                />
+              </div>
+              <div className="field">
+                <label className="field-label">Location (optional)</label>
+                <input
+                  className="field-input"
+                  type="text"
+                  placeholder="e.g. Madrid, Spain"
+                  value={form.location}
+                  onChange={(e) => setForm({ ...form, location: e.target.value })}
+                />
+              </div>
+              <div className="field">
+                <label className="field-label">Number of searches</label>
+                <select
+                  className="field-input field-select"
+                  value={form.numDorks}
+                  onChange={(e) => setForm({ ...form, numDorks: Number(e.target.value) })}
+                >
+                  <option value={10}>10 (quick)</option>
+                  <option value={15}>15 (recommended)</option>
+                  <option value={20}>20 (thorough)</option>
+                  <option value={30}>30 (aggressive)</option>
+                </select>
+              </div>
+              <p className="modal-hint">
+                AI will generate targeted Google searches to find websites that need improvement.
+                The Scout will start immediately.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn ghost" onClick={() => setShowModal(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn primary-lg"
+                onClick={handleStartDiscovery}
+                disabled={discoveryRunning || !form.industry.trim()}
+              >
+                <Play className="w-4 h-4" />
+                {discoveryRunning ? "Generating..." : "Start"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

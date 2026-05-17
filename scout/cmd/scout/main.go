@@ -72,7 +72,7 @@ func run() error {
 	pass := 0
 	for {
 		pass++
-		if err := singlePass(ctx, logger.With("pass", pass), cfg, rotator); err != nil {
+		if err := singlePass(ctx, logger.With("pass", pass), cfg, rotator, q); err != nil {
 			if errors.Is(err, context.Canceled) {
 				logger.Info("scout stopped by signal")
 				return nil
@@ -86,10 +86,23 @@ func run() error {
 		}
 
 		logger.Info("sleeping until next pass", "interval", cfg.LoopInterval.String())
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-time.After(cfg.LoopInterval):
+		// Check for start signal every 5 seconds during sleep
+		started := time.Now()
+		signaled := false
+		for time.Since(started) < cfg.LoopInterval {
+			if checkStartSignal(q, cfg) {
+				logger.Info("start signal detected, running immediately")
+				signaled = true
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(5 * time.Second):
+			}
+		}
+		if signaled {
+			continue
 		}
 	}
 }
@@ -101,6 +114,7 @@ func singlePass(
 	logger *slog.Logger,
 	cfg *config.Config,
 	rotator *proxy.Rotator,
+	q *queue.Client,
 ) error {
 	seeds, err := discovery.LoadSeeds(cfg.TargetsFile)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -110,6 +124,14 @@ func singlePass(
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		logger.Warn("dorks_load_failed", "err", err)
 	}
+
+	// Also load dorks from Redis (AI-generated)
+	redisDorks := loadRedisDorks(q, cfg.QueueDiscovery)
+	if len(redisDorks) > 0 {
+		logger.Info("redis_dorks_loaded", "count", len(redisDorks))
+		dorks = append(dorks, redisDorks...)
+	}
+
 	logger.Info("pass_start", "seeds", len(seeds), "dorks", len(dorks))
 
 	candidates := make(chan discovery.Candidate, cfg.Concurrency*4)
@@ -301,4 +323,37 @@ func postLead(ctx context.Context, client *http.Client, apiBase string, payload 
 		return fmt.Errorf("api status %d: %s", resp.StatusCode, string(buf))
 	}
 	return nil
+}
+
+// checkStartSignal verifica si hay un signal de arranque inmediato en Redis.
+func checkStartSignal(q *queue.Client, cfg *config.Config) bool {
+	val, err := q.Get("siphon:signal:start")
+	if err != nil {
+		return false
+	}
+	if val == "1" {
+		q.Delete("siphon:signal:start")
+		return true
+	}
+	return false
+}
+
+// loadRedisDorks lee dorks generados por IA desde la cola de discovery.
+func loadRedisDorks(q *queue.Client, queueKey string) []string {
+	var dorks []string
+	for {
+		msg, err := q.LPop(queueKey)
+		if err != nil {
+			break // cola vacía
+		}
+		// Parse JSON message
+		var dorkMsg struct {
+			Type  string `json:"type"`
+			Query string `json:"query"`
+		}
+		if err := json.Unmarshal([]byte(msg), &dorkMsg); err == nil && dorkMsg.Query != "" {
+			dorks = append(dorks, dorkMsg.Query)
+		}
+	}
+	return dorks
 }

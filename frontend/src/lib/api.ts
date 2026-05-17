@@ -218,4 +218,14 @@ export const api = {
       { method: "POST" }
     );
   },
+  startDiscovery(params: { industry: string; location?: string; numDorks?: number }) {
+    const search = new URLSearchParams();
+    search.set("industry", params.industry);
+    if (params.location) search.set("location", params.location);
+    if (params.numDorks) search.set("num_dorks", String(params.numDorks));
+    return request<{ success: boolean; dorks_generated: number; message: string }>(
+      `/v1/scout/start?${search.toString()}`,
+      { method: "POST" }
+    );
+  },
 };

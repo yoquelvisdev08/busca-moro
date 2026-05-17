@@ -49,3 +49,18 @@ func (c *Client) Push(ctx context.Context, queue string, payload any) error {
 func (c *Client) Length(ctx context.Context, queue string) (int64, error) {
 	return c.rdb.LLen(ctx, queue).Result()
 }
+
+// Get obtiene un valor de Redis por clave.
+func (c *Client) Get(key string) (string, error) {
+	return c.rdb.Get(context.Background(), key).Result()
+}
+
+// Delete elimina una clave de Redis.
+func (c *Client) Delete(key string) error {
+	return c.rdb.Del(context.Background(), key).Err()
+}
+
+// LPop saca y retorna el primer elemento de una lista.
+func (c *Client) LPop(queue string) (string, error) {
+	return c.rdb.LPop(context.Background(), queue).Result()
+}

@@ -52,6 +52,11 @@ class Settings(BaseSettings):
 
     sender_profile_website: str = Field(default="https://yoquelvis.dev", alias="SENDER_PROFILE_WEBSITE")
 
+    # LLM settings (for Scout dork generation)
+    llm_base_url: str = Field(default="https://api.deepseek.com", alias="LLM_BASE_URL")
+    llm_api_key: str = Field(default="", alias="LLM_API_KEY")
+    llm_model: str = Field(default="deepseek-chat", alias="LLM_MODEL")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
