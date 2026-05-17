@@ -141,6 +141,149 @@
   background: var(--void-cyan);
 }
 
+/* ── Stat Cards (Dashboard) ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.stat-card {
+  padding: 20px;
+  border: 1px solid var(--void-border);
+  border-radius: var(--radius-md);
+  background: var(--void-panel);
+}
+
+.stat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--void-text-dim);
+  letter-spacing: 0.02em;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* ── Score Badge ── */
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--void-cyan);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* ── Segment Pills ── */
+.segment-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.segment-pill.segment-A {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.segment-pill.segment-B {
+  background: rgba(249, 115, 22, 0.1);
+  color: #fb923c;
+  border: 1px solid rgba(249, 115, 22, 0.2);
+}
+
+.segment-pill.segment-C {
+  background: rgba(245, 158, 11, 0.1);
+  color: #facc15;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.segment-pill.segment-D {
+  background: rgba(107, 114, 128, 0.1);
+  color: #9ca3af;
+  border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+/* ── Status Badges ── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-badge::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-badge.status-info {
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+}
+
+.status-badge.status-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.status-badge.status-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.status-badge.status-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.status-badge.status-default {
+  background: rgba(107, 114, 128, 0.1);
+  color: #9ca3af;
+}
+
+/* ── Domain Link ── */
+.domain-link {
+  color: var(--void-text);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.domain-link:hover {
+  color: var(--void-cyan);
+}
+
 /* ── Cards ── */
 .cards {
   display: grid;
