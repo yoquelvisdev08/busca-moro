@@ -76,12 +76,13 @@ class IntelligenceEngine:
         pain_points = self._normalize_pain_points(pain_payload.get("pain_points", []))
 
         segment = lead.get("segment") or "D"
+        sp = sender_profile or {}
         system_prompt = segment_system_prompt(segment).format(
             tone=self._settings.tone,
             language=self._settings.language,
+            sender_name=sp.get("name") or "Yoquelvis",
+            sender_website=sp.get("website") or "https://yoquelvis.dev",
         )
-
-        sp = sender_profile or {}
         email_user = COLD_EMAIL_USER.format(
             company=lead.get("company_name") or self._infer_company(lead),
             url=lead.get("url", ""),
