@@ -2,14 +2,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { LayoutGrid, ChevronDown } from "lucide-react";
+import { LayoutGrid, MoreVertical, ArrowRight, Check, X } from "lucide-react";
 
 import { api, type Lead, type LeadStatus } from "@/lib/api";
 
-const COLUMNS: { id: PipelineColumn; label: string; statuses: LeadStatus[] }[] = [
-  { id: "discovery", label: "Discovery", statuses: ["queued", "enriched", "new"] },
-  { id: "contacted", label: "Contacted", statuses: ["contacted"] },
-  { id: "interested", label: "Interested", statuses: ["interested"] },
+const COLUMNS: { id: PipelineColumn; label: string; statuses: LeadStatus[]; nextStatus?: LeadStatus }[] = [
+  { id: "discovery", label: "Discovery", statuses: ["queued", "enriched", "new"], nextStatus: "contacted" },
+  { id: "contacted", label: "Contacted", statuses: ["contacted"], nextStatus: "interested" },
+  { id: "interested", label: "Interested", statuses: ["interested"], nextStatus: "negotiation" },
   { id: "negotiation", label: "Negotiation", statuses: ["negotiation"] },
   { id: "closed", label: "Closed", statuses: ["closed_won", "closed_lost"] },
 ];
@@ -37,19 +37,9 @@ function segmentClass(segment: string | null) {
 }
 
 function formatActivity(lead: Lead) {
-  if (lead.contacted_at) {
-    const date = new Date(lead.contacted_at);
-    const ago = timeAgo(date);
-    return `Contacted ${ago}`;
-  }
-  if (lead.audited_at) {
-    const date = new Date(lead.audited_at);
-    const ago = timeAgo(date);
-    return `Audited ${ago}`;
-  }
-  const date = new Date(lead.discovered_at);
-  const ago = timeAgo(date);
-  return `Discovered ${ago}`;
+  if (lead.contacted_at) return `Contacted ${timeAgo(new Date(lead.contacted_at))}`;
+  if (lead.audited_at) return `Audited ${timeAgo(new Date(lead.audited_at))}`;
+  return `Discovered ${timeAgo(new Date(lead.discovered_at))}`;
 }
 
 function timeAgo(date: Date): string {
@@ -68,6 +58,7 @@ export function PipelinePage() {
   const queryClient = useQueryClient();
   const [segmentFilter, setSegmentFilter] = useState<string>("all");
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["pipeline-leads"],
@@ -80,12 +71,12 @@ export function PipelinePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pipeline-leads"] });
       toast.success("Lead moved");
+      setOpenMenu(null);
     },
     onError: (e) => toast.error(`Error: ${(e as Error).message}`),
   });
 
   const leads = data?.items ?? [];
-
   const filteredLeads = segmentFilter === "all"
     ? leads
     : leads.filter((l) => l.segment === segmentFilter);
@@ -106,35 +97,26 @@ export function PipelinePage() {
   const handleDrop = (e: React.DragEvent, columnId: PipelineColumn) => {
     e.preventDefault();
     if (!draggedLead) return;
-
     const targetStatuses = COLUMNS.find((c) => c.id === columnId)?.statuses ?? [];
     if (targetStatuses.length > 0 && !targetStatuses.includes(draggedLead.status)) {
-      // Move to the first status of the target column
-      updateStatus.mutate({
-        leadId: draggedLead.id,
-        status: targetStatuses[0],
-      });
+      updateStatus.mutate({ leadId: draggedLead.id, status: targetStatuses[0] });
     }
     setDraggedLead(null);
   };
 
-  if (isLoading) {
-    return (
-      <section>
-        <h2 className="page-title">Pipeline</h2>
-        <div className="empty">Loading pipeline...</div>
-      </section>
-    );
-  }
+  const moveToNext = (lead: Lead, columnId: PipelineColumn) => {
+    const col = COLUMNS.find((c) => c.id === columnId);
+    if (col?.nextStatus) {
+      updateStatus.mutate({ leadId: lead.id, status: col.nextStatus });
+    }
+  };
 
-  if (error) {
-    return (
-      <section>
-        <h2 className="page-title">Pipeline</h2>
-        <div className="empty">Error: {(error as Error).message}</div>
-      </section>
-    );
-  }
+  const markClosed = (lead: Lead, won: boolean) => {
+    updateStatus.mutate({ leadId: lead.id, status: won ? "closed_won" : "closed_lost" });
+  };
+
+  if (isLoading) return <section><h2 className="page-title">Pipeline</h2><div className="empty">Loading...</div></section>;
+  if (error) return <section><h2 className="page-title">Pipeline</h2><div className="empty">Error: {(error as Error).message}</div></section>;
 
   return (
     <section>
@@ -145,29 +127,16 @@ export function PipelinePage() {
         </h2>
         <div className="pipeline-filter">
           <label>Segment</label>
-          <div style={{ position: "relative" }}>
-            <select
-              value={segmentFilter}
-              onChange={(e) => setSegmentFilter(e.target.value)}
-            >
-              {SEGMENTS.map((s) => (
-                <option key={s} value={s}>
-                  {s === "all" ? "All segments" : `Segment ${s}`}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              className="w-3 h-3"
-              style={{
-                position: "absolute",
-                right: "8px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                pointerEvents: "none",
-                color: "var(--void-text-dim)",
-              }}
-            />
-          </div>
+          <select
+            value={segmentFilter}
+            onChange={(e) => setSegmentFilter(e.target.value)}
+          >
+            {SEGMENTS.map((s) => (
+              <option key={s} value={s}>
+                {s === "all" ? "All segments" : `Segment ${s}`}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -192,9 +161,66 @@ export function PipelinePage() {
                     className={`kanban-card ${draggedLead?.id === lead.id ? "dragging" : ""}`}
                     draggable
                     onDragStart={() => handleDragStart(lead)}
-                    onClick={() => navigate(`/leads/${lead.id}`)}
                   >
-                    <div className="kanban-card-domain">{lead.normalized_domain}</div>
+                    <div className="kanban-card-top">
+                      <div
+                        className="kanban-card-domain"
+                        onClick={() => navigate(`/leads/${lead.id}`)}
+                      >
+                        {lead.normalized_domain}
+                      </div>
+                      <div className="kanban-card-menu">
+                        <button
+                          className="kanban-menu-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenu(openMenu === lead.id ? null : lead.id);
+                          }}
+                        >
+                          <MoreVertical className="w-3 h-3" />
+                        </button>
+                        {openMenu === lead.id && (
+                          <div className="kanban-menu-dropdown">
+                            {column.nextStatus && (
+                              <button
+                                className="kanban-menu-item"
+                                onClick={() => moveToNext(lead, column.id)}
+                              >
+                                <ArrowRight className="w-3 h-3" />
+                                Move to {COLUMNS.find(c => c.nextStatus === column.nextStatus)?.label ?? column.nextStatus}
+                              </button>
+                            )}
+                            {column.id === "negotiation" && (
+                              <>
+                                <button
+                                  className="kanban-menu-item success"
+                                  onClick={() => markClosed(lead, true)}
+                                >
+                                  <Check className="w-3 h-3" />
+                                  Mark as Won
+                                </button>
+                                <button
+                                  className="kanban-menu-item danger"
+                                  onClick={() => markClosed(lead, false)}
+                                >
+                                  <X className="w-3 h-3" />
+                                  Mark as Lost
+                                </button>
+                              </>
+                            )}
+                            <button
+                              className="kanban-menu-item"
+                              onClick={() => {
+                                navigate(`/leads/${lead.id}`);
+                                setOpenMenu(null);
+                              }}
+                            >
+                              View Details
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <div className="kanban-card-company">
                       {lead.company_name ?? "—"}
                     </div>
@@ -202,9 +228,7 @@ export function PipelinePage() {
                       <span className={`badge ${segmentClass(lead.segment)}`}>
                         {lead.segment ?? "D"}
                       </span>
-                      <span className="badge" style={{ fontFamily: "var(--font-mono)" }}>
-                        {lead.score}
-                      </span>
+                      <span className="score-badge">{lead.score}</span>
                       <span
                         className={`status-dot ${statusDot(lead.status)}`}
                         title={lead.status}

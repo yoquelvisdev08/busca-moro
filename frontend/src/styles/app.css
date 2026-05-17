@@ -945,13 +945,6 @@ table.console tbody tr:hover {
   border-color: var(--void-cyan);
 }
 
-.kanban-card-domain {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--void-text-strong);
-  margin-bottom: 4px;
-}
-
 .kanban-card-company {
   font-size: 12px;
   color: var(--void-text-dim);
@@ -1030,4 +1023,90 @@ table.console tbody tr:hover {
   outline: none;
   border-color: var(--void-cyan);
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
+/* Kanban card menu */
+.kanban-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kanban-card-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.kanban-menu-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--void-text-dim);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.kanban-menu-btn:hover {
+  color: var(--void-text);
+  background: var(--void-surface);
+}
+
+.kanban-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 100;
+  background: var(--void-panel);
+  border: 1px solid var(--void-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.kanban-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--void-text);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  border-radius: 4px;
+  transition: background 0.1s;
+  text-align: left;
+}
+
+.kanban-menu-item:hover {
+  background: var(--void-surface);
+}
+
+.kanban-menu-item.success {
+  color: var(--void-success);
+}
+
+.kanban-menu-item.danger {
+  color: var(--void-danger);
+}
+
+.kanban-card-domain {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--void-text-strong);
+  cursor: pointer;
+  transition: color 0.15s;
+  flex: 1;
+}
+
+.kanban-card-domain:hover {
+  color: var(--void-cyan);
 }
