@@ -6,6 +6,7 @@ import { Toaster } from "react-hot-toast";
 import { App } from "@/App";
 import { queryClient } from "@/lib/query";
 import "@/lib/version";
+import "@/styles/theme.css";
 import "@/styles/globals.css";
 import "@/styles/app.css";
 

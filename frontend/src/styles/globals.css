@@ -1,92 +1,4 @@
-/* ═══════════════════════════════════════════════════════
-   SIPHON-X Design System (Stitch-aligned)
-   Background: #15121b | Surface: #211e27 | Border: #494454
-   Primary: #8b5cf6 | Text: #e7e0ed | TextMuted: #cbc3d7
-   Font: Inter | Radius-sm: 4px | Radius-md: 8px
-   No shadows — tonal layering + borders for depth
-   ═══════════════════════════════════════════════════════ */
-
-:root {
-  color-scheme: dark;
-
-  /* Core Palette */
-  --sx-bg: #15121b;
-  --sx-bg-lower: #0f0d15;
-  --sx-surface: #211e27;
-  --sx-surface-high: #2c2832;
-  --sx-surface-highest: #37333d;
-
-  --sx-primary: #d0bcff;
-  --sx-primary-container: #8b5cf6;
-  --sx-primary-soft: rgba(139, 92, 246, 0.12);
-  --sx-primary-glow: rgba(139, 92, 246, 0.25);
-
-  --sx-secondary: #ccbeff;
-  --sx-secondary-container: #4a3d7c;
-
-  --sx-tertiary: #ffb869;
-  --sx-tertiary-container: #ca801e;
-
-  --sx-text: #e7e0ed;
-  --sx-text-secondary: #cbc3d7;
-  --sx-text-muted: #958ea0;
-  --sx-text-dim: #6b6b75;
-
-  --sx-border: #494454;
-  --sx-border-subtle: #37333d;
-  --sx-border-strong: #5a5466;
-
-  --sx-success: #10b981;
-  --sx-warning: #f59e0b;
-  --sx-danger: #ef4444;
-  --sx-info: #6366f1;
-
-  /* Legacy aliases for compatibility */
-  --void-bg-0: #15121b;
-  --void-bg-1: #1d1a23;
-  --void-bg-2: #211e27;
-  --void-surface: #211e27;
-  --void-surface-high: #2c2832;
-  --void-panel: #211e27;
-
-  --void-cyan: #8b5cf6;
-  --void-cyan-soft: rgba(139, 92, 246, 0.18);
-  --void-cyan-glow: rgba(139, 92, 246, 0.3);
-  --void-purple: #a78bfa;
-  --void-purple-soft: rgba(167, 139, 250, 0.18);
-  --void-purple-glow: rgba(167, 139, 250, 0.3);
-  --void-accent: #8b5cf6;
-
-  --void-green: #10b981;
-  --void-green-glow: rgba(16, 185, 129, 0.3);
-  --void-red: #ef4444;
-  --void-red-glow: rgba(239, 68, 68, 0.3);
-  --void-yellow: #f59e0b;
-  --void-orange: #f97316;
-
-  --void-text: #e7e0ed;
-  --void-text-dim: #958ea0;
-  --void-text-muted: #6b6b75;
-  --void-text-strong: #ffffff;
-
-  --void-success: #10b981;
-  --void-warning: #f59e0b;
-  --void-danger: #ef4444;
-
-  --void-border: #494454;
-  --void-border-strong: #5a5466;
-  --void-grid: rgba(139, 92, 246, 0.04);
-
-  --font-mono: "JetBrains Mono", "Fira Code", "SFMono-Regular", Menlo, monospace;
-  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-
-  --shadow-glow-cyan: 0 0 24px rgba(139, 92, 246, 0.25);
-  --shadow-glow-purple: 0 0 24px rgba(167, 139, 250, 0.22);
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 8px;
-}
+/* SIPHON-X Global Styles */
 
 * {
   box-sizing: border-box;
@@ -136,7 +48,7 @@ textarea {
   font-size: 14px;
 }
 
-/* Scrollbar styling */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

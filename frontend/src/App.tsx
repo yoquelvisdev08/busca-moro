@@ -7,6 +7,7 @@ import { DiscoverPage } from "@/pages/DiscoverPage";
 import { LeadDetailPage } from "@/pages/LeadDetailPage";
 import { LeadsPage } from "@/pages/LeadsPage";
 import { MonitorPage } from "@/pages/MonitorPage";
+import { ReportsPage } from "@/pages/ReportsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 
 export function App() {
@@ -19,6 +20,7 @@ export function App() {
           <Route path="leads" element={<LeadsPage />} />
           <Route path="leads/:id" element={<LeadDetailPage />} />
           <Route path="campaigns" element={<CampaignsPage />} />
+          <Route path="reports" element={<ReportsPage />} />
           <Route path="monitor" element={<MonitorPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

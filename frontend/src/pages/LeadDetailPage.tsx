@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
   ArrowLeft,
@@ -8,257 +7,288 @@ import {
   Shield,
   Smartphone,
   Gauge,
-  Mail,
-  Phone,
-  Globe,
-  BarChart3,
   FileText,
-  MessageSquare,
-  Clock,
-  Sparkles,
-  AlertTriangle,
   CheckCircle,
   XCircle,
-  Edit3,
-  Eye,
+  Sparkles,
   Send,
-  User,
-  Link,
+  Clock,
+  Download,
+  RefreshCw,
+  Eye,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import {
+  useLead,
+  useFollowUps,
+  useReports,
+  useSendOutreachMutation,
+  useTriggerAuditMutation,
+  useTriggerCloserMutation,
+  useGenerateReportMutation,
+  useScheduleFollowUpMutation,
+  useCancelAllFollowUpsMutation,
+  useOutreach,
+} from "@/lib/hooks";
+import type { Lead, Audit, SalesIntelligence, FollowUpRead, ReportRead, OutreachMessage } from "@/lib/api";
+import { Card, CardHeader, CardBody } from "@/design-system/components/Card";
+import { Badge } from "@/design-system/components/Badge";
+import { Button } from "@/design-system/components/Button";
+import { Input } from "@/design-system/components/Input";
+import { Checkbox } from "@/design-system/components/Checkbox";
+import { Modal } from "@/design-system/components/Modal";
+import { Spinner } from "@/design-system/components/Spinner";
+import { colors } from "@/design-system/tokens";
 
-// Types for the detail response
-interface LeadDetailResponse {
-  lead: any;
-  latest_audit: any | null;
-  audits: any[];
-  sales_intelligence: any[];
-}
-
-type TabId = "overview" | "metrics" | "contacts" | "intelligence" | "outreach";
+type TabId = "overview" | "audit" | "reports" | "outreach";
 
 export function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
+  const [outreachSubject, setOutreachSubject] = useState("");
+  const [outreachBody, setOutreachBody] = useState("");
+  const [attachReportId, setAttachReportId] = useState<string | undefined>();
+  const [sendModalOpen, setSendModalOpen] = useState(false);
 
-  const { data, isLoading, error } = useQuery<LeadDetailResponse>({
-    queryKey: ["lead-detail", id],
-    queryFn: () => api.getLeadDetail(id!),
-    enabled: !!id,
-  });
+  const { data, isLoading, error } = useLead(id);
+  const { data: reportsData } = useReports({ lead_id: id });
+  const { data: followUps } = useFollowUps(id);
+  const { data: outreachData } = useOutreach(id);
 
-  const triggerAudit = useMutation({
-    mutationFn: () => api.triggerAudit(id!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lead-detail", id] });
-      toast.success("Auditoría encolada");
-    },
-    onError: (e) => toast.error(`Error: ${(e as Error).message}`),
-  });
+  const triggerAudit = useTriggerAuditMutation();
+  const triggerCloser = useTriggerCloserMutation();
+  const sendOutreach = useSendOutreachMutation();
+  const generateReport = useGenerateReportMutation();
+  const scheduleFollowUp = useScheduleFollowUpMutation();
+  const cancelFollowUps = useCancelAllFollowUpsMutation();
 
-  const triggerCloser = useMutation({
-    mutationFn: () => api.triggerCloser(id!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lead-detail", id] });
-      toast.success("Closer activado");
-    },
-    onError: (e) => toast.error(`Error: ${(e as Error).message}`),
-  });
+  const lead = data?.lead as Lead | undefined;
+  const audit = data?.latest_audit as Audit | null | undefined;
+  const intel = data?.sales_intelligence?.[0] as SalesIntelligence | undefined;
 
-  if (isLoading) return <div className="px-4 py-8 text-gray-400 font-mono">cargando dossier...</div>;
-  if (error) return <div className="px-4 py-8 text-red-400 font-mono">error: {(error as Error).message}</div>;
-  if (!data) return <div className="px-4 py-8 text-gray-400 font-mono">lead no encontrado</div>;
+  useEffect(() => {
+    if (intel?.cold_email_subject && !outreachSubject) setOutreachSubject(intel.cold_email_subject);
+    if (intel?.cold_email_body && !outreachBody) setOutreachBody(intel.cold_email_body);
+  }, [intel]);
 
-  const lead = data.lead;
-  const audit = data.latest_audit;
-  const intel = data.sales_intelligence[0];
+  if (isLoading) return <Spinner size="lg" style={{ padding: "80px 0" }} />;
+  if (error) return <div style={{ padding: "32px", color: colors.danger, fontFamily: "var(--font-mono)" }}>Error: {(error as Error).message}</div>;
+  if (!data) return <div style={{ padding: "32px", color: colors.textMuted }}>Lead not found</div>;
 
-  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
-    { id: "overview", label: "Overview", icon: <BarChart3 className="w-4 h-4" /> },
-    { id: "metrics", label: "Metrics", icon: <Gauge className="w-4 h-4" /> },
-    { id: "contacts", label: "Contacts", icon: <Mail className="w-4 h-4" /> },
-    { id: "intelligence", label: "Intelligence", icon: <FileText className="w-4 h-4" /> },
-    { id: "outreach", label: "Outreach", icon: <MessageSquare className="w-4 h-4" /> },
+  const tabs: { id: TabId; label: string }[] = [
+    { id: "overview", label: "Overview" },
+    { id: "audit", label: "Audit" },
+    { id: "reports", label: "Reports" },
+    { id: "outreach", label: "Outreach" },
   ];
+
+  const handleSendOutreach = () => {
+    sendOutreach.mutate(
+      { leadId: id!, subject: outreachSubject, body: outreachBody, attachReportId },
+      {
+        onSuccess: (data) => {
+          toast.success(`Email sent to ${data.recipient}`);
+          setSendModalOpen(false);
+        },
+        onError: (e) => toast.error(`Failed: ${(e as Error).message}`),
+      },
+    );
+  };
+
+  const handleQuickFollowUp = () => {
+    scheduleFollowUp.mutate(
+      {
+        leadId: id!,
+        sequenceName: "Quick Follow-up",
+        steps: [
+          { delay_days: 0, subject: outreachSubject || intel?.cold_email_subject || "Initial outreach", body: outreachBody || intel?.cold_email_body || "", include_pdf: !!attachReportId },
+          { delay_days: 3, subject: "Following up on our conversation", body: "Hi! I wanted to follow up on my previous message. Let me know if you have any questions.", include_pdf: false },
+          { delay_days: 7, subject: "Last follow-up", body: "One last follow-up. Happy to jump on a call to discuss how we can help.", include_pdf: false },
+        ],
+      },
+      {
+        onSuccess: () => toast.success("Follow-up sequence scheduled"),
+        onError: (e) => toast.error(`Failed: ${(e as Error).message}`),
+      },
+    );
+  };
 
   return (
     <section>
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <button className="btn ghost" onClick={() => navigate("/leads")}>
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div className="flex-1">
-          <h2 className="page-title mb-1">{lead.normalized_domain}</h2>
-          <div className="flex items-center gap-3 text-xs text-gray-400 font-mono">
-            <a
-              href={lead.url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-void-cyan hover-underline flex items-center gap-1"
-            >
-              <ExternalLink className="w-3 h-3" /> Visitar sitio
+      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/leads")}>
+          <ArrowLeft size={16} />
+        </Button>
+        <div style={{ flex: 1 }}>
+          <h2 style={{ fontSize: "18px", fontWeight: 600, color: colors.text, margin: "0 0 4px" }}>
+            {lead?.normalized_domain}
+          </h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "12px", color: colors.textMuted, fontFamily: "var(--font-mono)" }}>
+            <a href={lead?.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "4px", color: colors.primary }}>
+              <ExternalLink size={12} /> Visit
             </a>
-            <span>•</span>
-            <span>
-              Score: <strong className="text-void-text">{lead.score}</strong>
-            </span>
-            {lead.segment && (
-              <>
-                <span>•</span>
-                <SegmentBadge segment={lead.segment} />
-              </>
-            )}
-            {lead.revenue_signal && (
-              <>
-                <span>•</span>
-                <span>
-                  Revenue: <strong className="text-void-text">{lead.revenue_signal}</strong>
-                </span>
-              </>
-            )}
+            {lead?.score != null && <span>Score: <strong style={{ color: colors.text }}>{lead.score}</strong></span>}
+            {lead?.segment && <Badge variant={lead.segment === "A" ? "danger" : lead.segment === "B" ? "warning" : "info"}>{lead.segment}</Badge>}
           </div>
         </div>
-        <div className="flex gap-2">
-          <button className="btn ghost" onClick={() => triggerAudit.mutate()}>
-            Re-audit
-          </button>
-          <button className="btn" onClick={() => triggerCloser.mutate()}>
-            Re-generate intel
-          </button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <Button variant="secondary" size="sm" onClick={() => triggerAudit.mutate(id!)} disabled={triggerAudit.isPending}>
+            <RefreshCw size={14} /> Re-audit
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => triggerCloser.mutate(id!)} disabled={triggerCloser.isPending}>
+            <Sparkles size={14} /> Re-gen intel
+          </Button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="panel">
-        <div className="panel-header">
-          <div className="flex gap-1">
+      <Card padding="0">
+        <CardHeader>
+          <div style={{ display: "flex", gap: "4px" }}>
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                className={`px-3 py-1_5 text-xs font-mono rounded transition-colors ${
-                  activeTab === tab.id
-                    ? "bg-void-cyan-10 text-void-cyan border border-void-cyan-30"
-                    : "text-gray-400 hover-text-void-text"
-                }`}
                 onClick={() => setActiveTab(tab.id)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "4px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  border: "none",
+                  transition: "all 150ms",
+                  background: activeTab === tab.id ? "rgba(139, 92, 246, 0.12)" : "transparent",
+                  color: activeTab === tab.id ? colors.primary : colors.textMuted,
+                }}
               >
-                <span className="mr-1">{tab.icon}</span>
                 {tab.label}
               </button>
             ))}
           </div>
-        </div>
-        <div className="panel-body">
+        </CardHeader>
+        <CardBody>
           {activeTab === "overview" && <OverviewTab lead={lead} audit={audit} intel={intel} />}
-          {activeTab === "metrics" && <MetricsTab audit={audit} />}
-          {activeTab === "contacts" && <ContactsTab lead={lead} audit={audit} />}
-          {activeTab === "intelligence" && <IntelligenceTab intel={intel} allIntel={data.sales_intelligence} />}
-          {activeTab === "outreach" && <OutreachTab lead={lead} />}
+          {activeTab === "audit" && <AuditTab audit={audit} />}
+          {activeTab === "reports" && (
+            <ReportsTab
+              leadId={id!}
+              reports={reportsData?.items ?? []}
+              onGenerate={() => generateReport.mutate(id!, { onSuccess: () => toast.success("Report generated") })}
+              isGenerating={generateReport.isPending}
+            />
+          )}
+          {activeTab === "outreach" && (
+            <OutreachTab
+              lead={lead}
+              intel={intel}
+              followUps={followUps?.items ?? []}
+              outreach={outreachData?.items ?? []}
+              reports={reportsData?.items ?? []}
+              subject={outreachSubject}
+              body={outreachBody}
+              attachReportId={attachReportId}
+              onSubjectChange={setOutreachSubject}
+              onBodyChange={setOutreachBody}
+              onAttachReportIdChange={setAttachReportId}
+              onSend={() => setSendModalOpen(true)}
+              onQuickFollowUp={handleQuickFollowUp}
+              onCancelFollowUps={() => cancelFollowUps.mutate(id!)}
+              isSending={sendOutreach.isPending}
+            />
+          )}
+        </CardBody>
+      </Card>
+
+      {/* Send Modal */}
+      <Modal
+        open={sendModalOpen}
+        onClose={() => setSendModalOpen(false)}
+        title="Send Outreach Email"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setSendModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSendOutreach} loading={sendOutreach.isPending}>
+              <Send size={14} /> Send Email
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <Input label="Subject" value={outreachSubject} onChange={(e) => setOutreachSubject(e.target.value)} />
+          <div>
+            <label style={labelStyle}>Body</label>
+            <textarea
+              value={outreachBody}
+              onChange={(e) => setOutreachBody(e.target.value)}
+              style={{
+                width: "100%",
+                minHeight: "180px",
+                resize: "vertical",
+                padding: "8px 12px",
+                background: colors.bg,
+                border: `1px solid ${colors.borderStrong}`,
+                borderRadius: "4px",
+                fontSize: "13px",
+                color: colors.text,
+                fontFamily: "var(--font-sans)",
+              }}
+            />
+          </div>
+          <Checkbox
+            label="Attach latest PDF report"
+            checked={!!attachReportId}
+            onChange={(checked) => setAttachReportId(checked ? (reportsData?.items?.[0]?.id) : undefined)}
+          />
         </div>
-      </div>
+      </Modal>
     </section>
   );
 }
 
-// --- Tab Components ---
-
-function OverviewTab({ lead, audit, intel }: any) {
-  const problems: { icon: React.ReactNode; label: string; ok: boolean }[] = [
-    { icon: <Shield className="w-4 h-4" />, label: "SSL", ok: lead.has_ssl },
-    { icon: <Smartphone className="w-4 h-4" />, label: "Mobile Friendly", ok: lead.mobile_friendly },
-    { icon: <Gauge className="w-4 h-4" />, label: `Load: ${lead.load_time_ms ?? "—"}ms`, ok: (lead.load_time_ms ?? 9999) < 3000 },
-  ];
-
-  const commercialSignals: { label: string; value: boolean }[] = [
-    { label: "E-commerce", value: lead.revenue_signal === "ecommerce" },
-    { label: "Pricing Page", value: lead.has_pricing_page },
-    { label: "Testimonials", value: lead.has_testimonials },
-    { label: "Active Blog", value: (lead.content_freshness_days ?? 999) < 90 },
+/* ── Overview Tab ── */
+function OverviewTab({ lead, audit, intel }: { lead: Lead | undefined; audit: Audit | null | undefined; intel: SalesIntelligence | undefined }) {
+  const problems = [
+    { icon: <Shield size={16} />, label: "SSL", ok: lead?.has_ssl ?? false },
+    { icon: <Smartphone size={16} />, label: "Mobile Friendly", ok: lead?.mobile_friendly ?? false },
+    { icon: <Gauge size={16} />, label: `Load: ${lead?.load_time_ms ?? "—"}ms`, ok: (lead?.load_time_ms ?? Infinity) < 3000 },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Problem Cards */}
-      <div>
-        <h3 className="text-xs font-mono text-gray-400 mb-3">DIAGNÓSTICO TÉCNICO</h3>
-        <div className="grid grid-cols-3 gap-4">
-          {problems.map((p, i) => (
-            <div
-              key={i}
-              className={`p-4 rounded border ${
-                p.ok ? "border-green-500-30 bg-green-500-5" : "border-red-500-30 bg-red-500-5"
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                {p.ok ? (
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                ) : (
-                  <XCircle className="w-4 h-4 text-red-400" />
-                )}
-                <span className="text-sm font-mono">{p.label}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Commercial Signals */}
-      <div>
-        <h3 className="text-xs font-mono text-gray-400 mb-3">SEÑALES COMERCIALES</h3>
-        <div className="grid grid-cols-4 gap-3">
-          {commercialSignals.map((s, i) => (
-            <div
-              key={i}
-              className={`p-3 rounded border text-center ${
-                s.value
-                  ? "border-void-cyan-30 bg-void-cyan-5"
-                  : "border-gray-700-30 bg-gray-700-5"
-              }`}
-            >
-              <div className="text-xs font-mono text-gray-400">{s.label}</div>
-              <div
-                className={`text-lg font-mono mt-1 ${
-                  s.value ? "text-void-cyan" : "text-gray-600"
-                }`}
-              >
-                {s.value ? "✓" : "—"}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Scores */}
-      <div className="grid grid-cols-4 gap-4">
-        <ScoreCard label="Score Total" value={lead.score ?? 0} max={100} color="var(--void-cyan)" />
-        <ScoreCard label="Lighthouse" value={audit?.lighthouse_score ?? "—"} max={100} color="#22c55e" />
-        <ScoreCard label="Problem Score" value={lead.problem_score ?? 0} max={100} color="#ef4444" />
-        <ScoreCard label="Commercial Score" value={lead.commercial_score ?? 0} max={100} color="#f59e0b" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "16px" }}>
+        <ScoreCard label="Total Score" value={lead?.score} max={100} color={colors.primary} />
+        <ScoreCard label="Lighthouse" value={audit?.lighthouse_score as number | undefined} max={100} color="#10b981" />
+        <ScoreCard label="Performance" value={audit?.performance_score} max={100} color="#3b82f6" />
+        <ScoreCard label="Commercial Score" value={lead?.commercial_score} max={100} color="#f59e0b" />
+      </div>
+
+      {/* Technical Checks */}
+      <div>
+        <h3 style={sectionTitleStyle}>Technical Diagnostics</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px" }}>
+          {problems.map((p, i) => (
+            <div key={i} style={{ padding: "12px", borderRadius: "8px", border: `1px solid ${p.ok ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`, background: p.ok ? "rgba(16, 185, 129, 0.05)" : "rgba(239, 68, 68, 0.05)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                {p.ok ? <CheckCircle size={16} style={{ color: "#10b981" }} /> : <XCircle size={16} style={{ color: "#ef4444" }} />}
+                <span style={{ fontSize: "14px", color: p.ok ? "#10b981" : "#ef4444" }}>{p.label}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* AI Sales Argument */}
-      {intel?.pain_points && intel.pain_points.length > 0 && (
+      {intel?.cold_email_body && (
         <div>
-          <h3 className="text-xs font-mono text-gray-400 mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-yellow-400" />
-            ARGUMENTO DE VENTA (IA)
+          <h3 style={{ ...sectionTitleStyle, display: "flex", alignItems: "center", gap: "8px" }}>
+            <Sparkles size={16} style={{ color: "#f59e0b" }} /> AI Sales Intelligence
           </h3>
-          <div className="p-4 rounded border border-void-border bg-void-bg">
-            <ul className="space-y-2">
-              {(
-                typeof intel.pain_points === "string"
-                  ? JSON.parse(intel.pain_points)
-                  : intel.pain_points
-              ).map((pp: any, i: number) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0_5 flex-shrink-0" />
-                  <span className="break-words">{typeof pp === "string" ? pp : pp.title || pp}</span>
-                </li>
-              ))}
-            </ul>
+          <div style={{ padding: "16px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px" }}>
+            <p style={{ fontSize: "13px", color: colors.textSecondary, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+              {intel.cold_email_body.slice(0, 500)}{intel.cold_email_body.length > 500 ? "..." : ""}
+            </p>
           </div>
         </div>
       )}
@@ -266,17 +296,18 @@ function OverviewTab({ lead, audit, intel }: any) {
   );
 }
 
-function MetricsTab({ audit }: any) {
-  if (!audit) return <div className="text-gray-400 font-mono text-sm">Sin auditoría disponible</div>;
+/* ── Audit Tab ── */
+function AuditTab({ audit }: { audit: Audit | null | undefined }) {
+  if (!audit) return <p style={{ color: colors.textMuted, padding: "24px 0" }}>No audit data available. Trigger an audit first.</p>;
 
   const metrics = [
-    { label: "Performance", value: audit.performance_score, color: "#22c55e" },
-    { label: "SEO", value: audit.seo_score, color: "#3b82f6" },
+    { label: "Performance", value: audit.performance_score, color: "#10b981" },
     { label: "Accessibility", value: audit.accessibility_score, color: "#a855f7" },
     { label: "Best Practices", value: audit.best_practices_score, color: "#f59e0b" },
+    { label: "SEO", value: audit.seo_score, color: "#3b82f6" },
   ];
 
-  const coreVitals = [
+  const vitals = [
     { label: "FCP", value: audit.first_contentful_paint_ms, unit: "ms", good: 1800 },
     { label: "LCP", value: audit.largest_contentful_paint_ms, unit: "ms", good: 2500 },
     { label: "CLS", value: audit.cumulative_layout_shift, unit: "", good: 0.1 },
@@ -284,34 +315,22 @@ function MetricsTab({ audit }: any) {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-4 gap-4">
-        {metrics.map((m, i) => (
-          <ScoreCard key={i} label={m.label} value={m.value ?? "—"} max={100} color={m.color} />
-        ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "16px" }}>
+        {metrics.map((m, i) => <ScoreCard key={i} label={m.label} value={m.value} max={100} color={m.color} />)}
       </div>
 
       <div>
-        <h3 className="text-xs font-mono text-gray-400 mb-3">CORE WEB VITALS</h3>
-        <div className="grid grid-cols-4 gap-4">
-          {coreVitals.map((v, i) => {
+        <h3 style={sectionTitleStyle}>Core Web Vitals</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px" }}>
+          {vitals.map((v, i) => {
             const val = v.value ?? 0;
             const isGood = v.unit === "" ? val <= v.good : val <= v.good;
             return (
-              <div
-                key={i}
-                className={`p-4 rounded border ${
-                  isGood ? "border-green-500-30 bg-green-500-5" : "border-red-500-30 bg-red-500-5"
-                }`}
-              >
-                <div className="text-xs text-gray-400 font-mono">{v.label}</div>
-                <div
-                  className={`text-2xl font-mono mt-1 ${
-                    isGood ? "text-green-400" : "text-red-400"
-                  }`}
-                >
-                  {v.value ?? "—"}
-                  {v.unit}
+              <div key={i} style={{ padding: "12px", borderRadius: "8px", border: `1px solid ${isGood ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`, background: isGood ? "rgba(16, 185, 129, 0.05)" : "rgba(239, 68, 68, 0.05)" }}>
+                <div style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: colors.textMuted }}>{v.label}</div>
+                <div style={{ fontSize: "24px", fontFamily: "var(--font-mono)", marginTop: "4px", color: isGood ? "#10b981" : "#ef4444" }}>
+                  {v.value ?? "—"}{v.unit}
                 </div>
               </div>
             );
@@ -319,184 +338,203 @@ function MetricsTab({ audit }: any) {
         </div>
       </div>
 
-      {/* Audit History */}
       {audit.screenshot_path && (
         <div>
-          <h3 className="text-xs font-mono text-gray-400 mb-3">SCREENSHOT</h3>
-          <div className="rounded border border-void-border overflow-hidden max-w-2xl">
-            <img
-              src={`/screenshots/${audit.screenshot_path.split("/").pop()}`}
-              alt="Screenshot"
-              className="w-full"
+          <h3 style={sectionTitleStyle}>Screenshot</h3>
+          <div style={{ borderRadius: "8px", border: `1px solid ${colors.border}`, overflow: "hidden", maxWidth: "600px" }}>
+            <img src={`/screenshots/${audit.screenshot_path.split("/").pop()}`} alt="Screenshot" style={{ width: "100%" }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Reports Tab ── */
+function ReportsTab({
+  reports,
+  onGenerate,
+  isGenerating,
+}: {
+  leadId?: string;
+  reports: ReportRead[];
+  onGenerate: () => void;
+  isGenerating: boolean;
+}) {
+  const downloadUrl = (id: string) => `/api/v1/reports/${id}/download`;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h3 style={{ ...sectionTitleStyle, margin: 0 }}>Generated Reports</h3>
+        <Button onClick={onGenerate} loading={isGenerating}>
+          <FileText size={14} /> Generate Report
+        </Button>
+      </div>
+
+      {reports.length === 0 ? (
+        <p style={{ color: colors.textMuted, padding: "32px 0", textAlign: "center" }}>No reports generated yet</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {reports.map((r) => (
+            <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <FileText size={20} style={{ color: colors.primary, opacity: 0.6 }} />
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: colors.text }}>{r.lead_domain || r.lead_id}</div>
+                  <div style={{ fontSize: "11px", color: colors.textMuted }}>
+                    {r.generated_at ? new Date(r.generated_at).toLocaleDateString() : ""} · {(r.file_size / 1024).toFixed(1)} KB · {r.status}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <a href={downloadUrl(r.id)} target="_blank" rel="noreferrer">
+                  <Button size="sm" variant="secondary"><Download size={14} /></Button>
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Outreach Tab ── */
+function OutreachTab({
+  lead,
+  followUps,
+  outreach,
+  reports,
+  subject,
+  body,
+  attachReportId,
+  onSubjectChange,
+  onBodyChange,
+  onAttachReportIdChange,
+  onSend,
+  onQuickFollowUp,
+  onCancelFollowUps,
+  isSending,
+}: {
+  lead: Lead | undefined;
+  intel?: SalesIntelligence | undefined;
+  followUps: FollowUpRead[];
+  outreach: OutreachMessage[];
+  reports: ReportRead[];
+  subject: string;
+  body: string;
+  attachReportId: string | undefined;
+  onSubjectChange: (v: string) => void;
+  onBodyChange: (v: string) => void;
+  onAttachReportIdChange: (v: string | undefined) => void;
+  onSend: () => void;
+  onQuickFollowUp: () => void;
+  onCancelFollowUps: () => void;
+  isSending: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {/* Status */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+        <div style={{ padding: "12px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px" }}>
+          <div style={{ fontSize: "11px", color: colors.textMuted, marginBottom: "4px" }}>STATUS</div>
+          <div style={{ fontSize: "16px", fontFamily: "var(--font-mono)", color: colors.text, textTransform: "capitalize" }}>{lead?.status}</div>
+        </div>
+        <div style={{ padding: "12px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px" }}>
+          <div style={{ fontSize: "11px", color: colors.textMuted, marginBottom: "4px" }}>FOLLOW-UP STATUS</div>
+          <div style={{ fontSize: "16px", fontFamily: "var(--font-mono)", color: followUps.some((f) => f.status === "pending") ? colors.warning : colors.textMuted }}>
+            {followUps.some((f) => f.status === "pending") ? `${followUps.filter((f) => f.status === "pending").length} pending` : "None active"}
+          </div>
+        </div>
+      </div>
+
+      {/* Email Editor */}
+      <div>
+        <h3 style={sectionTitleStyle}>Compose Email</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <Input label="Subject" value={subject} onChange={(e) => onSubjectChange(e.target.value)} placeholder="Email subject" />
+          <div>
+            <label style={labelStyle}>Body</label>
+            <textarea
+              value={body}
+              onChange={(e) => onBodyChange(e.target.value)}
+              style={{
+                width: "100%",
+                minHeight: "180px",
+                resize: "vertical",
+                padding: "8px 12px",
+                background: colors.bg,
+                border: `1px solid ${colors.borderStrong}`,
+                borderRadius: "4px",
+                fontSize: "13px",
+                color: colors.text,
+                fontFamily: "var(--font-sans)",
+              }}
+              placeholder="Email body..."
             />
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ContactsTab({ lead, audit }: any) {
-  const contacts = audit?.extracted_contacts || {};
-  const emails = contacts.emails || [];
-  const phones = contacts.phones || [];
-  const socials = contacts.socials || {};
-
-  return (
-    <div className="space-y-6">
-      {/* Emails */}
-      <div>
-        <h3 className="text-xs font-mono text-gray-400 mb-3 flex items-center gap-2">
-          <Mail className="w-4 h-4" /> EMAILS
-        </h3>
-        <div className="space-y-2">
-          {lead.email && (
-            <div className="flex items-center justify-between p-3 rounded border border-void-border bg-void-bg">
-              <span className="font-mono text-sm break-all">{lead.email}</span>
-              <span className="text-xs text-gray-500 flex-shrink-0 ml-2">principal</span>
-            </div>
-          )}
-          {emails.map((email: string, i: number) => (
-            <div
-              key={i}
-              className="flex items-center justify-between p-3 rounded border border-void-border bg-void-bg"
-            >
-              <span className="font-mono text-sm break-all">{email}</span>
-              <span className="text-xs text-gray-500 flex-shrink-0 ml-2">extraído</span>
-            </div>
-          ))}
-          {emails.length === 0 && !lead.email && (
-            <div className="text-gray-500 font-mono text-sm">No se encontraron emails</div>
-          )}
-        </div>
-      </div>
-
-      {/* Phones */}
-      <div>
-        <h3 className="text-xs font-mono text-gray-400 mb-3 flex items-center gap-2">
-          <Phone className="w-4 h-4" /> TELÉFONOS
-        </h3>
-        <div className="space-y-2">
-          {phones.length > 0 ? (
-            phones.map((phone: string, i: number) => (
-              <div
-                key={i}
-                className="p-3 rounded border border-void-border bg-void-bg font-mono text-sm"
-              >
-                {phone}
-              </div>
-            ))
-          ) : (
-            <div className="text-gray-500 font-mono text-sm">No se encontraron teléfonos</div>
-          )}
-        </div>
-      </div>
-
-      {/* Social */}
-      <div>
-        <h3 className="text-xs font-mono text-gray-400 mb-3 flex items-center gap-2">
-          <Globe className="w-4 h-4" /> REDES SOCIALES
-        </h3>
-        <div className="space-y-2">
-          {Object.keys(socials).length > 0 ? (
-            Object.entries(socials).map(([platform, links]: [string, any]) => (
-              <div key={platform} className="p-3 rounded border border-void-border bg-void-bg">
-                <div className="text-xs font-mono text-gray-400 capitalize mb-1">{platform}</div>
-                {(Array.isArray(links) ? links : [links]).map((link: string, i: number) => (
-                  <a
-                    key={i}
-                    href={link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-void-cyan hover-underline text-sm font-mono block break-all"
-                  >
-                    {link}
-                  </a>
-                ))}
-              </div>
-            ))
-          ) : (
-            <div className="text-gray-500 font-mono text-sm">No se encontraron redes sociales</div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function IntelligenceTab({ intel, allIntel }: any) {
-  if (!intel)
-    return (
-      <div className="text-gray-400 font-mono text-sm">
-        Sin inteligencia de ventas. Ejecutá el Closer primero.
-      </div>
-    );
-
-  const painPoints =
-    typeof intel.pain_points === "string" ? JSON.parse(intel.pain_points) : intel.pain_points;
-
-  return (
-    <div className="space-y-6">
-      {/* Pain Points */}
-      <div>
-        <h3 className="text-xs font-mono text-gray-400 mb-3 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-yellow-400" /> PAIN POINTS
-        </h3>
-        <div className="space-y-2">
-          {(Array.isArray(painPoints) ? painPoints : []).map((pp: any, i: number) => (
-            <div key={i} className="p-3 rounded border border-yellow-500-20 bg-yellow-500-5">
-              <div className="font-mono text-sm break-words">
-                {typeof pp === "string" ? pp : pp.title || JSON.stringify(pp)}
-              </div>
-              {pp.description && <div className="text-xs text-gray-400 mt-1 break-words">{pp.description}</div>}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Cold Email */}
-      {intel.cold_email_subject && (
-        <div>
-          <h3 className="text-xs font-mono text-gray-400 mb-3 flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" /> COLD EMAIL GENERADO
-          </h3>
-          <div className="p-4 rounded border border-void-border bg-void-bg max-w-full overflow-hidden">
-            <div className="mb-3">
-              <span className="text-xs text-gray-500 font-mono">Subject: </span>
-              <span className="font-mono text-sm">{intel.cold_email_subject}</span>
-            </div>
-            <pre className="text-sm font-mono whitespace-pre-wrap break-words text-void-text overflow-x-auto">
-              {intel.cold_email_body}
-            </pre>
+          <Checkbox
+            label={`Attach latest PDF report${reports.length === 0 ? " (no reports available)" : ""}`}
+            checked={!!attachReportId}
+            onChange={(checked) => onAttachReportIdChange(checked ? reports[0]?.id : undefined)}
+            disabled={reports.length === 0}
+          />
+          <div style={{ display: "flex", gap: "8px" }}>
+            <Button onClick={onSend} loading={isSending} disabled={!subject || !body}>
+              <Send size={14} /> Send Email
+            </Button>
+            <Button variant="secondary" onClick={onQuickFollowUp}>
+              <Clock size={14} /> Schedule Follow-up
+            </Button>
+            {followUps.some((f) => f.status === "pending") && (
+              <Button variant="danger" onClick={onCancelFollowUps}>
+                Cancel Follow-ups
+              </Button>
+            )}
           </div>
         </div>
-      )}
-
-      {/* Meta */}
-      <div className="text-xs text-gray-500 font-mono space-y-1">
-        <div>Modelo: {intel.model}</div>
-        <div>Idioma: {intel.language}</div>
-        {intel.tone && <div>Tono: {intel.tone}</div>}
-        <div>Generado: {intel.generated_at ? new Date(intel.generated_at).toLocaleString() : "—"}</div>
       </div>
 
-      {/* Version history */}
-      {allIntel && allIntel.length > 1 && (
+      {/* Email History */}
+      <div>
+        <h3 style={sectionTitleStyle}>
+          <Eye size={14} /> Email History
+        </h3>
+        {outreach.length === 0 ? (
+          <p style={{ color: colors.textMuted, fontSize: "13px" }}>No emails sent yet.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {outreach.map((msg) => (
+              <div key={msg.id} style={{ padding: "10px 14px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: colors.text }}>{msg.subject}</div>
+                  <div style={{ fontSize: "11px", color: colors.textMuted }}>
+                    To: {msg.recipient} · {msg.sent_at ? new Date(msg.sent_at).toLocaleDateString() : "Pending"}
+                    {msg.replied && <span style={{ marginLeft: "8px", color: colors.success }}>● Replied</span>}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: colors.textMuted }}>
+                  {msg.opened_at ? <span>✓ Opened</span> : <span>— Unopened</span>}
+                  {msg.has_attachment && <span>📎 PDF</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Follow-up Schedule */}
+      {followUps.length > 0 && (
         <div>
-          <h3 className="text-xs font-mono text-gray-400 mb-3 flex items-center gap-2">
-            <Clock className="w-4 h-4" /> HISTORIAL DE VERSIONES
+          <h3 style={sectionTitleStyle}>
+            <Clock size={14} /> Scheduled Follow-ups
           </h3>
-          <div className="space-y-1">
-            {allIntel.map((v: any, i: number) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 text-xs font-mono text-gray-400 p-2 rounded hover-bg-void-border-10"
-              >
-                <span>v{i + 1}</span>
-                <span>{v.model}</span>
-                <span>
-                  {v.generated_at ? new Date(v.generated_at).toLocaleDateString() : "—"}
-                </span>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {followUps.map((fu) => (
+              <div key={fu.id} style={{ padding: "8px 14px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px", display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "13px", color: colors.text }}>{fu.subject}</span>
+                <Badge variant={fu.status === "sent" ? "success" : fu.status === "cancelled" ? "danger" : "warning"}>{fu.status}</Badge>
               </div>
             ))}
           </div>
@@ -506,215 +544,40 @@ function IntelligenceTab({ intel, allIntel }: any) {
   );
 }
 
-function OutreachTab({ lead }: any) {
-  const queryClient = useQueryClient();
-  const [isPreview, setIsPreview] = useState(false);
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+/* ── Helpers ── */
 
-  // Fetch lead detail for intel (reuse parent query if available)
-  const { data: detail } = useQuery({
-    queryKey: ["lead-detail", lead.id],
-    queryFn: () => api.getLeadDetail(lead.id),
-    enabled: !!lead.id,
-    staleTime: 60_000, // Avoid re-fetching intel on every render
-  });
+const labelStyle: React.CSSProperties = {
+  fontSize: "11px",
+  fontWeight: 600,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  color: colors.textMuted,
+  fontFamily: "var(--font-sans)",
+  marginBottom: "6px",
+  display: "block",
+};
 
-  // Fetch sender profile
-  const { data: senderProfile } = useQuery({
-    queryKey: ["sender-profile"],
-    queryFn: () => api.getSenderProfile(),
-  });
+const sectionTitleStyle: React.CSSProperties = {
+  fontSize: "12px",
+  fontFamily: "var(--font-mono)",
+  fontWeight: 600,
+  color: colors.textSecondary,
+  marginBottom: "12px",
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+};
 
-  const intel = detail?.sales_intelligence?.[0];
-
-  // Initialize subject/body from intel when available
-  useEffect(() => {
-    if (intel?.cold_email_subject && !subject) {
-      setSubject(intel.cold_email_subject);
-    }
-    if (intel?.cold_email_body && !body) {
-      setBody(intel.cold_email_body);
-    }
-  }, [intel]);
-
-  const sendEmail = useMutation({
-    mutationFn: () => api.sendOutreachEmail(lead.id, subject, body),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["lead-detail", lead.id] });
-      toast.success(`Email enviado a ${data.recipient}`);
-    },
-    onError: (e) => toast.error(`Error: ${(e as Error).message}`),
-  });
-
-  const hasIntel = !!intel?.cold_email_subject;
-
+function ScoreCard({ label, value, max = 100, color }: { label: string; value?: number | null; max?: number; color: string }) {
+  const pct = value != null ? Math.min(100, (value / max) * 100) : 0;
   return (
-    <div className="space-y-6">
-      {/* Sender Profile Info */}
-      {senderProfile && (
-        <div className="p-4 rounded border border-void-cyan-30 bg-void-cyan-5">
-          <div className="flex items-center gap-2 mb-2">
-            <User className="w-4 h-4 text-void-cyan" />
-            <span className="text-xs font-mono text-void-cyan">SENDER PROFILE</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="font-mono text-void-text">{senderProfile.name}</span>
-            {senderProfile.title && (
-              <span className="text-gray-400">· {senderProfile.title}</span>
-            )}
-            <a
-              href={senderProfile.website}
-              target="_blank"
-              rel="noreferrer"
-              className="text-void-cyan hover-underline flex items-center gap-1 text-xs"
-            >
-              <Link className="w-3 h-3" />
-              {senderProfile.website}
-            </a>
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-mono text-void-cyan">OUTREACH MANAGER</h3>
-        <div className="flex gap-2">
-          <button
-            className="btn ghost"
-            onClick={() => setIsPreview(!isPreview)}
-            disabled={sendEmail.isPending}
-          >
-            {isPreview ? (
-              <>
-                <Edit3 className="w-4 h-4 mr-1" /> Editar
-              </>
-            ) : (
-              <>
-                <Eye className="w-4 h-4 mr-1" /> Preview
-              </>
-            )}
-          </button>
-          <button
-            className="btn"
-            onClick={() => sendEmail.mutate()}
-            disabled={sendEmail.isPending || !subject || !body}
-          >
-            <Send className="w-4 h-4 mr-1" />
-            {sendEmail.isPending ? "Enviando..." : "Send"}
-          </button>
-        </div>
-      </div>
-
-      {/* Status cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="p-4 rounded border border-void-border bg-void-bg">
-          <div className="text-xs text-gray-400 font-mono mb-2">STATUS</div>
-          <div className="text-lg font-mono capitalize">{lead.status}</div>
-        </div>
-        <div className="p-4 rounded border border-void-border bg-void-bg">
-          <div className="text-xs text-gray-400 font-mono mb-2">ÚLTIMO CONTACTO</div>
-          <div className="text-lg font-mono">
-            {lead.contacted_at ? new Date(lead.contacted_at).toLocaleDateString() : "Nunca"}
-          </div>
-        </div>
-      </div>
-
-      {/* Email Editor / Preview */}
-      {hasIntel ? (
-        <div className="space-y-4">
-          <div>
-            <label className="text-xs font-mono text-gray-400 mb-2 block">SUBJECT</label>
-            {isPreview ? (
-              <div className="p-3 rounded border border-void-border bg-void-bg font-mono text-sm break-words">
-                {subject || intel.cold_email_subject}
-              </div>
-            ) : (
-              <input
-                type="text"
-                className="field-input w-full"
-                value={subject || intel.cold_email_subject || ""}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="Email subject..."
-              />
-            )}
-          </div>
-          <div>
-            <label className="text-xs font-mono text-gray-400 mb-2 block">BODY</label>
-            {isPreview ? (
-              <div className="p-4 rounded border border-void-border bg-void-bg max-w-full overflow-hidden">
-                <pre className="text-sm font-mono whitespace-pre-wrap break-words text-void-text overflow-x-auto">
-                  {body || intel.cold_email_body}
-                </pre>
-              </div>
-            ) : (
-              <textarea
-                className="field-input w-full min-h-[240px] resize-y"
-                value={body || intel.cold_email_body || ""}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="Email body..."
-              />
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="text-gray-500 font-mono text-sm">
-          Sin inteligencia de ventas disponible. Ejecutá el Closer primero para generar el cold email.
-        </div>
-      )}
-
-      {/* Email history placeholder */}
-      <div>
-        <h3 className="text-xs font-mono text-gray-400 mb-3">HISTORIAL DE ENVÍOS</h3>
-        <div className="text-gray-500 font-mono text-sm">
-          Los emails enviados aparecerán aquí. Implementación completa en Fase 5.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// --- Helper Components ---
-
-function ScoreCard({
-  label,
-  value,
-  max,
-  color,
-}: {
-  label: string;
-  value: number | string;
-  max?: number;
-  color: string;
-}) {
-  const pct = max && typeof value === "number" ? Math.min(100, (value / max) * 100) : 0;
-  return (
-    <div className="p-4 rounded border border-void-border bg-void-bg">
-      <div className="text-xs text-gray-400 font-mono mb-2">{label}</div>
-      <div className="text-2xl font-mono" style={{ color }}>
-        {value}
-      </div>
-      {max && typeof value === "number" && (
-        <div className="mt-2 h-1 rounded bg-void-border overflow-hidden">
-          <div
-            className="h-full rounded transition-all"
-            style={{ width: `${pct}%`, backgroundColor: color }}
-          />
+    <div style={{ padding: "16px", borderRadius: "8px", border: `1px solid ${colors.border}`, background: colors.bg }}>
+      <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: colors.textMuted, marginBottom: "8px" }}>{label}</div>
+      <div style={{ fontSize: "28px", fontFamily: "var(--font-mono)", fontWeight: 700, color }}>{value ?? "—"}</div>
+      {value != null && (
+        <div style={{ marginTop: "8px", height: "4px", borderRadius: "2px", background: colors.surfaceHigh }}>
+          <div style={{ width: `${pct}%`, height: "100%", borderRadius: "2px", background: color, transition: "width 300ms" }} />
         </div>
       )}
     </div>
-  );
-}
-
-function SegmentBadge({ segment }: { segment: string }) {
-  const colors: Record<string, string> = {
-    A: "bg-red-500-20 text-red-400 border-red-500-30",
-    B: "bg-orange-500-20 text-orange-400 border-orange-500-30",
-    C: "bg-yellow-500-20 text-yellow-400 border-yellow-500-30",
-    D: "bg-gray-500-20 text-gray-400 border-gray-500-30",
-  };
-  return (
-    <span className={`px-1_5 py-0_5 text-xs font-mono border rounded ${colors[segment] ?? colors.D}`}>
-      {segment}
-    </span>
   );
 }

@@ -1,117 +1,98 @@
+/**
+ * SIPHON-X Design Tokens — CSS Custom Properties
+ *
+ * Color scheme: professional dark agency theme
+ * Primary: indigo (#8b5cf6 / #6366f1)
+ * Background: #15121b (deep dark purple)
+ * Surface: #211e27
+ * Font: Inter
+ * Philosophy: tonal layering + borders for depth
+ */
+
 :root {
   color-scheme: dark;
 
-  /* Corporate Dark Palette */
-  --void-bg-0: #0a0a0c;
-  --void-bg-1: #111114;
-  --void-bg-2: #141418;
-  --void-surface: #141418;
-  --void-surface-high: #1c1c22;
-  --void-panel: #141418;
+  /* ── Background Hierarchy ── */
+  --sx-bg: #15121b;
+  --sx-bg-lower: #0f0d15;
+  --sx-surface: #211e27;
+  --sx-surface-high: #2c2832;
+  --sx-surface-highest: #37333d;
 
-  --void-cyan: #6366f1;
-  --void-cyan-soft: rgba(99, 102, 241, 0.18);
-  --void-cyan-glow: rgba(99, 102, 241, 0.3);
-  --void-purple: #8b5cf6;
-  --void-purple-soft: rgba(139, 92, 246, 0.18);
-  --void-purple-glow: rgba(139, 92, 246, 0.3);
-  --void-magenta: #ec4899;
-  --void-accent: #6366f1;
+  /* ── Primary (Indigo/Purple accent) ── */
+  --sx-primary: #d0bcff;
+  --sx-primary-container: #8b5cf6;
+  --sx-primary-soft: rgba(139, 92, 246, 0.12);
+  --sx-primary-glow: rgba(139, 92, 246, 0.25);
 
-  --void-green: #10b981;
-  --void-green-glow: rgba(16, 185, 129, 0.3);
-  --void-red: #ef4444;
-  --void-red-glow: rgba(239, 68, 68, 0.3);
-  --void-yellow: #f59e0b;
-  --void-orange: #f97316;
+  /* ── Secondary ── */
+  --sx-secondary: #ccbeff;
+  --sx-secondary-container: #4a3d7c;
 
-  --void-text: #f0f0f5;
-  --void-text-dim: #8a8a93;
-  --void-text-muted: #6b6b75;
-  --void-text-strong: #ffffff;
+  /* ── Tertiary ── */
+  --sx-tertiary: #ffb869;
+  --sx-tertiary-container: #ca801e;
 
-  --void-success: #10b981;
-  --void-warning: #f59e0b;
-  --void-danger: #ef4444;
+  /* ── Text Hierarchy ── */
+  --sx-text: #e7e0ed;
+  --sx-text-secondary: #cbc3d7;
+  --sx-text-muted: #958ea0;
+  --sx-text-dim: #6b6b75;
 
-  --void-border: #2a2a30;
-  --void-border-strong: #3a3a42;
-  --void-grid: rgba(99, 102, 241, 0.04);
+  /* ── Semantic Status Colors ── */
+  --sx-success: #10b981;
+  --sx-warning: #f59e0b;
+  --sx-danger: #ef4444;
+  --sx-info: #6366f1;
 
+  /* ── Borders ── */
+  --sx-border: #494454;
+  --sx-border-subtle: #37333d;
+  --sx-border-strong: #5a5466;
+
+  /* ── Fonts ── */
   --font-mono: "JetBrains Mono", "Fira Code", "SFMono-Regular", Menlo, monospace;
   --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-  --shadow-glow-cyan: 0 0 24px rgba(99, 102, 241, 0.25);
-  --shadow-glow-purple: 0 0 24px rgba(139, 92, 246, 0.22);
-  --radius-sm: 8px;
+  /* ── Design Tokens ── */
+  --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 8px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-glow-cyan: 0 0 24px rgba(139, 92, 246, 0.25);
+  --shadow-glow-purple: 0 0 24px rgba(167, 139, 250, 0.22);
+
+  /* ── Dark Mode Variables ── */
+  --dark-bg: #15121b;
+  --dark-surface: #211e27;
+  --dark-surface-high: #2c2832;
+  --dark-text: #e7e0ed;
+  --dark-text-muted: #958ea0;
+  --dark-border: #494454;
+  --dark-primary: #8b5cf6;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  color: var(--void-text);
-  background-color: var(--void-bg-0);
-  background-image:
-    radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.04) 0%, transparent 35%),
-    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.04) 0%, transparent 40%);
-  background-attachment: fixed;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-::selection {
-  background: var(--void-cyan-soft);
-  color: var(--void-text-strong);
-}
-
-a {
-  color: var(--void-cyan);
-  text-decoration: none;
-}
-
-a:hover {
-  color: #818cf8;
-}
-
-input,
-button,
-select,
-textarea {
-  font-family: var(--font-sans);
-  font-size: 14px;
-}
-
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--void-bg-0);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--void-border-strong);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #4a4a52;
+/* ── Dark mode — explicit override for when media query is available ── */
+@media (prefers-color-scheme: light) {
+  :root {
+    --sx-bg: #f8f7fc;
+    --sx-bg-lower: #eeebf5;
+    --sx-surface: #ffffff;
+    --sx-surface-high: #f0edf7;
+    --sx-surface-highest: #e4e0ef;
+    --sx-text: #1a1525;
+    --sx-text-secondary: #3d3555;
+    --sx-text-muted: #6b6390;
+    --sx-text-dim: #8b85a5;
+    --sx-border: #d5d0e5;
+    --sx-border-subtle: #e4e0ef;
+    --sx-border-strong: #b8b0d5;
+    --sx-primary: #6d4ed0;
+    --sx-primary-container: #8b5cf6;
+  }
 }

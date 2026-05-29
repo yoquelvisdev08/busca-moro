@@ -1,337 +1,298 @@
+import { useNavigate } from "react-router-dom";
 import {
   TrendingUp,
-  ArrowUpRight,
-  History,
-  Search,
+  Users,
   ClipboardCheck,
-  Handshake,
-  Target,
-  Globe,
+  Gauge,
+  History,
+  BarChart3,
+  CheckCircle,
+  Clock,
 } from "lucide-react";
+import { useLeads, useCampaigns, useReports, useMonitorStatus } from "@/lib/hooks";
+import { Card } from "@/design-system/components/Card";
+import { Badge } from "@/design-system/components/Badge";
+import { Spinner } from "@/design-system/components/Spinner";
+import { colors } from "@/design-system/tokens";
 
-/* ── Mock Data ── */
-const ACTIVITIES = [
-  { text: "New lead captured via Apex-Monitor", time: "12:44:02", meta: "CID_8892", active: true },
-  { text: "Campaign sync completed", time: "12:30:15", meta: "Global-X", active: false },
-  { text: "Module 'Sniper' re-indexed 4,200 nodes", time: "12:15:58", meta: "Core-Process", active: false },
-  { text: "API Key rotation successful", time: "11:45:00", meta: "Security-Log", active: false },
-  { text: "Database backup initiated", time: "11:00:00", meta: "System", active: false, dim: true },
-];
-
-const SYSTEM_NODES = [
-  { name: "Scout", status: "Operational", icon: Search },
-  { name: "Auditor", status: "Online", icon: ClipboardCheck },
-  { name: "Closer", status: "Online", icon: Handshake },
-  { name: "Sniper", status: "Active", icon: Target },
-];
-
-const CHART_BARS = [
-  { day: "MON", height: 96, active: false },
-  { day: "TUE", height: 128, active: false },
-  { day: "WED", height: 112, active: false },
-  { day: "THU", height: 160, active: false },
-  { day: "FRI", height: 208, active: true, tooltip: "184 Leads", sub: "Friday Peak" },
-  { day: "SAT", height: 144, active: false },
-  { day: "SUN", height: 120, active: false },
-];
-
-/* ── Styles ── */
-const surfaceCard = {
-  background: "var(--sx-surface)",
-  border: "1px solid var(--sx-border)",
-  borderRadius: "var(--radius-md)",
+const labelStyle: React.CSSProperties = {
+  fontSize: "10px",
+  fontWeight: 700,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: colors.textMuted,
+  fontFamily: "var(--font-sans)",
 };
 
-const labelStyle = {
-  fontSize: 12,
-  fontWeight: 600,
-  letterSpacing: "0.05em",
-  textTransform: "uppercase" as const,
-  color: "var(--sx-text-muted)",
+const statCardStyle: React.CSSProperties = {
+  padding: "16px",
+  border: `1px solid ${colors.border}`,
+  borderRadius: "8px",
+  background: colors.surface,
+  display: "flex",
+  flexDirection: "column",
+  gap: "4px",
 };
 
 export function DashboardPage() {
+  const navigate = useNavigate();
+  const { data: leadsData, isLoading: leadsLoading } = useLeads({ limit: 200 });
+  const { data: campaigns } = useCampaigns();
+  const { data: reports } = useReports({ limit: 50 });
+  const { data: monitor } = useMonitorStatus();
+
+  if (leadsLoading) return <Spinner size="lg" style={{ padding: "80px 0" }} />;
+
+  const leads = leadsData?.items ?? [];
+  const totalLeads = leadsData?.total ?? 0;
+  const auditedCount = leads.filter((l) => l.lighthouse_score != null).length;
+  const pendingCount = leads.filter((l) =>
+    ["new", "queued", "auditing"].includes(l.status)
+  ).length;
+  const segmentACount = leads.filter((l) => l.segment === "A" || l.segment === "B").length;
+
+  const recentEvents = [
+    ...(reports?.items?.slice(0, 3).map((r) => ({
+      text: `Report generated for ${r.lead_domain || r.lead_id}`,
+      time: r.created_at ? new Date(r.created_at).toLocaleTimeString() : "",
+      meta: "Report",
+      active: true,
+    })) ?? []),
+    ...(leads.slice(0, 5).filter((l) => l.lighthouse_score).map((l) => ({
+      text: `Audit completed for ${l.normalized_domain}`,
+      time: l.audited_at ? new Date(l.audited_at).toLocaleTimeString() : "",
+      meta: "Audit",
+      active: false,
+    }))),
+  ].slice(0, 8);
+
+  /* ── Bar chart data from real leads ── */
+  const days = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+  const now = new Date();
+  const dayCounts = days.map((_, i) => {
+    const dayStart = new Date(now);
+    dayStart.setDate(dayStart.getDate() - (6 - i));
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setHours(23, 59, 59, 999);
+    return leads.filter((l) => {
+      const d = new Date(l.discovered_at);
+      return d >= dayStart && d <= dayEnd;
+    }).length;
+  });
+  const maxCount = Math.max(...dayCounts, 1);
+  const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+
   return (
-    <section className="space-y-6">
+    <section style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard label="Total Leads" value="1,247" change="+12%" icon={<TrendingUp className="w-4 h-4" />} progress={72} />
-        <StatCard label="Active Campaigns" value="14" change="Max Capacity" progress={58} />
-        <StatCard label="Conversion Rate" value="4.2%" change="+0.8%" icon={<ArrowUpRight className="w-4 h-4" />} progress={42} />
-        <StatCard label="Sites Monitored" value="86" change="98% Uptime" progress={86} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+        <div style={statCardStyle}>
+          <span style={labelStyle}>Total Leads</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <span style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.primary }}>
+              {totalLeads.toLocaleString()}
+            </span>
+            <TrendingUp size={20} style={{ color: colors.primary, opacity: 0.4 }} />
+          </div>
+          <div style={{ height: "4px", marginTop: "8px", borderRadius: "2px", background: colors.surfaceHigh }}>
+            <div style={{ width: `${Math.min(100, (totalLeads / 2000) * 100)}%`, height: "100%", borderRadius: "2px", background: colors.primaryContainer }} />
+          </div>
+        </div>
+
+        <div style={statCardStyle}>
+          <span style={labelStyle}>Audited</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <span style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.success }}>
+              {auditedCount.toLocaleString()}
+            </span>
+            <ClipboardCheck size={20} style={{ color: colors.success, opacity: 0.4 }} />
+          </div>
+          <span style={{ fontSize: "11px", color: colors.textMuted }}>
+            {totalLeads > 0 ? Math.round((auditedCount / totalLeads) * 100) : 0}% of total
+          </span>
+        </div>
+
+        <div style={statCardStyle}>
+          <span style={labelStyle}>Pending</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <span style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.warning }}>
+              {pendingCount}
+            </span>
+            <Clock size={20} style={{ color: colors.warning, opacity: 0.4 }} />
+          </div>
+          <span style={{ fontSize: "11px", color: colors.textMuted }}>Awaiting processing</span>
+        </div>
+
+        <div style={statCardStyle}>
+          <span style={labelStyle}>Hot Leads (A+B)</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <span style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.danger }}>
+              {segmentACount}
+            </span>
+            <Users size={20} style={{ color: colors.danger, opacity: 0.4 }} />
+          </div>
+          <span style={{ fontSize: "11px", color: colors.textMuted }}>High-value prospects</span>
+        </div>
       </div>
 
       {/* Middle Row: Chart + Activity */}
-      <div className="grid grid-cols-12 gap-6">
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px", minHeight: "320px" }}>
         {/* Chart */}
-        <div className="col-span-12 lg:col-span-8 p-5" style={surfaceCard}>
-          <div className="flex justify-between items-center mb-6">
+        <Card>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
             <div>
-              <span style={labelStyle}>Leads Extraction Engine</span>
-              <h2 className="text-lg font-semibold mt-1" style={{ color: "var(--sx-text)" }}>
-                7-Day Performance
+              <span style={labelStyle}>Leads Discovered</span>
+              <h2 style={{ fontSize: "16px", fontWeight: 600, margin: "4px 0 0", color: colors.text }}>
+                7-Day Discovery Activity
               </h2>
             </div>
-            <span
-              className="text-[10px] px-2 py-1 rounded border font-bold uppercase tracking-wider"
-              style={{
-                background: "var(--sx-primary-soft)",
-                color: "var(--sx-primary)",
-                borderColor: "rgba(139, 92, 246, 0.2)",
-              }}
-            >
-              LIVE STREAM
-            </span>
+            <Badge variant="info" dot>LIVE</Badge>
           </div>
-          <div className="flex items-end justify-between gap-4 pb-4" style={{ height: 240 }}>
-            {CHART_BARS.map((bar) => (
-              <div key={bar.day} className="flex flex-col items-center gap-2 relative group flex-1">
-                {bar.active && (
-                  <div
-                    className="absolute -top-16 left-1/2 -translate-x-1/2 px-3 py-2 rounded z-10 flex flex-col items-center"
-                    style={{
-                      background: "var(--sx-primary-container)",
-                      color: "#fff",
-                    }}
-                  >
-                    <span className="font-bold text-sm">{bar.tooltip}</span>
-                    <span className="text-[9px] uppercase font-bold opacity-80">{bar.sub}</span>
-                    <div
-                      className="absolute top-full left-1/2 -translate-x-1/2"
-                      style={{
-                        borderWidth: 8,
-                        borderStyle: "solid",
-                        borderColor: "var(--sx-primary-container) transparent transparent transparent",
-                      }}
-                    />
-                  </div>
-                )}
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "4px", height: "200px" }}>
+            {dayCounts.map((count, i) => (
+              <div key={days[i]} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", flex: 1 }}>
+                <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: i === todayIndex ? colors.primary : colors.textMuted }}>
+                  {count}
+                </span>
                 <div
-                  className="w-8 rounded-t-sm transition-colors"
                   style={{
-                    height: bar.height,
-                    background: bar.active
-                      ? "var(--sx-primary-container)"
-                      : "rgba(139, 92, 246, 0.2)",
-                    boxShadow: bar.active ? "0 0 12px rgba(139, 92, 246, 0.2)" : "none",
+                    width: "100%",
+                    maxWidth: "32px",
+                    borderRadius: "4px 4px 0 0",
+                    height: `${Math.max(8, (count / maxCount) * 160)}px`,
+                    background: i === todayIndex ? colors.primaryContainer : "rgba(139, 92, 246, 0.2)",
+                    boxShadow: i === todayIndex ? "0 0 12px rgba(139, 92, 246, 0.2)" : "none",
+                    transition: "background 150ms",
                   }}
                 />
-                <span
-                  className="text-[10px] font-bold"
-                  style={{ color: bar.active ? "var(--sx-primary)" : "var(--sx-text-muted)" }}
-                >
-                  {bar.day}
+                <span style={{ fontSize: "10px", fontWeight: 700, color: i === todayIndex ? colors.primary : colors.textMuted }}>
+                  {days[i]}
                 </span>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
 
         {/* Activity Feed */}
-        <div className="col-span-12 lg:col-span-4 p-5 flex flex-col" style={surfaceCard}>
-          <div className="flex items-center gap-2 mb-4">
-            <History className="w-5 h-5" style={{ color: "var(--sx-primary)" }} />
-            <h2 style={labelStyle}>Recent Activity</h2>
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+            <History size={20} style={{ color: colors.primary }} />
+            <span style={labelStyle}>Recent Activity</span>
           </div>
-          <div className="flex-1 overflow-y-auto space-y-4 pr-2" style={{ maxHeight: 320 }}>
-            {ACTIVITIES.map((a, i) => (
-              <div
-                key={i}
-                className="flex gap-4 pl-4 py-1"
-                style={{
-                  borderLeftWidth: 2,
-                  borderLeftStyle: "solid",
-                  borderLeftColor: a.active ? "var(--sx-primary-container)" : "var(--sx-border)",
-                  opacity: a.dim ? 0.5 : 1,
-                }}
-              >
-                <div className="flex flex-col flex-1">
-                  <span className="text-sm leading-tight" style={{ color: "var(--sx-text)" }}>
-                    {a.text}
-                  </span>
-                  <span className="text-[10px] mt-1 uppercase" style={{ color: "var(--sx-text-muted)" }}>
-                    {a.time} · {a.meta}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button
-            className="mt-6 w-full py-2 border text-[10px] uppercase font-bold transition-colors"
-            style={{
-              borderColor: "var(--sx-border)",
-              color: "var(--sx-text-muted)",
-              borderRadius: "var(--radius-sm)",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--sx-surface-high)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
-            View Full System Logs
-          </button>
-        </div>
-      </div>
-
-      {/* System Health Nodes */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {SYSTEM_NODES.map((node) => {
-          const Icon = node.icon;
-          return (
-            <div
-              key={node.name}
-              className="p-5 flex items-center justify-between group transition-colors cursor-pointer"
-              style={{
-                ...surfaceCard,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "rgba(139, 92, 246, 0.5)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--sx-border)";
-              }}
-            >
-              <div className="flex items-center gap-4">
+          <div style={{ overflowY: "auto", maxHeight: "280px", display: "flex", flexDirection: "column", gap: "12px" }}>
+            {recentEvents.length === 0 ? (
+              <p style={{ color: colors.textMuted, fontSize: "13px", padding: "16px 0" }}>No recent activity</p>
+            ) : (
+              recentEvents.map((event, i) => (
                 <div
-                  className="w-10 h-10 flex items-center justify-center rounded border transition-colors"
+                  key={i}
                   style={{
-                    background: "var(--sx-surface-high)",
-                    borderColor: "var(--sx-border)",
+                    display: "flex",
+                    gap: "12px",
+                    paddingLeft: "12px",
+                    borderLeft: `2px solid ${event.active ? colors.primaryContainer : colors.border}`,
+                    opacity: i > 5 ? 0.5 : 1,
                   }}
                 >
-                  <Icon className="w-5 h-5" style={{ color: "var(--sx-text-secondary)" }} />
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                    <span style={{ fontSize: "13px", lineHeight: 1.4, color: colors.text }}>{event.text}</span>
+                    <span style={{ fontSize: "10px", marginTop: "2px", textTransform: "uppercase", color: colors.textMuted }}>
+                      {event.time} · {event.meta}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold" style={{ color: "var(--sx-text)" }}>
-                    {node.name}
-                  </span>
-                  <span className="text-[10px] uppercase font-bold" style={{ color: "var(--sx-primary)" }}>
-                    {node.status}
-                  </span>
-                </div>
-              </div>
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{
-                  background: "var(--sx-primary-container)",
-                  boxShadow: "0 0 12px rgba(139, 92, 246, 0.2)",
-                }}
-              />
-            </div>
-          );
-        })}
+              ))
+            )}
+          </div>
+        </Card>
       </div>
 
-      {/* Bottom Row: Resources + Global Sync */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-5 flex flex-col gap-4" style={surfaceCard}>
-          <div className="flex justify-between items-center">
-            <span style={labelStyle}>Resource Allocation</span>
-            <span className="text-[10px] font-mono" style={{ color: "var(--sx-text-muted)" }}>
-              NODE_772A
+      {/* Bottom Row: Campaigns + Reports + System Health */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+        {/* Campaigns Summary */}
+        <Card>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <span style={labelStyle}>Campaigns</span>
+            <BarChart3 size={16} style={{ color: colors.textMuted }} />
+          </div>
+          <div style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.text, marginBottom: "8px" }}>
+            {campaigns?.length ?? 0}
+          </div>
+          <div style={{ display: "flex", gap: "16px", fontSize: "12px" }}>
+            <span style={{ color: colors.success }}>
+              ● {(campaigns?.filter((c) => c.status === "active").length ?? 0)} Active
+            </span>
+            <span style={{ color: colors.textMuted }}>
+              ○ {(campaigns?.filter((c) => c.status === "completed").length ?? 0)} Completed
             </span>
           </div>
-          <div className="space-y-4">
-            <ResourceBar label="CPU USAGE" value="24.2%" percent={24.2} />
-            <ResourceBar label="MEMORY LOAD" value="6.8 GB / 32 GB" percent={21} />
-          </div>
-        </div>
-
-        <div className="p-5 flex items-center gap-6" style={surfaceCard}>
-          <div
-            className="w-32 h-20 rounded border flex items-center justify-center"
-            style={{ background: "var(--sx-surface-high)", borderColor: "var(--sx-border)" }}
+          <button
+            onClick={() => navigate("/campaigns")}
+            style={{
+              marginTop: "12px",
+              width: "100%",
+              padding: "6px",
+              background: "transparent",
+              border: `1px solid ${colors.border}`,
+              borderRadius: "4px",
+              color: colors.textMuted,
+              fontSize: "10px",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              cursor: "pointer",
+              transition: "background 150ms",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = colors.surfaceHigh)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
-            <Globe className="w-10 h-10" style={{ color: "var(--sx-text-muted)", opacity: 0.4 }} />
+            View Campaigns
+          </button>
+        </Card>
+
+        {/* Reports Summary */}
+        <Card>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <span style={labelStyle}>Reports</span>
+            <CheckCircle size={16} style={{ color: colors.textMuted }} />
           </div>
-          <div className="flex-1 flex flex-col gap-1">
-            <span style={labelStyle}>Global Sync Status</span>
-            <p className="text-sm leading-tight" style={{ color: "var(--sx-text)" }}>
-              All 14 campaign edge-nodes are currently synchronized with the primary command center in Amsterdam.
-            </p>
-            <div className="mt-2 flex gap-2">
-              <Badge label="Lat: 12ms" />
-              <Badge label="Loss: 0.00%" />
-            </div>
+          <div style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.text, marginBottom: "8px" }}>
+            {reports?.total ?? 0}
           </div>
-        </div>
+          <div style={{ fontSize: "12px", color: colors.textMuted }}>
+            {reports?.items?.filter((r) => r.status === "completed").length ?? 0} completed
+          </div>
+        </Card>
+
+        {/* System Health */}
+        <Card>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <span style={labelStyle}>System Health</span>
+            <Gauge size={16} style={{ color: colors.textMuted }} />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: colors.success, boxShadow: "0 0 8px rgba(16, 185, 129, 0.4)" }} />
+            <span style={{ fontSize: "14px", fontWeight: 600, color: colors.text }}>Operational</span>
+          </div>
+          <div style={{ marginTop: "8px", display: "flex", gap: "4px", flexWrap: "wrap" }}>
+            {monitor?.services?.slice(0, 4).map((svc) => (
+              <span
+                key={svc.name}
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  background: "var(--sx-surface-high)",
+                  color: colors.textMuted,
+                }}
+              >
+                {svc.name}
+              </span>
+            ))}
+          </div>
+        </Card>
       </div>
     </section>
-  );
-}
-
-/* ── Sub-components ── */
-
-function StatCard({
-  label,
-  value,
-  change,
-  icon,
-  progress,
-}: {
-  label: string;
-  value: string;
-  change: string;
-  icon?: React.ReactNode;
-  progress: number;
-}) {
-  return (
-    <div className="p-5 flex flex-col gap-1 transition-colors" style={surfaceCard}>
-      <span style={labelStyle}>{label}</span>
-      <div className="flex items-end justify-between">
-        <span
-          className="text-3xl font-bold tracking-tight"
-          style={{ color: "var(--sx-primary)", fontFamily: "var(--font-display)" }}
-        >
-          {value}
-        </span>
-        <span
-          className="text-xs font-bold flex items-center gap-1 mb-1"
-          style={{ color: icon ? "var(--sx-primary)" : "var(--sx-text-muted)" }}
-        >
-          {change} {icon}
-        </span>
-      </div>
-      <div className="w-full h-1 mt-2" style={{ background: "var(--sx-surface-high)", borderRadius: 1 }}>
-        <div
-          className="h-full"
-          style={{
-            width: `${progress}%`,
-            background: "var(--sx-primary-container)",
-            borderRadius: 1,
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ResourceBar({ label, value, percent }: { label: string; value: string; percent: number }) {
-  return (
-    <div>
-      <div className="flex justify-between text-[11px] mb-1">
-        <span style={{ color: "var(--sx-text-secondary)" }}>{label}</span>
-        <span className="font-bold" style={{ color: "var(--sx-primary)" }}>{value}</span>
-      </div>
-      <div className="w-full h-1 overflow-hidden" style={{ background: "var(--sx-surface-high)", borderRadius: 1 }}>
-        <div
-          className="h-full"
-          style={{ width: `${percent}%`, background: "var(--sx-primary-container)", borderRadius: 1 }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function Badge({ label }: { label: string }) {
-  return (
-    <span
-      className="text-[9px] px-2 py-0.5 rounded border uppercase"
-      style={{
-        background: "var(--sx-surface-high)",
-        borderColor: "var(--sx-border)",
-        color: "var(--sx-text)",
-      }}
-    >
-      {label}
-    </span>
   );
 }
