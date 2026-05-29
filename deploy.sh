@@ -1,0 +1,135 @@
+#!/bin/bash
+set -e
+
+# Colores para output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║     SIPHON-X Agency Platform - Deploy Script              ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+# Función para verificar comando
+check_command() {
+    if ! command -v $1 &> /dev/null; then
+        echo -e "${RED}❌ Error: $1 no está instalado${NC}"
+        exit 1
+    fi
+}
+
+# Función para verificar Docker daemon
+check_docker_daemon() {
+    if ! docker info &> /dev/null; then
+        echo -e "${RED}❌ Error: Docker daemon no está corriendo${NC}"
+        echo -e "${YELLOW}💡 Por favor inicia Docker Desktop${NC}"
+        exit 1
+    fi
+}
+
+# Función para esperar servicio healthy
+wait_for_healthy() {
+    local service=$1
+    local max_attempts=$2
+    local attempt=1
+    
+    echo -e "${YELLOW}⏳ Esperando $service...${NC}"
+    while [ $attempt -le $max_attempts ]; do
+        status=$(docker compose ps $service --format json 2>/dev/null | grep -o '"Health":"[^"]*"' | cut -d'"' -f4)
+        if [ "$status" = "healthy" ]; then
+            echo -e "${GREEN}✅ $service está healthy${NC}"
+            return 0
+        fi
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    
+    echo -e "${RED}❌ Timeout esperando $service${NC}"
+    return 1
+}
+
+# 1. Verificar dependencias
+echo -e "${BLUE}[1/7] Verificando dependencias...${NC}"
+check_command docker
+check_command docker-compose
+check_docker_daemon
+echo -e "${GREEN}✅ Dependencias OK${NC}"
+echo ""
+
+# 2. Verificar archivo .env
+echo -e "${BLUE}[2/7] Verificando configuración...${NC}"
+if [ ! -f .env ]; then
+    echo -e "${RED}❌ Error: Archivo .env no encontrado${NC}"
+    echo -e "${YELLOW}💡 Copia .env.example a .env y configura las variables${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✅ Archivo .env encontrado${NC}"
+echo ""
+
+# 3. Limpiar contenedores anteriores
+echo -e "${BLUE}[3/7] Limpiando contenedores anteriores...${NC}"
+docker compose down --remove-orphans 2>/dev/null || true
+echo -e "${GREEN}✅ Limpieza completada${NC}"
+echo ""
+
+# 4. Construir imágenes
+echo -e "${BLUE}[4/7] Construyendo imágenes Docker...${NC}"
+docker compose build --parallel
+echo -e "${GREEN}✅ Imágenes construidas${NC}"
+echo ""
+
+# 5. Levantar servicios base (postgres, redis)
+echo -e "${BLUE}[5/7] Levantando servicios base...${NC}"
+docker compose up -d postgres redis
+wait_for_healthy "postgres" 30
+wait_for_healthy "redis" 30
+echo ""
+
+# 6. Ejecutar migraciones de base de datos
+echo -e "${BLUE}[6/7] Ejecutando migraciones de base de datos...${NC}"
+docker compose run --rm api alembic upgrade head
+echo -e "${GREEN}✅ Migraciones ejecutadas${NC}"
+echo ""
+
+# 7. Levantar todos los servicios
+echo -e "${BLUE}[7/7] Levantando todos los servicios...${NC}"
+docker compose up -d
+echo ""
+
+# Esperar a que todos los servicios estén healthy
+echo -e "${YELLOW}⏳ Esperando a que todos los servicios estén listos...${NC}"
+sleep 10
+
+# Verificar estado final
+echo ""
+echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║                    Estado de Servicios                    ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
+docker compose ps
+echo ""
+
+# URLs de acceso
+echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║              🎉 Deploy Completado Exitosamente            ║${NC}"
+echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+echo -e "${BLUE}📍 URLs de acceso:${NC}"
+echo -e "   • Frontend:        ${GREEN}http://localhost:3000${NC}"
+echo -e "   • API:             ${GREEN}http://localhost:8000${NC}"
+echo -e "   • API Docs:        ${GREEN}http://localhost:8000/docs${NC}"
+echo -e "   • Nginx Admin:     ${GREEN}http://localhost:81${NC}"
+echo ""
+echo -e "${BLUE}📊 Servicios activos:${NC}"
+docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" | tail -n +2
+echo ""
+echo -e "${YELLOW}💡 Comandos útiles:${NC}"
+echo -e "   • Ver logs:        ${BLUE}docker compose logs -f [servicio]${NC}"
+echo -e "   • Detener:         ${BLUE}docker compose down${NC}"
+echo -e "   • Reiniciar:       ${BLUE}docker compose restart [servicio]${NC}"
+echo -e "   • Shell API:       ${BLUE}docker compose exec api bash${NC}"
+echo ""
+echo -e "${GREEN}✅ SIPHON-X Agency Platform está listo para generar ingresos!${NC}"
+echo ""
