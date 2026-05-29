@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -16,9 +18,42 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.redis_client import close_redis, get_redis
 
+logger = logging.getLogger(__name__)
+
+# Global references for background tasks
+_follow_up_task: asyncio.Task | None = None
+
+
+async def _follow_up_poller(interval_seconds: int) -> None:
+    """Background task that polls for due follow-ups and processes them."""
+    logger.info("follow_up_poller_started", extra={"interval_seconds": interval_seconds})
+    while True:
+        try:
+            from app.core.database import get_session_factory
+            from app.services.follow_up_service import FollowUpService
+
+            factory = get_session_factory()
+            async with factory() as session:
+                service = FollowUpService(session)
+                processed = await service.process_due()
+                if processed:
+                    logger.info(
+                        "follow_up_poller_processed",
+                        extra={"count": len(processed)},
+                    )
+        except asyncio.CancelledError:
+            logger.info("follow_up_poller_cancelled")
+            return
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("follow_up_poller_error", extra={"error": str(exc)})
+
+        await asyncio.sleep(interval_seconds)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    global _follow_up_task
+
     settings = get_settings()
     logger = configure_logging(settings.service_name)
     logger.info("starting", extra={"version": __version__})
@@ -30,7 +65,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:  # noqa: BLE001
         logger.warning("redis_unreachable", extra={"error": str(exc)})
 
+    # Start follow-up poller background task
+    if settings.follow_up_enabled:
+        _follow_up_task = asyncio.create_task(
+            _follow_up_poller(settings.follow_up_poll_interval)
+        )
+        logger.info("follow_up_poller_launched")
+
     yield
+
+    # Graceful shutdown: cancel follow-up poller
+    if _follow_up_task is not None and not _follow_up_task.done():
+        _follow_up_task.cancel()
+        try:
+            await _follow_up_task
+        except asyncio.CancelledError:
+            pass
 
     await close_redis()
     logger.info("stopped")

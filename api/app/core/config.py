@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     pdf_generation_enabled: bool = Field(default=True, alias="PDF_GENERATION_ENABLED")
     pdf_max_size_mb: int = Field(default=5, alias="PDF_MAX_SIZE_MB")
 
+    # Follow-Up Automation
+    follow_up_enabled: bool = Field(default=True, alias="FOLLOW_UP_ENABLED")
+    follow_up_poll_interval: int = Field(default=60, alias="FOLLOW_UP_POLL_INTERVAL")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

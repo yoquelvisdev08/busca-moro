@@ -1,6 +1,7 @@
 """Modelos ORM."""
 
 from app.models.audit import Audit
+from app.models.follow_up import FollowUpSequence, FollowUpStatus
 from app.models.lead import Lead
 from app.models.outreach import OutreachMessage
 from app.models.report import Report, ReportStatus
@@ -10,6 +11,8 @@ from app.models.sniper import SniperAlert, SniperTarget
 
 __all__ = [
     "Audit",
+    "FollowUpSequence",
+    "FollowUpStatus",
     "Lead",
     "OutreachMessage",
     "Report",

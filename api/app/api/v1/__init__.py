@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.v1 import audits, leads, monitor, outreach, reports, sales_intelligence, scout, sender_profile, sniper
+from app.api.v1 import audits, follow_ups, leads, monitor, outreach, reports, sales_intelligence, scout, sender_profile, sniper
 
 router = APIRouter(prefix="/v1")
 router.include_router(leads.router)
@@ -11,6 +11,7 @@ router.include_router(sales_intelligence.router)
 router.include_router(sender_profile.router)
 router.include_router(outreach.router)
 router.include_router(reports.router)
+router.include_router(follow_ups.router)
 router.include_router(sniper.router)
 router.include_router(scout.router)
 router.include_router(monitor.router)

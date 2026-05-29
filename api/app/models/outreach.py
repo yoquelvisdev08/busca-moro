@@ -48,6 +48,11 @@ class OutreachMessage(Base):
     opened: Mapped[Optional[bool]] = mapped_column(Boolean)
     clicked: Mapped[Optional[bool]] = mapped_column(Boolean)
     replied: Mapped[Optional[bool]] = mapped_column(Boolean)
+    has_attachment: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    report_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("reports.id", ondelete="SET NULL"),
+    )
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

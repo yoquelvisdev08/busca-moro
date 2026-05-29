@@ -15,7 +15,12 @@ class OutreachService:
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def create(self, payload: OutreachCreate) -> OutreachMessage:
+    async def create(
+        self,
+        payload: OutreachCreate,
+        has_attachment: bool = False,
+        report_id: Optional[uuid.UUID] = None,
+    ) -> OutreachMessage:
         msg = OutreachMessage(
             lead_id=uuid.UUID(payload.lead_id),
             sales_intel_id=uuid.UUID(payload.sales_intel_id) if payload.sales_intel_id else None,
@@ -24,6 +29,8 @@ class OutreachService:
             subject=payload.subject,
             body=payload.body,
             provider_message_id=payload.provider_message_id,
+            has_attachment=has_attachment,
+            report_id=report_id,
         )
         self._session.add(msg)
         await self._session.commit()

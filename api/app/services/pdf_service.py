@@ -31,10 +31,6 @@ _JINJA_ENV = Environment(
     loader=FileSystemLoader(str(_TEMPLATE_DIR)),
     autoescape=True,
 )
-_JINJA_ENV.filters["format_load_time"] = _format_load_time
-_JINJA_ENV.filters["format_currency"] = _format_currency
-_JINJA_ENV.globals["format_load_time"] = _format_load_time
-_JINJA_ENV.globals["format_currency"] = _format_currency
 
 
 def _format_bytes(size_bytes: int) -> str:
@@ -78,6 +74,13 @@ def _format_currency(value: float) -> str:
     if value >= 1_000:
         return f"${value / 1_000:.1f}K"
     return f"${value:.0f}"
+
+
+# Register Jinja2 filters and globals (must be AFTER function definitions)
+_JINJA_ENV.filters["format_load_time"] = _format_load_time
+_JINJA_ENV.filters["format_currency"] = _format_currency
+_JINJA_ENV.globals["format_load_time"] = _format_load_time
+_JINJA_ENV.globals["format_currency"] = _format_currency
 
 
 class PDFService:

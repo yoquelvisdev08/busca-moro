@@ -43,6 +43,8 @@ class OutreachRead(BaseModel):
     opened: Optional[bool] = None
     clicked: Optional[bool] = None
     replied: Optional[bool] = None
+    has_attachment: bool = False
+    report_id: Optional[uuid.UUID] = None
     sent_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
