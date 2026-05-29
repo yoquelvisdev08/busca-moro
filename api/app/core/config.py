@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     llm_api_key: str = Field(default="", alias="LLM_API_KEY")
     llm_model: str = Field(default="deepseek-chat", alias="LLM_MODEL")
 
+    # PDF Report Generation
+    pdf_storage_path: str = Field(default="storage/reports", alias="PDF_STORAGE_PATH")
+    pdf_generation_enabled: bool = Field(default=True, alias="PDF_GENERATION_ENABLED")
+    pdf_max_size_mb: int = Field(default=5, alias="PDF_MAX_SIZE_MB")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

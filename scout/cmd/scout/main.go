@@ -182,7 +182,7 @@ func populateCandidates(
 		return nil
 	}
 
-	dorkScraper := &discovery.DorkScraper{Client: rotator.NewHTTPClient(cfg.HTTPTimeout)}
+	searx := discovery.NewSearXNG(cfg.SearXNGURL, rotator.NewHTTPClient(cfg.HTTPTimeout))
 	mapsScraper := &discovery.MapsScraper{Client: rotator.NewHTTPClient(cfg.HTTPTimeout)}
 
 	for _, q := range dorks {
@@ -192,11 +192,11 @@ func populateCandidates(
 		default:
 		}
 
-		bingResults, err := dorkScraper.SearchBing(ctx, q, 25)
+		searxResults, err := searx.Search(ctx, q, 25)
 		if err != nil {
-			logger.Warn("dork_search_failed", "query", q, "err", err)
+			logger.Warn("searxng_search_failed", "query", q, "err", err)
 		}
-		for _, r := range bingResults {
+		for _, r := range searxResults {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -216,7 +216,7 @@ func populateCandidates(
 			}
 		}
 
-		time.Sleep(2 * time.Second) // rate-limit suave entre Dorks
+		time.Sleep(1 * time.Second) // rate-limit suave entre Dorks
 	}
 	return nil
 }

@@ -27,6 +27,8 @@ volumes:
     name: siphon-npm-letsencrypt
   screenshots:
     name: siphon-screenshots
+  reports:
+    name: siphon-reports
 
 services:
   postgres:
@@ -109,6 +111,7 @@ services:
         condition: service_healthy
     volumes:
       - screenshots:/app/storage/screenshots
+      - reports:/app/storage/reports
     networks:
       - siphon-core
       - siphon-edge
@@ -121,6 +124,21 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
+    logging: *default-logging
+
+  # SearXNG: meta-search engine self-hosted. Agrega 70+ motores (Google, Bing,
+  # DuckDuckGo, etc.) sin API key ni límites. El Scout lo usa para discovery.
+  searxng:
+    image: searxng/searxng:latest
+    container_name: siphon-searxng
+    restart: unless-stopped
+    environment:
+      SEARXNG_BASE_URL: "http://localhost:8080/"
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-auto_generated}
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    networks:
+      - siphon-core
     logging: *default-logging
 
   scout:

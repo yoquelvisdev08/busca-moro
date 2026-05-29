@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from closer.config import Settings
+from closer.generator import prepare_prompt_variables
 from closer.llm_client import LLMClient
 from closer.prompts import (
     COLD_EMAIL_USER,
@@ -46,6 +47,11 @@ class IntelligenceEngine:
         audit: dict[str, Any],
         sender_profile: Optional[dict[str, Any]] = None,
     ) -> GeneratedIntelligence:
+        # ------------------------------------------------------------------
+        # Revenue loss estimation (Phase 1 — agency model)
+        # ------------------------------------------------------------------
+        rev_vars = prepare_prompt_variables(audit)
+
         pain_points_user = PAIN_POINTS_USER.format(
             max_pain_points=self._settings.max_pain_points,
             url=lead.get("url", ""),
@@ -63,6 +69,8 @@ class IntelligenceEngine:
             cls=audit.get("cumulative_layout_shift"),
             tbt_ms=audit.get("total_blocking_time_ms"),
             tech_stack=self._compact_tech_stack(audit.get("detected_tech") or lead.get("tech_stack") or {}),
+            revenue_loss_summary=rev_vars["revenue_loss_summary"],
+            estimated_monthly_revenue=rev_vars["estimated_monthly_revenue"],
         )
 
         pain_response = await self._llm.chat(
@@ -82,6 +90,9 @@ class IntelligenceEngine:
             language=self._settings.language,
             sender_name=sp.get("name") or "Yoquelvis",
             sender_website=sp.get("website") or "https://yoquelvis.dev",
+            revenue_loss_lead=rev_vars["revenue_loss_lead"],
+            qualitative_impact=rev_vars["qualitative_impact"],
+            disclaimer=rev_vars["disclaimer"],
         )
         email_user = COLD_EMAIL_USER.format(
             company=lead.get("company_name") or self._infer_company(lead),

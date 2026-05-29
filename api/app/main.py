@@ -8,6 +8,7 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import __version__
 from app.api.v1 import router as v1_router
@@ -62,6 +63,19 @@ def create_app() -> FastAPI:
         return {"name": "SIPHON-X", "docs": "/docs", "version": __version__}
 
     app.include_router(v1_router)
+
+    # Serve screenshots statically
+    import os
+    screenshot_dir = os.environ.get("AUDITOR_SCREENSHOT_DIR", "/app/storage/screenshots")
+    if os.path.isdir(screenshot_dir):
+        app.mount("/screenshots", StaticFiles(directory=screenshot_dir), name="screenshots")
+
+    # Serve generated reports statically
+    report_dir = settings.pdf_storage_path
+    if not os.path.isdir(report_dir):
+        os.makedirs(report_dir, exist_ok=True)
+    app.mount("/reports/files", StaticFiles(directory=report_dir), name="report_files")
+
     return app
 
 

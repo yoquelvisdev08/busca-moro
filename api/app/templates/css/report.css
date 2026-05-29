@@ -1,0 +1,568 @@
+/* ============================================================================
+   Agency PDF Report — Print-Optimized Stylesheet
+   ============================================================================
+
+   Designed for A4 paper (210mm × 297mm) with:
+   - Clean professional typography (system fonts)
+   - Page breaks for section separation
+   - Agency-branded via Jinja2 CSS variables
+   - Visible but non-distracting progress bars
+   - Tables for structured data
+   - No decorative elements that fail to print
+   - Monochrome-safe (works in B&W printing too)
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   CSS Custom Properties (brandable via Jinja2)
+   --------------------------------------------------------------------------- */
+:root {
+  --brand-primary: {{ brand.primary_color }};
+  --brand-accent: {{ brand.accent_color }};
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a4a6a;
+  --text-muted: #9ca3af;
+  --bg-page: #ffffff;
+  --bg-section: #f9fafb;
+  --bg-card: #ffffff;
+  --border: #e5e7eb;
+  --success: #22c55e;
+  --warning: #eab308;
+  --danger: #ef4444;
+  --info: #3b82f6;
+}
+
+/* ---------------------------------------------------------------------------
+   Page Setup (A4 optimized)
+   --------------------------------------------------------------------------- */
+@page {
+  size: A4;
+  margin: 20mm 15mm 25mm 15mm;
+
+  @bottom-center {
+    content: "{{ brand.name }} | {{ brand.website }} | Page " counter(page) " of " counter(pages);
+    font-size: 8pt;
+    color: var(--text-muted);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+}
+
+@page cover {
+  @bottom-center {
+    content: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Base Typography
+   --------------------------------------------------------------------------- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 10pt;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--bg-page);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+h1 { font-size: 24pt; font-weight: 700; letter-spacing: -0.5px; }
+h2 { font-size: 16pt; font-weight: 600; color: var(--brand-primary); margin-bottom: 12pt; }
+h3 { font-size: 12pt; font-weight: 600; margin-bottom: 6pt; }
+h4 { font-size: 10pt; font-weight: 600; color: var(--text-secondary); }
+
+a { color: var(--brand-primary); text-decoration: none; }
+
+/* ---------------------------------------------------------------------------
+   Cover Page
+   --------------------------------------------------------------------------- */
+.cover-page {
+  page: cover;
+  page-break-after: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  text-align: center;
+  padding: 40pt;
+}
+
+.cover-page .brand-mark {
+  width: 80pt;
+  height: 80pt;
+  background: var(--brand-primary);
+  border-radius: 20pt;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24pt;
+}
+
+.cover-page .brand-mark span {
+  color: white;
+  font-size: 28pt;
+  font-weight: 800;
+}
+
+.cover-page .agency-name {
+  font-size: 28pt;
+  font-weight: 800;
+  color: var(--brand-primary);
+  margin-bottom: 8pt;
+}
+
+.cover-page .report-title {
+  font-size: 14pt;
+  color: var(--text-secondary);
+  margin-bottom: 24pt;
+  max-width: 80%;
+}
+
+.cover-page .meta {
+  font-size: 10pt;
+  color: var(--text-muted);
+  margin-top: 40pt;
+}
+
+.cover-page .meta .label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.cover-page .meta-row {
+  margin: 4pt 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Section Layout
+   --------------------------------------------------------------------------- */
+.section {
+  page-break-inside: avoid;
+  margin-bottom: 24pt;
+  padding: 16pt 0;
+  border-bottom: 1pt solid var(--border);
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12pt;
+}
+
+.section-header .icon {
+  width: 28pt;
+  height: 28pt;
+  background: var(--brand-primary);
+  border-radius: 6pt;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10pt;
+  color: white;
+  font-size: 14pt;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Cards
+   --------------------------------------------------------------------------- */
+.card {
+  background: var(--bg-card);
+  border: 1pt solid var(--border);
+  border-radius: 6pt;
+  padding: 12pt;
+  margin-bottom: 10pt;
+}
+
+.card-row {
+  display: flex;
+  gap: 10pt;
+  margin-bottom: 10pt;
+}
+
+.card-col {
+  flex: 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Summary Box
+   --------------------------------------------------------------------------- */
+.summary-box {
+  background: linear-gradient(135deg, var(--brand-primary), color-mix(in srgb, var(--brand-primary) 70%, black));
+  color: white;
+  padding: 16pt;
+  border-radius: 8pt;
+  margin-bottom: 16pt;
+}
+
+.summary-box h2 {
+  color: white;
+  margin-bottom: 8pt;
+}
+
+.summary-box .stat-row {
+  display: flex;
+  gap: 16pt;
+  margin-bottom: 8pt;
+}
+
+.summary-box .stat {
+  flex: 1;
+}
+
+.summary-box .stat-value {
+  font-size: 18pt;
+  font-weight: 800;
+}
+
+.summary-box .stat-label {
+  font-size: 8pt;
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ---------------------------------------------------------------------------
+   Progress Bars (Lighthouse Scores)
+   --------------------------------------------------------------------------- */
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140pt, 1fr));
+  gap: 10pt;
+}
+
+.score-item {
+  text-align: center;
+  padding: 10pt;
+  background: var(--bg-section);
+  border-radius: 6pt;
+}
+
+.score-item .score-value {
+  font-size: 24pt;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4pt;
+}
+
+.score-item .score-label {
+  font-size: 8pt;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8pt;
+  background: var(--border);
+  border-radius: 4pt;
+  overflow: hidden;
+  margin-top: 6pt;
+}
+
+.progress-bar .fill {
+  height: 100%;
+  border-radius: 4pt;
+  transition: width 0.3s;
+}
+
+.progress-bar .fill.good { background: var(--success); }
+.progress-bar .fill.warning { background: var(--warning); }
+.progress-bar .fill.danger { background: var(--danger); }
+
+/* ---------------------------------------------------------------------------
+   Stat Grid
+   --------------------------------------------------------------------------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8pt;
+}
+
+.stat-item {
+  padding: 8pt;
+  background: var(--bg-section);
+  border-radius: 4pt;
+}
+
+.stat-item .label {
+  font-size: 7pt;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2pt;
+}
+
+.stat-item .value {
+  font-size: 10pt;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.stat-item .value.danger { color: var(--danger); }
+.stat-item .value.success { color: var(--success); }
+.stat-item .value.warning { color: var(--warning); }
+
+/* ---------------------------------------------------------------------------
+   Technical Details
+   --------------------------------------------------------------------------- */
+.tech-detail {
+  font-size: 9pt;
+  color: var(--text-secondary);
+  margin-bottom: 6pt;
+}
+
+.tech-detail strong {
+  color: var(--text-primary);
+  margin-right: 4pt;
+}
+
+/* ---------------------------------------------------------------------------
+   Pain Points
+   --------------------------------------------------------------------------- */
+.pain-point {
+  border-left: 3pt solid var(--brand-primary);
+  padding: 8pt 12pt;
+  margin-bottom: 10pt;
+  background: var(--bg-section);
+  border-radius: 0 4pt 4pt 0;
+}
+
+.pain-point.severity-high {
+  border-left-color: var(--warning);
+}
+
+.pain-point.severity-critical {
+  border-left-color: var(--danger);
+  background: #fef2f2;
+}
+
+.pain-point .pp-title {
+  font-weight: 700;
+  font-size: 10pt;
+  margin-bottom: 4pt;
+}
+
+.pain-point .pp-desc {
+  font-size: 9pt;
+  color: var(--text-secondary);
+  margin-bottom: 4pt;
+}
+
+.pain-point .pp-loss {
+  font-size: 12pt;
+  font-weight: 800;
+  color: var(--danger);
+}
+
+.pain-point .pp-evidence {
+  font-size: 8pt;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------------------------
+   Recommendations
+   --------------------------------------------------------------------------- */
+.recommendation {
+  display: flex;
+  gap: 10pt;
+  padding: 10pt;
+  border: 1pt solid var(--border);
+  border-radius: 6pt;
+  margin-bottom: 8pt;
+}
+
+.recommendation .rec-number {
+  width: 24pt;
+  height: 24pt;
+  background: var(--brand-primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 10pt;
+  flex-shrink: 0;
+}
+
+.recommendation .rec-content h4 {
+  margin-bottom: 2pt;
+}
+
+.recommendation .rec-content p {
+  font-size: 9pt;
+  color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------------------------
+   Service Proposal
+   --------------------------------------------------------------------------- */
+.proposal-box {
+  background: var(--bg-section);
+  border: 2pt solid var(--brand-primary);
+  border-radius: 8pt;
+  padding: 16pt;
+  margin-top: 16pt;
+}
+
+.proposal-box h2 {
+  text-align: center;
+  margin-bottom: 12pt;
+}
+
+.proposal-box .package {
+  display: flex;
+  gap: 10pt;
+  margin-bottom: 10pt;
+  align-items: flex-start;
+}
+
+.proposal-box .package .check {
+  width: 18pt;
+  height: 18pt;
+  background: var(--success);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10pt;
+  flex-shrink: 0;
+}
+
+.proposal-box .package .detail h4 {
+  margin-bottom: 2pt;
+}
+
+.proposal-box .package .detail p {
+  font-size: 9pt;
+  color: var(--text-secondary);
+}
+
+.proposal-box .cta {
+  text-align: center;
+  margin-top: 16pt;
+  font-size: 10pt;
+  color: var(--text-secondary);
+}
+
+.proposal-box .cta strong {
+  color: var(--brand-primary);
+}
+
+/* ---------------------------------------------------------------------------
+   Status Badges
+   --------------------------------------------------------------------------- */
+.badge {
+  display: inline-block;
+  padding: 2pt 8pt;
+  border-radius: 100pt;
+  font-size: 8pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge.success { background: #dcfce7; color: #166534; }
+.badge.warning { background: #fef9c3; color: #854d0e; }
+.badge.danger  { background: #fee2e2; color: #991b1b; }
+.badge.info    { background: #dbeafe; color: #1e40af; }
+
+/* ---------------------------------------------------------------------------
+   Table Styles
+   --------------------------------------------------------------------------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+  margin: 10pt 0;
+}
+
+th {
+  background: var(--brand-primary);
+  color: white;
+  padding: 6pt 8pt;
+  text-align: left;
+  font-weight: 600;
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+td {
+  padding: 6pt 8pt;
+  border-bottom: 1pt solid var(--border);
+}
+
+tr:nth-child(even) td {
+  background: var(--bg-section);
+}
+
+/* ---------------------------------------------------------------------------
+   Signal Tags
+   --------------------------------------------------------------------------- */
+.signal-tag {
+  display: inline-block;
+  padding: 1pt 6pt;
+  border-radius: 4pt;
+  font-size: 7pt;
+  font-weight: 600;
+  margin: 1pt 2pt;
+  background: var(--bg-section);
+  border: 1pt solid var(--border);
+  color: var(--text-secondary);
+}
+
+/* ---------------------------------------------------------------------------
+   Footer
+   --------------------------------------------------------------------------- */
+.footer {
+  margin-top: 40pt;
+  padding-top: 12pt;
+  border-top: 1pt solid var(--border);
+  font-size: 8pt;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ---------------------------------------------------------------------------
+   Print Helpers
+   --------------------------------------------------------------------------- */
+.page-break {
+  page-break-before: always;
+}
+
+.avoid-break {
+  page-break-inside: avoid;
+}
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .progress-bar .fill {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .score-item {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

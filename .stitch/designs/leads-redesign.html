@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SIPHON-X | Lead Management Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#ffb957",
+                        "surface-bright": "#36384b",
+                        "on-tertiary-fixed-variant": "#643f00",
+                        "inverse-on-surface": "#2d2f41",
+                        "secondary": "#9dcfda",
+                        "surface": "#101223",
+                        "on-tertiary": "#462b00",
+                        "on-secondary-container": "#8fc0cc",
+                        "surface-container-high": "#27293b",
+                        "primary": "#8aebff",
+                        "secondary-fixed-dim": "#9dcfda",
+                        "on-primary-container": "#005763",
+                        "tertiary-container": "#ffb13b",
+                        "on-background": "#e0e0f9",
+                        "surface-dim": "#101223",
+                        "primary-container": "#22d3ee",
+                        "secondary-fixed": "#b8ebf7",
+                        "background": "#101223",
+                        "error-container": "#93000a",
+                        "on-primary-fixed": "#001f25",
+                        "error": "#ffb4ab",
+                        "tertiary-fixed": "#ffddb5",
+                        "surface-container-lowest": "#0b0d1e",
+                        "on-tertiary-container": "#6e4600",
+                        "on-primary": "#00363e",
+                        "outline": "#859397",
+                        "on-secondary": "#00363e",
+                        "primary-fixed": "#a2eeff",
+                        "secondary-container": "#1b5059",
+                        "surface-tint": "#2fd9f4",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-fixed-variant": "#004e5a",
+                        "on-surface": "#e0e0f9",
+                        "surface-container": "#1c1e30",
+                        "inverse-surface": "#e0e0f9",
+                        "on-error": "#690005",
+                        "on-surface-variant": "#bbc9cd",
+                        "primary-fixed-dim": "#2fd9f4",
+                        "outline-variant": "#3c494c",
+                        "tertiary": "#ffd6a3",
+                        "on-tertiary-fixed": "#2a1800",
+                        "surface-container-highest": "#323346",
+                        "surface-variant": "#323346",
+                        "surface-container-low": "#181a2c",
+                        "on-secondary-fixed-variant": "#184d57",
+                        "on-secondary-fixed": "#001f25",
+                        "inverse-primary": "#006877"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "container-padding": "12px",
+                        "gutter": "16px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "data-md": ["JetBrains Mono"],
+                        "label-caps": ["Inter"],
+                        "data-sm": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "data-lg": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "headline-md": ["18px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "data-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "data-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "data-lg": ["18px", {"lineHeight": "24px", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { background-color: #101223; color: #e0e0f9; font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #101223; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(138, 235, 255, 0.5); border-radius: 2px; }
+        .pulsing-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body class="flex overflow-hidden">
+<!-- SideNavBar (Authority: JSON) -->
+<aside class="flex flex-col h-screen py-gutter bg-surface-container dark:bg-surface-container border-r border-outline-variant docked h-full left-0 w-64 shrink-0">
+<div class="px-gutter mb-8 flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-fixed text-lg" data-icon="sensors">sensors</span>
+</div>
+<div>
+<p class="font-label-caps text-label-caps text-on-surface">OPERATOR-01</p>
+<p class="font-data-sm text-data-sm text-primary">SYSTEM ACTIVE</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<div class="flex items-center gap-3 px-3 py-3 rounded text-on-surface-variant font-medium hover:text-primary hover:bg-surface-container-high transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</div>
+<!-- Active State Hierarchy: This is the Leads page -->
+<div class="flex items-center gap-3 px-3 py-3 rounded text-primary-container font-bold border-r-2 border-primary-container bg-surface-variant cursor-pointer">
+<span class="material-symbols-outlined" data-icon="leaderboard">leaderboard</span>
+<span class="font-label-caps text-label-caps">Leads</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-3 rounded text-on-surface-variant font-medium hover:text-primary hover:bg-surface-container-high transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+<span class="font-label-caps text-label-caps">Audits</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-3 rounded text-on-surface-variant font-medium hover:text-primary hover:bg-surface-container-high transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</div>
+</nav>
+<button class="mx-4 mb-8 bg-primary-container text-on-primary-fixed py-3 rounded-lg font-label-caps text-label-caps font-bold tracking-wider hover:opacity-90 active:opacity-80 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+            NEW LEAD
+        </button>
+<footer class="px-4 border-t border-outline-variant pt-4 space-y-1">
+<div class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-primary hover:bg-surface-container-high transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 rounded text-on-surface-variant font-medium hover:text-primary hover:bg-surface-container-high transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="font-label-caps text-label-caps">Logout</span>
+</div>
+</footer>
+</aside>
+<!-- Main Canvas -->
+<main class="flex-1 flex flex-col h-screen overflow-hidden">
+<!-- TopNavBar (Authority: JSON) -->
+<header class="flex justify-between items-center w-full px-margin-desktop h-16 bg-surface dark:bg-surface border-b border-outline-variant docked full-width top-0 shrink-0">
+<div class="flex items-center gap-8">
+<h1 class="font-headline-lg text-headline-lg font-black tracking-tighter text-primary dark:text-primary">SIPHON-X</h1>
+<div class="hidden md:flex gap-6 items-center h-full">
+<span class="text-primary font-bold border-b-2 border-primary py-5 px-1 font-label-caps text-label-caps">PIPELINE</span>
+<span class="text-on-surface-variant font-medium hover:bg-surface-variant transition-colors duration-150 py-5 px-1 font-label-caps text-label-caps cursor-pointer">INTEGRATIONS</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined p-2 rounded text-primary hover:bg-surface-variant transition-all" data-icon="sensors">sensors</button>
+<div class="relative">
+<button class="material-symbols-outlined p-2 rounded text-primary hover:bg-surface-variant transition-all" data-icon="notifications">notifications</button>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</div>
+<img alt="Operator Profile Avatar" class="w-8 h-8 rounded-full border border-primary/30" data-alt="A professional high-resolution headshot of a systems administrator in a dark, high-tech monitoring room. The lighting is dominated by cool cyan and deep blue tones from nearby screen glows, highlighting sharp facial features. The style is modern corporate with a technical edge, conveying professional authority and precision in a dark-mode aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCx9pTRcFvJC9284Oo6Iy0HqO6mgkNQnrdQUeOCX15a-HM5GCHni3SFhkXm0_DUBtPYEjLmawm2amRbomfxQpB8k2GcgDoO3AV-VaG28cnIMOud1Lp6br6Py5tfFuYdFaO_rkkTzAKog1Ns9fisnLxY5TOwfz9er4_hImhTW9SLf4kMj5hAbzqUTcDTDbZwZ322pFYlw9rkJxt6Wwbfcwb7L2lF5QwurvBylt458Xj1QIIkWnmvU2123z25XfyNcxIp1n4taRsAiTT1"/>
+</div>
+</header>
+<!-- Content Area -->
+<div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+<!-- Top Stats Bar -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<!-- Total Leads -->
+<div class="bg-surface-container border border-outline-variant p-4 rounded-lg flex flex-col gap-1">
+<p class="font-label-caps text-label-caps text-on-surface-variant">TOTAL LEADS</p>
+<div class="flex justify-between items-end">
+<p class="font-data-lg text-[32px] leading-tight text-on-surface font-bold">1,248</p>
+<span class="material-symbols-outlined text-primary/40" data-icon="database">database</span>
+</div>
+</div>
+<!-- Segment A -->
+<div class="bg-surface-container border border-outline-variant p-4 rounded-lg flex flex-col gap-1">
+<p class="font-label-caps text-label-caps text-on-surface-variant">SEGMENT A</p>
+<div class="flex justify-between items-end">
+<p class="font-data-lg text-[32px] leading-tight text-[#ef4444] font-bold">342</p>
+<span class="material-symbols-outlined text-[#ef4444]/40" data-icon="priority_high">priority_high</span>
+</div>
+</div>
+<!-- New/Unprocessed -->
+<div class="bg-surface-container border border-outline-variant p-4 rounded-lg flex flex-col gap-1">
+<p class="font-label-caps text-label-caps text-on-surface-variant">UNPROCESSED</p>
+<div class="flex justify-between items-end">
+<p class="font-data-lg text-[32px] leading-tight text-primary-container font-bold">88</p>
+<span class="material-symbols-outlined text-primary-container/40" data-icon="new_releases">new_releases</span>
+</div>
+</div>
+<!-- Conversion Rate -->
+<div class="bg-surface-container border border-outline-variant p-4 rounded-lg flex flex-col gap-1">
+<p class="font-label-caps text-label-caps text-on-surface-variant">CONVERSION</p>
+<div class="flex justify-between items-end">
+<p class="font-data-lg text-[32px] leading-tight text-[#10b981] font-bold">12.4%</p>
+<span class="material-symbols-outlined text-[#10b981]/40" data-icon="trending_up">trending_up</span>
+</div>
+</div>
+</div>
+<!-- Search + Quick Filters Row -->
+<div class="flex flex-col gap-4">
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div class="flex-1 min-w-[300px] relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="w-full bg-surface border border-outline-variant rounded-lg pl-10 pr-4 py-2 font-data-md text-data-md text-on-surface focus:border-primary-container focus:ring-0 outline-none transition-all" placeholder="Search by domain, company, email..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="bg-primary-container text-on-primary-fixed px-6 py-2 rounded-lg font-label-caps text-label-caps font-bold hover:opacity-90 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="bolt">bolt</span>
+                            START DISCOVERY
+                        </button>
+<button class="border border-outline-variant p-2 rounded-lg text-primary hover:bg-surface-container-high transition-all">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+</button>
+</div>
+</div>
+<div class="flex flex-wrap items-center gap-2">
+<button class="px-4 py-1.5 rounded-full bg-primary-container text-on-primary-fixed font-label-caps text-label-caps">ALL</button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-high border border-outline-variant text-on-surface-variant font-label-caps text-label-caps hover:text-primary transition-all">NEW</button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-high border border-outline-variant text-on-surface-variant font-label-caps text-label-caps hover:text-primary transition-all">AUDITED</button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-high border border-outline-variant text-on-surface-variant font-label-caps text-label-caps hover:text-primary transition-all">CONTACTED</button>
+<button class="px-4 py-1.5 rounded-full bg-surface-container-high border border-outline-variant text-on-surface-variant font-label-caps text-label-caps hover:text-primary transition-all">WON</button>
+</div>
+</div>
+<!-- Advanced Filters Panel -->
+<div class="bg-surface-container-low border border-outline-variant rounded-lg p-4">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="space-y-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">STATUS</label>
+<select class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 font-data-sm text-data-sm text-on-surface focus:border-primary-container outline-none appearance-none">
+<option>All Statuses</option>
+<option>Processing</option>
+<option>Auditing</option>
+</select>
+</div>
+<div class="space-y-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">SEGMENT</label>
+<select class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 font-data-sm text-data-sm text-on-surface focus:border-primary-container outline-none appearance-none">
+<option>Select Tier</option>
+<option>Segment A</option>
+<option>Segment B</option>
+</select>
+</div>
+<div class="space-y-1.5">
+<label class="font-label-caps text-label-caps text-on-surface-variant">MIN SCORE</label>
+<input class="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 font-data-sm text-data-sm text-on-surface focus:border-primary-container outline-none" placeholder="0 - 100" type="number"/>
+</div>
+</div>
+</div>
+<!-- Clean Data Table -->
+<div class="bg-surface-container border border-outline-variant rounded-lg overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-highest/50 border-b-2 border-outline-variant">
+<th class="p-4 w-10">
+<input class="rounded-sm bg-transparent border-outline text-primary focus:ring-0" type="checkbox"/>
+</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant">DOMAIN &amp; COMPANY</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant">SEGMENT</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant">STATUS</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant">SCORE</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant">CONTACT</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant">DISCOVERED</th>
+<th class="p-4 font-label-caps text-label-caps text-on-surface-variant text-right">ACTIONS</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<!-- Active/Selected Row -->
+<tr class="hover:bg-surface-variant transition-colors border-l-4 border-primary-container bg-surface-variant/20">
+<td class="p-4">
+<input checked="" class="rounded-sm bg-transparent border-primary-container text-primary focus:ring-0" type="checkbox"/>
+</td>
+<td class="p-4">
+<div class="flex flex-col">
+<span class="font-data-md text-primary font-bold">quantum-sys.ai</span>
+<span class="font-data-sm text-on-surface-variant">Quantum Systems Inc.</span>
+</div>
+</td>
+<td class="p-4">
+<span class="px-2 py-0.5 rounded text-[10px] font-bold border border-[#ef4444] text-[#ef4444] bg-[#ef4444]/10">A</span>
+</td>
+<td class="p-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-yellow-500 pulsing-dot"></span>
+<span class="font-data-sm text-on-surface">Auditing</span>
+</div>
+</td>
+<td class="p-4">
+<span class="font-data-lg text-[#10b981] font-bold">94</span>
+</td>
+<td class="p-4">
+<span class="font-data-sm text-on-surface-variant truncate block w-24">ops@quantum...</span>
+</td>
+<td class="p-4">
+<span class="font-data-sm text-on-surface-variant">2h ago</span>
+</td>
+<td class="p-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="p-1.5 rounded hover:bg-primary/20 text-primary transition-all">
+<span class="material-symbols-outlined text-lg" data-icon="analytics">analytics</span>
+</button>
+<button class="p-1.5 rounded hover:bg-primary/20 text-primary transition-all">
+<span class="material-symbols-outlined text-lg" data-icon="person_search">person_search</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Regular Row 1 -->
+<tr class="hover:bg-surface-variant transition-colors border-l-4 border-transparent">
+<td class="p-4">
+<input class="rounded-sm bg-transparent border-outline text-primary focus:ring-0" type="checkbox"/>
+</td>
+<td class="p-4">
+<div class="flex flex-col">
+<span class="font-data-md text-primary font-bold">vertex-labs.io</span>
+<span class="font-data-sm text-on-surface-variant">Vertex Digital Labs</span>
+</div>
+</td>
+<td class="p-4">
+<span class="px-2 py-0.5 rounded text-[10px] font-bold border border-primary text-primary bg-primary/10">B</span>
+</td>
+<td class="p-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="font-data-sm text-on-surface">Identified</span>
+</div>
+</td>
+<td class="p-4">
+<span class="font-data-lg text-[#10b981] font-bold">81</span>
+</td>
+<td class="p-4">
+<span class="font-data-sm text-on-surface-variant truncate block w-24">admin@vertex...</span>
+</td>
+<td class="p-4">
+<span class="font-data-sm text-on-surface-variant">5h ago</span>
+</td>
+<td class="p-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="p-1.5 rounded hover:bg-primary/20 text-primary transition-all">
+<span class="material-symbols-outlined text-lg" data-icon="analytics">analytics</span>
+</button>
+<button class="p-1.5 rounded hover:bg-primary/20 text-primary transition-all">
+<span class="material-symbols-outlined text-lg" data-icon="person_search">person_search</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Regular Row 2 -->
+<tr class="hover:bg-surface-variant transition-colors border-l-4 border-transparent">
+<td class="p-4">
+<input class="rounded-sm bg-transparent border-outline text-primary focus:ring-0" type="checkbox"/>
+</td>
+<td class="p-4">
+<div class="flex flex-col">
+<span class="font-data-md text-primary font-bold">nova-stack.com</span>
+<span class="font-data-sm text-on-surface-variant">Nova Stack Corp</span>
+</div>
+</td>
+<td class="p-4">
+<span class="px-2 py-0.5 rounded text-[10px] font-bold border border-tertiary text-tertiary bg-tertiary/10">C</span>
+</td>
+<td class="p-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+<span class="font-data-sm text-on-surface">Archived</span>
+</div>
+</td>
+<td class="p-4">
+<span class="font-data-lg text-error font-bold">42</span>
+</td>
+<td class="p-4">
+<span class="font-data-sm text-on-surface-variant truncate block w-24">contact@nova...</span>
+</td>
+<td class="p-4">
+<span class="font-data-sm text-on-surface-variant">1d ago</span>
+</td>
+<td class="p-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="p-1.5 rounded hover:bg-primary/20 text-primary transition-all">
+<span class="material-symbols-outlined text-lg" data-icon="analytics">analytics</span>
+</button>
+<button class="p-1.5 rounded hover:bg-primary/20 text-primary transition-all">
+<span class="material-symbols-outlined text-lg" data-icon="person_search">person_search</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Footer Pagination -->
+<div class="flex items-center justify-between pt-4 border-t border-outline-variant">
+<p class="font-data-sm text-data-sm text-on-surface-variant">Showing 1 to 10 of 1,248 entries</p>
+<div class="flex gap-2">
+<button class="px-3 py-1.5 rounded border border-outline-variant text-primary hover:bg-surface-variant font-data-sm text-data-sm">PREV</button>
+<button class="px-3 py-1.5 rounded bg-primary text-on-primary font-data-sm text-data-sm font-bold">1</button>
+<button class="px-3 py-1.5 rounded border border-outline-variant text-on-surface-variant hover:text-primary font-data-sm text-data-sm">2</button>
+<button class="px-3 py-1.5 rounded border border-outline-variant text-on-surface-variant hover:text-primary font-data-sm text-data-sm">3</button>
+<button class="px-3 py-1.5 rounded border border-outline-variant text-primary hover:bg-surface-variant font-data-sm text-data-sm">NEXT</button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

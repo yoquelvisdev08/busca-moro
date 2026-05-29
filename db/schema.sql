@@ -379,6 +379,31 @@ CREATE TRIGGER trg_sender_profile_updated_at
     FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
 
 -- ============================================================================
+-- TABLA: reports
+-- ----------------------------------------------------------------------------
+-- PDF reports generated from lead audit + intelligence data. Stored as files
+-- on disk with metadata in the DB for listing, download, and re-send.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS reports (
+    id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    lead_id             UUID            NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+    audit_id            UUID            REFERENCES audits(id) ON DELETE SET NULL,
+    sales_intel_id      UUID            REFERENCES sales_intelligence(id) ON DELETE SET NULL,
+    file_path           TEXT            NOT NULL,
+    file_size           INTEGER         NOT NULL DEFAULT 0,
+    status              VARCHAR(20)     NOT NULL DEFAULT 'pending',
+    generated_at        TIMESTAMPTZ,
+    sent_count          INTEGER         NOT NULL DEFAULT 0,
+    created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_lead_id          ON reports (lead_id);
+CREATE INDEX IF NOT EXISTS idx_reports_status           ON reports (status);
+CREATE INDEX IF NOT EXISTS idx_reports_generated_at     ON reports (generated_at);
+
+-- ============================================================================
+-- VISTAS útiles para el panel
+-- ============================================================================
 -- VISTAS úti­les para el panel
 -- ============================================================================
 CREATE OR REPLACE VIEW v_lead_dashboard AS

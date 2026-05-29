@@ -13,3 +13,6 @@ python-multipart==0.0.17
 python-json-logger==2.0.7
 tenacity==9.0.0
 orjson==3.10.11
+weasyprint>=60.0
+jinja2>=3.1
+PyPDF2>=3.0

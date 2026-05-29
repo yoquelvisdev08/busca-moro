@@ -255,7 +255,7 @@ function OverviewTab({ lead, audit, intel }: any) {
               ).map((pp: any, i: number) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
                   <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0_5 flex-shrink-0" />
-                  <span>{typeof pp === "string" ? pp : pp.title || pp}</span>
+                  <span className="break-words">{typeof pp === "string" ? pp : pp.title || pp}</span>
                 </li>
               ))}
             </ul>
@@ -352,8 +352,8 @@ function ContactsTab({ lead, audit }: any) {
         <div className="space-y-2">
           {lead.email && (
             <div className="flex items-center justify-between p-3 rounded border border-void-border bg-void-bg">
-              <span className="font-mono text-sm">{lead.email}</span>
-              <span className="text-xs text-gray-500">principal</span>
+              <span className="font-mono text-sm break-all">{lead.email}</span>
+              <span className="text-xs text-gray-500 flex-shrink-0 ml-2">principal</span>
             </div>
           )}
           {emails.map((email: string, i: number) => (
@@ -361,8 +361,8 @@ function ContactsTab({ lead, audit }: any) {
               key={i}
               className="flex items-center justify-between p-3 rounded border border-void-border bg-void-bg"
             >
-              <span className="font-mono text-sm">{email}</span>
-              <span className="text-xs text-gray-500">extraído</span>
+              <span className="font-mono text-sm break-all">{email}</span>
+              <span className="text-xs text-gray-500 flex-shrink-0 ml-2">extraído</span>
             </div>
           ))}
           {emails.length === 0 && !lead.email && (
@@ -408,7 +408,7 @@ function ContactsTab({ lead, audit }: any) {
                     href={link}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-void-cyan hover-underline text-sm font-mono block"
+                    className="text-void-cyan hover-underline text-sm font-mono block break-all"
                   >
                     {link}
                   </a>
@@ -445,10 +445,10 @@ function IntelligenceTab({ intel, allIntel }: any) {
         <div className="space-y-2">
           {(Array.isArray(painPoints) ? painPoints : []).map((pp: any, i: number) => (
             <div key={i} className="p-3 rounded border border-yellow-500-20 bg-yellow-500-5">
-              <div className="font-mono text-sm">
+              <div className="font-mono text-sm break-words">
                 {typeof pp === "string" ? pp : pp.title || JSON.stringify(pp)}
               </div>
-              {pp.description && <div className="text-xs text-gray-400 mt-1">{pp.description}</div>}
+              {pp.description && <div className="text-xs text-gray-400 mt-1 break-words">{pp.description}</div>}
             </div>
           ))}
         </div>
@@ -460,12 +460,12 @@ function IntelligenceTab({ intel, allIntel }: any) {
           <h3 className="text-xs font-mono text-gray-400 mb-3 flex items-center gap-2">
             <MessageSquare className="w-4 h-4" /> COLD EMAIL GENERADO
           </h3>
-          <div className="p-4 rounded border border-void-border bg-void-bg">
+          <div className="p-4 rounded border border-void-border bg-void-bg max-w-full overflow-hidden">
             <div className="mb-3">
               <span className="text-xs text-gray-500 font-mono">Subject: </span>
               <span className="font-mono text-sm">{intel.cold_email_subject}</span>
             </div>
-            <pre className="text-sm font-mono whitespace-pre-wrap text-void-text">
+            <pre className="text-sm font-mono whitespace-pre-wrap break-words text-void-text overflow-x-auto">
               {intel.cold_email_body}
             </pre>
           </div>
@@ -512,11 +512,12 @@ function OutreachTab({ lead }: any) {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
 
-  // Fetch lead detail for intel
+  // Fetch lead detail for intel (reuse parent query if available)
   const { data: detail } = useQuery({
     queryKey: ["lead-detail", lead.id],
     queryFn: () => api.getLeadDetail(lead.id),
     enabled: !!lead.id,
+    staleTime: 60_000, // Avoid re-fetching intel on every render
   });
 
   // Fetch sender profile
@@ -624,7 +625,7 @@ function OutreachTab({ lead }: any) {
           <div>
             <label className="text-xs font-mono text-gray-400 mb-2 block">SUBJECT</label>
             {isPreview ? (
-              <div className="p-3 rounded border border-void-border bg-void-bg font-mono text-sm">
+              <div className="p-3 rounded border border-void-border bg-void-bg font-mono text-sm break-words">
                 {subject || intel.cold_email_subject}
               </div>
             ) : (
@@ -640,8 +641,8 @@ function OutreachTab({ lead }: any) {
           <div>
             <label className="text-xs font-mono text-gray-400 mb-2 block">BODY</label>
             {isPreview ? (
-              <div className="p-4 rounded border border-void-border bg-void-bg">
-                <pre className="text-sm font-mono whitespace-pre-wrap text-void-text">
+              <div className="p-4 rounded border border-void-border bg-void-bg max-w-full overflow-hidden">
+                <pre className="text-sm font-mono whitespace-pre-wrap break-words text-void-text overflow-x-auto">
                   {body || intel.cold_email_body}
                 </pre>
               </div>

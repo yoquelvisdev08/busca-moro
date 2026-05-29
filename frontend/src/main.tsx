@@ -5,7 +5,8 @@ import { Toaster } from "react-hot-toast";
 
 import { App } from "@/App";
 import { queryClient } from "@/lib/query";
-import "@/styles/theme.css";
+import "@/lib/version";
+import "@/styles/globals.css";
 import "@/styles/app.css";
 
 const root = document.getElementById("root");

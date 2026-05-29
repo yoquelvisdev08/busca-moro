@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ brand.name }} &mdash; Website Performance Report</title>
+  <link rel="stylesheet" href="css/report.css">
+  <style>
+    /* Inline critical styles for WeasyPrint compatibility */
+    {% include "css/report.css" %}
+  </style>
+</head>
+<body>
+
+<!-- ==========================================================================
+     COVER PAGE
+     ========================================================================== -->
+<section class="cover-page">
+  <div class="brand-mark">
+    <span>{{ brand.name[:2] }}</span>
+  </div>
+  <h1 class="agency-name">{{ brand.name }}</h1>
+  <p class="report-title">Website Performance &amp; Growth Analysis for<br>
+    <strong>{{ lead.company_name }}</strong></p>
+
+  <div class="meta">
+    <div class="meta-row">
+      <span class="label">Domain: </span>{{ lead.domain }}
+    </div>
+    <div class="meta-row">
+      <span class="label">Generated: </span>{{ generated_at }}
+    </div>
+    <div class="meta-row">
+      <span class="label">Prepared by: </span>{{ brand.name }} &mdash; {{ brand.tagline }}
+    </div>
+  </div>
+</section>
+
+<!-- ==========================================================================
+     EXECUTIVE SUMMARY
+     ========================================================================== -->
+<div class="page-break"></div>
+<section class="section">
+  <div class="section-header">
+    <div class="icon">1</div>
+    <h2>Executive Summary</h2>
+  </div>
+
+  <div class="summary-box">
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-value">{{ revenue_loss.monthly_revenue_lost_fmt }}/mo</div>
+        <div class="stat-label">Estimated Revenue Loss</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{{ revenue_loss.conversion_drop_pct }}%</div>
+        <div class="stat-label">Conversion Drop</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{{ lead.segment }}</div>
+        <div class="stat-label">Commercial Segment</div>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    <strong>{{ lead.company_name }}</strong> ({{ lead.domain }}) is a
+    {% if lead.industry %}{{ lead.industry }} company{% else %}business{% endif %}
+    {% if lead.country != "N/A" %}based in {{ lead.country }}{% endif %}.
+    {% if audit %}
+      Our technical audit reveals
+      <strong>{{ pain_points | length }} critical issues</strong> affecting
+      performance, user experience, and — most importantly — revenue generation.
+    {% else %}
+      Our initial analysis reveals opportunities for significant performance and
+      revenue improvements.
+    {% endif %}
+  </p>
+
+  <p>
+    {% if revenue_loss.monthly_revenue_lost > 0 %}
+      <strong>Bottom line:</strong> {{ lead.company_name }} is losing an estimated
+      <strong>{{ revenue_loss.monthly_revenue_lost_fmt }}/month</strong>
+      ({{ revenue_loss.annualized_loss }}/year) to technical debt and missed
+      conversion opportunities.
+    {% else %}
+      While no significant revenue loss was detected, performance improvements
+      could still drive growth through better SEO rankings and user experience.
+    {% endif %}
+  </p>
+
+  {% if revenue_loss.confidence == "high" %}
+  <p><em>Confidence level: High — based on multiple verified technical signals.</em></p>
+  {% elif revenue_loss.confidence == "medium" %}
+  <p><em>Confidence level: Medium — based on available technical data. A deeper audit may reveal additional issues.</em></p>
+  {% else %}
+  <p><em>Confidence level: Low — limited data available. A full technical audit is recommended.</em></p>
+  {% endif %}
+
+  {% if revenue_loss.primary_factors %}
+  <p>
+    <strong>Primary factors: </strong>
+    {% for factor in revenue_loss.primary_factors %}
+      <span class="signal-tag">{{ factor | replace("_", " ") | title }}</span>
+    {% endfor %}
+  </p>
+  {% endif %}
+</section>
+
+<!-- ==========================================================================
+     TECHNICAL AUDIT
+     ========================================================================== -->
+<section class="section">
+  <div class="section-header">
+    <div class="icon">2</div>
+    <h2>Technical Audit</h2>
+  </div>
+
+  {% if audit %}
+    {% set scores = [
+      ("Lighthouse", audit.lighthouse_bar),
+      ("Performance", audit.performance_bar),
+      ("SEO", audit.seo_bar),
+      ("Accessibility", audit.accessibility_bar),
+      ("Best Practices", audit.best_practices_bar),
+    ] %}
+
+    <div class="score-grid">
+      {% for name, bar in scores %}
+      <div class="score-item">
+        <div class="score-value" style="color: {{ bar.color }}">{{ bar.value }}</div>
+        <div class="score-label">{{ name }}</div>
+        <div class="progress-bar">
+          <div class="fill {% if bar.value >= 90 %}good{% elif bar.value >= 50 %}warning{% else %}danger{% endif %}"
+               style="width: {{ bar.pct }}%"></div>
+        </div>
+        <div style="font-size: 7pt; color: var(--text-muted); margin-top: 2pt;">{{ bar.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <table style="margin-top: 14pt;">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Page Load Time</td>
+          <td>{{ audit.load_time_display }}</td>
+          <td>
+            {% if audit.load_time_ms and audit.load_time_ms > 3000 %}
+              <span class="badge danger">Slow</span>
+            {% elif audit.load_time_ms and audit.load_time_ms > 1000 %}
+              <span class="badge warning">Fair</span>
+            {% else %}
+              <span class="badge success">Good</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>First Contentful Paint</td>
+          <td>{{ format_load_time(audit.fcp_ms) if audit.fcp_ms else "N/A" }}</td>
+          <td>
+            {% if audit.fcp_ms and audit.fcp_ms > 1800 %}
+              <span class="badge warning">Needs Work</span>
+            {% elif audit.fcp_ms %}
+              <span class="badge success">Good</span>
+            {% else %}
+              <span class="badge">N/A</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>Largest Contentful Paint</td>
+          <td>{{ format_load_time(audit.lcp_ms) if audit.lcp_ms else "N/A" }}</td>
+          <td>
+            {% if audit.lcp_ms and audit.lcp_ms > 2500 %}
+              <span class="badge danger">Poor</span>
+            {% elif audit.lcp_ms %}
+              <span class="badge success">Good</span>
+            {% else %}
+              <span class="badge">N/A</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>Cumulative Layout Shift</td>
+          <td>{{ audit.cls if audit.cls is not none else "N/A" }}</td>
+          <td>
+            {% if audit.cls is not none and audit.cls > 0.1 %}
+              <span class="badge warning">Unstable</span>
+            {% elif audit.cls is not none %}
+              <span class="badge success">Stable</span>
+            {% else %}
+              <span class="badge">N/A</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>Total Blocking Time</td>
+          <td>{{ "{}ms".format(audit.tbt_ms) if audit.tbt_ms is not none else "N/A" }}</td>
+          <td>
+            {% if audit.tbt_ms is not none and audit.tbt_ms > 300 %}
+              <span class="badge danger">High</span>
+            {% elif audit.tbt_ms is not none %}
+              <span class="badge success">Low</span>
+            {% else %}
+              <span class="badge">N/A</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>Mobile-Friendly</td>
+          <td>{% if audit.mobile_friendly %}Yes{% elif audit.mobile_friendly is false %}No{% else %}Unknown{% endif %}</td>
+          <td>
+            {% if audit.mobile_friendly %}
+              <span class="badge success">Pass</span>
+            {% else %}
+              <span class="badge danger">Fail</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td>SSL Certificate</td>
+          <td>{% if audit.has_ssl %}Valid{% elif audit.has_ssl is false %}Missing{% else %}Unknown{% endif %}</td>
+          <td>
+            {% if audit.has_ssl %}
+              <span class="badge success">Secure</span>
+            {% else %}
+              <span class="badge danger">Not Secure</span>
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  {% else %}
+    <div class="card">
+      <p><em>No technical audit data available for this lead. A full Lighthouse audit is recommended to generate accurate metrics.</em></p>
+      <div class="stat-grid" style="margin-top: 10pt;">
+        <div class="stat-item">
+          <div class="label">Lighthouse Score</div>
+          <div class="value">{{ lead.score if lead.score else "Unknown" }}</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">Load Time</div>
+          <div class="value">{{ format_load_time(lead.load_time_ms) if lead.load_time_ms else "Unknown" }}</div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</section>
+
+<!-- ==========================================================================
+     COMMERCIAL ANALYSIS
+     ========================================================================== -->
+<section class="section">
+  <div class="section-header">
+    <div class="icon">3</div>
+    <h2>Commercial Analysis</h2>
+  </div>
+
+  <div class="card-row">
+    <div class="card card-col">
+      <h4>Segment Classification</h4>
+      <div style="display: flex; align-items: center; gap: 10pt;">
+        <div style="font-size: 32pt; font-weight: 800; color: var(--brand-primary);">{{ lead.segment }}</div>
+        <div>
+          <p style="font-size: 9pt; color: var(--text-secondary);">
+            {% if lead.segment == "A" %}
+              High-value target with strong commercial signals. Pricing page, testimonials, and active business model detected.
+            {% elif lead.segment == "B" %}
+              Strong potential with some commercial signals. Likely revenue-generating but may need website improvements.
+            {% elif lead.segment == "C" %}
+              Moderate potential. Limited commercial signals but could benefit from performance optimization.
+            {% else %}
+              Baseline segment. Limited data available. Further discovery and analysis recommended.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-col">
+      <h4>Commercial Signals</h4>
+      <table>
+        <tbody>
+          <tr>
+            <td>Revenue Signal</td>
+            <td><span class="badge {% if lead.revenue_signal != 'none' %}success{% else %}warning{% endif %}">{{ lead.revenue_signal | default("none") }}</span></td>
+          </tr>
+          <tr>
+            <td>Pricing Page</td>
+            <td>
+              {% if lead.has_pricing_page %}
+                <span class="badge success">Yes</span>
+              {% else %}
+                <span class="badge warning">No</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td>Testimonials</td>
+            <td>
+              {% if lead.has_testimonials %}
+                <span class="badge success">Yes</span>
+              {% else %}
+                <span class="badge warning">No</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td>Commercial Score</td>
+            <td><strong>{{ lead.commercial_score if lead.commercial_score is not none else 0 }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if lead.commercial_signals %}
+    <div style="margin-top: 6pt;">
+      <strong style="font-size: 9pt;">Detected signals: </strong>
+      {% for signal in lead.commercial_signals %}
+        <span class="signal-tag">{{ signal | replace("_", " ") | title }}</span>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+
+<!-- ==========================================================================
+     PAIN POINTS WITH $ ESTIMATES
+     ========================================================================== -->
+<section class="section">
+  <div class="section-header">
+    <div class="icon">4</div>
+    <h2>Pain Points &amp; Revenue Impact</h2>
+  </div>
+
+  {% if pain_points %}
+    {% for pp in pain_points %}
+    <div class="pain-point severity-{{ pp.severity }}">
+      <div class="pp-title">
+        {% if pp.severity == "critical" %}&#9888;{% elif pp.severity == "high" %}&#9650;{% else %}&#9679;{% endif %}
+        {{ pp.title }}
+      </div>
+      <div class="pp-desc">{{ pp.description }}</div>
+      <div class="pp-loss">
+        {% if pp.estimated_loss and pp.estimated_loss != "See revenue analysis" %}
+          Estimated loss: {{ pp.estimated_loss }}/month
+        {% else %}
+          See revenue analysis below
+        {% endif %}
+      </div>
+      {% if pp.evidence %}
+      <div class="pp-evidence">Evidence: {{ pp.evidence }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="card">
+      <p><em>No significant pain points detected. The site appears to be well-optimized or insufficient data is available for analysis.</em></p>
+    </div>
+  {% endif %}
+
+  <div style="margin-top: 14pt; font-size: 8pt; color: var(--text-muted); font-style: italic;">
+    <strong>Disclaimer:</strong> Revenue loss estimates are based on industry averages and benchmarks
+    (Google Core Web Vitals, Akamai, ThinkWithGoogle, Baymard Institute). Actual results vary based on
+    traffic volume, conversion rates, and market conditions. These figures are provided for informational
+    purposes and should be validated with the client's own analytics data.
+  </div>
+</section>
+
+<!-- ==========================================================================
+     RECOMMENDATIONS
+     ========================================================================== -->
+<section class="section">
+  <div class="section-header">
+    <div class="icon">5</div>
+    <h2>Recommendations &amp; ROI Estimates</h2>
+  </div>
+
+  {% set recs = [
+    {"title": "Performance Optimization", "desc": "Reduce page load time from " ~ (format_load_time(audit.load_time_ms) if audit and audit.load_time_ms else "current levels") ~ " to under 2 seconds. Implement code splitting, image optimization, CDN, and caching. Expected 15-25% improvement in Core Web Vitals.", "roi": "Recover " ~ revenue_loss.monthly_revenue_lost_fmt ~ "/month in lost revenue"},
+    {"title": "Mobile Experience Overhaul", "desc": "Implement responsive design, optimize touch targets, and ensure all content is accessible on mobile. With 60%+ of traffic from mobile devices, this directly affects conversion rates.", "roi": "15% increase in mobile conversion rate"},
+    {"title": "SSL & Security Hardening", "desc": "Install SSL certificate and enable HTTPS across all pages. Implement security headers (HSTS, CSP) and ensure PCI compliance if processing payments.", "roi": "10% trust recovery + SEO ranking boost"},
+    {"title": "SEO & Content Strategy", "desc": "Optimize meta tags, heading structure, and content hierarchy. Improve Core Web Vitals for better Google ranking. Implement structured data (Schema.org) for rich snippets.", "roi": "20-50% increase in organic traffic over 6 months"},
+    {"title": "UX & Conversion Optimization", "desc": "Streamline user journeys, add clear CTAs, implement social proof sections, and optimize forms. A/B test landing pages for maximum conversion.", "roi": "2-5x ROI on optimization spend typically within 6 months"},
+  ] %}
+
+  {% for rec in recs %}
+  <div class="recommendation avoid-break">
+    <div class="rec-number">{{ loop.index }}</div>
+    <div class="rec-content">
+      <h4>{{ rec.title }}</h4>
+      <p>{{ rec.desc }}</p>
+      <p style="font-size: 8pt; color: var(--success); margin-top: 4pt;">
+        <strong>Estimated ROI:</strong> {{ rec.roi }}
+      </p>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+<!-- ==========================================================================
+     SERVICE PROPOSAL
+     ========================================================================== -->
+<section class="section">
+  <div class="section-header">
+    <div class="icon">6</div>
+    <h2>Service Proposal</h2>
+  </div>
+
+  <p style="margin-bottom: 12pt;">
+    {{ brand.name }} proposes a comprehensive digital performance engagement for
+    <strong>{{ lead.company_name }}</strong>. Our approach covers the full
+    spectrum: audit, fix, optimize, and grow.
+  </p>
+
+  <div class="proposal-box">
+    <h2>What We Offer</h2>
+
+    <div class="package">
+      <div class="check">&#10003;</div>
+      <div class="detail">
+        <h4>Technical Performance Audit &amp; Fix</h4>
+        <p>Comprehensive Lighthouse-based audit with prioritized fixes. We identify root causes and implement solutions for load times, Core Web Vitals, and SEO.</p>
+      </div>
+    </div>
+
+    <div class="package">
+      <div class="check">&#10003;</div>
+      <div class="detail">
+        <h4>Mobile-First Responsive Design</h4>
+        <p>Full mobile optimization ensuring your site works flawlessly on all devices — smartphones, tablets, and desktops.</p>
+      </div>
+    </div>
+
+    <div class="package">
+      <div class="check">&#10003;</div>
+      <div class="detail">
+        <h4>SSL, Security &amp; Infrastructure</h4>
+        <p>Complete HTTPS migration, security hardening, and hosting optimization for speed and reliability.</p>
+      </div>
+    </div>
+
+    <div class="package">
+      <div class="check">&#10003;</div>
+      <div class="detail">
+        <h4>Ongoing Monitoring &amp; Support</h4>
+        <p>Continuous performance monitoring with real-time alerts. Monthly reports and quarterly strategy reviews to keep your site at peak performance.</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 14pt; padding-top: 10pt; border-top: 1pt solid var(--border);">
+      <table>
+        <thead>
+          <tr>
+            <th>Package</th>
+            <th>Scope</th>
+            <th>Timeline</th>
+            <th>Investment</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Starter</strong></td>
+            <td>Performance audit + critical fixes</td>
+            <td>2-4 weeks</td>
+            <td>Contact us</td>
+          </tr>
+          <tr>
+            <td><strong>Growth</strong></td>
+            <td>Full optimization + mobile + SEO</td>
+            <td>4-8 weeks</td>
+            <td>Contact us</td>
+          </tr>
+          <tr>
+            <td><strong>Enterprise</strong></td>
+            <td>Everything + ongoing support + monitoring</td>
+            <td>8-12 weeks</td>
+            <td>Contact us</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cta">
+      <p>Ready to stop losing <strong>{{ revenue_loss.monthly_revenue_lost_fmt }}/month</strong>?</p>
+      <p>Contact us at <strong>hello@siphonx.dev</strong> to schedule a free consultation.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==========================================================================
+     FOOTER
+     ========================================================================== -->
+<div class="footer">
+  <p>{{ brand.name }} &mdash; {{ brand.tagline }} | {{ brand.website }}</p>
+  <p>Report generated on {{ generated_at }}. All data based on automated analysis. Verify with live testing.</p>
+  <p>Confidential &mdash; prepared exclusively for {{ lead.company_name }}</p>
+</div>
+
+</body>
+</html>

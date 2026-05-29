@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SIPHON-X | Campaigns Command Center</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "on-secondary": "#332664",
+                "on-secondary-fixed": "#1e0e4e",
+                "inverse-on-surface": "#322f39",
+                "outline": "#958ea0",
+                "tertiary-fixed": "#ffdcbb",
+                "on-surface": "#e7e0ed",
+                "tertiary-fixed-dim": "#ffb869",
+                "on-primary-fixed-variant": "#5516be",
+                "secondary-container": "#4a3d7c",
+                "on-tertiary-fixed-variant": "#673d00",
+                "primary-container": "#a078ff",
+                "on-secondary-container": "#baabf3",
+                "on-primary-container": "#340080",
+                "tertiary": "#ffb869",
+                "surface-container-high": "#2c2832",
+                "on-tertiary-container": "#3f2300",
+                "on-surface-variant": "#cbc3d7",
+                "surface-container-highest": "#37333d",
+                "secondary-fixed-dim": "#ccbeff",
+                "primary-fixed-dim": "#d0bcff",
+                "primary": "#d0bcff",
+                "on-secondary-fixed-variant": "#4a3d7c",
+                "inverse-primary": "#6d3bd7",
+                "surface-tint": "#d0bcff",
+                "error": "#ffb4ab",
+                "surface-variant": "#37333d",
+                "surface-container-low": "#1d1a23",
+                "surface": "#15121b",
+                "on-tertiary": "#482900",
+                "secondary-fixed": "#e7deff",
+                "on-primary": "#3c0091",
+                "surface-container": "#211e27",
+                "surface-bright": "#3b3742",
+                "secondary": "#ccbeff",
+                "on-background": "#e7e0ed",
+                "surface-container-lowest": "#0f0d15",
+                "outline-variant": "#494454",
+                "on-primary-fixed": "#23005c",
+                "primary-fixed": "#e9ddff",
+                "on-tertiary-fixed": "#2c1700",
+                "on-error": "#690005",
+                "background": "#15121b",
+                "surface-dim": "#15121b",
+                "on-error-container": "#ffdad6",
+                "tertiary-container": "#ca801e",
+                "inverse-surface": "#e7e0ed",
+                "error-container": "#93000a"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+            },
+            "spacing": {
+                "widget-padding": "20px",
+                "base": "4px",
+                "gutter": "24px",
+                "margin-mobile": "16px",
+                "margin-desktop": "32px"
+            },
+            "fontFamily": {
+                "headline-lg": ["Inter"],
+                "code-sm": ["Inter"],
+                "body-md": ["Inter"],
+                "label-sm": ["Inter"],
+                "headline-md": ["Inter"],
+                "headline-lg-mobile": ["Inter"]
+            },
+            "fontSize": {
+                "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                "code-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                "body-md": ["14px", {"lineHeight": "22px", "fontWeight": "400"}],
+                "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #15121b;
+            color: #e7e0ed;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-glow {
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #15121b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2e2a35;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #37333d;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface overflow-hidden">
+<div class="flex h-screen w-full">
+<!-- Sidebar Navigation (The Anchor) -->
+<aside class="flex flex-col h-full py-6 px-4 gap-2 bg-surface-container-low border-r border-outline-variant w-64 fixed left-0 top-0 z-50">
+<div class="mb-10 px-4">
+<h1 class="font-headline-md text-headline-md font-bold tracking-tighter text-primary">SIPHON-X</h1>
+<p class="font-label-sm text-label-sm uppercase tracking-widest text-on-surface-variant/60">Command Center</p>
+</div>
+<nav class="flex-1 space-y-1">
+<!-- Dashboard -->
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant font-medium hover:bg-surface-container-high hover:text-on-surface transition-colors scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<!-- Leads -->
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant font-medium hover:bg-surface-container-high hover:text-on-surface transition-colors scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label-md text-label-md">Leads</span>
+</a>
+<!-- Campaigns (Active) -->
+<a class="flex items-center gap-3 px-4 py-3 rounded text-primary font-bold border-r-2 border-primary bg-primary/5 scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="campaign" style="font-variation-settings: 'FILL' 1;">campaign</span>
+<span class="font-label-md text-label-md">Outreach</span>
+</a>
+<!-- Monitor -->
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant font-medium hover:bg-surface-container-high hover:text-on-surface transition-colors scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-label-md text-label-md">Monitoreo</span>
+</a>
+<!-- Audits -->
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant font-medium hover:bg-surface-container-high hover:text-on-surface transition-colors scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+<span class="font-label-md text-label-md">Auditorías</span>
+</a>
+</nav>
+<div class="mt-auto pt-4 border-t border-outline-variant">
+<a class="flex items-center gap-3 px-4 py-3 rounded text-on-surface-variant font-medium hover:bg-surface-container-high hover:text-on-surface transition-colors scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Configuración</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 flex-1 flex flex-col h-full bg-background overflow-y-auto">
+<!-- Top AppBar -->
+<header class="flex justify-between items-center px-8 h-20 w-full bg-surface/50 backdrop-blur-md sticky top-0 z-40 border-b border-outline-variant">
+<div>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface tracking-tight">Campaigns</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Outreach and email management</p>
+</div>
+<div class="flex items-center gap-6">
+<button class="bg-primary hover:bg-primary-container text-on-primary font-semibold px-5 py-2.5 rounded flex items-center gap-2 transition-all active:scale-95 active-glow">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+<span class="font-label-md text-label-md">New Campaign</span>
+</button>
+<div class="flex items-center gap-2 border-l border-outline-variant pl-6">
+<button class="text-on-surface-variant hover:text-primary transition-opacity opacity-80 hover:opacity-100">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-opacity opacity-80 hover:opacity-100">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<div class="p-8 space-y-8">
+<!-- Quick Stats / Bento Grid Start -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Campaign Card 1 -->
+<div class="col-span-12 md:col-span-6 xl:col-span-4 bg-surface-container border border-outline-variant p-6 rounded transition-all hover:border-primary/50 group">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h3 class="font-headline-md text-[18px] font-bold text-on-surface mb-1">Enterprise Q4 Reach</h3>
+<span class="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest rounded border border-primary/20">Active</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div>
+<p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 mb-1">Leads</p>
+<p class="font-headline-md text-headline-md text-on-surface">1,240</p>
+</div>
+<div>
+<p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 mb-1">Emails Sent</p>
+<p class="font-headline-md text-headline-md text-on-surface">8,500</p>
+</div>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between items-end mb-1.5">
+<p class="text-[11px] font-medium text-on-surface-variant">Open Rate</p>
+<p class="text-[11px] font-bold text-primary">64.2%</p>
+</div>
+<div class="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 64.2%"></div>
+</div>
+</div>
+<div class="flex justify-between">
+<p class="text-[11px] font-medium text-on-surface-variant">Click Rate</p>
+<p class="text-[11px] font-bold text-on-surface">12.8%</p>
+</div>
+</div>
+</div>
+<!-- Campaign Card 2 -->
+<div class="col-span-12 md:col-span-6 xl:col-span-4 bg-surface-container border border-outline-variant p-6 rounded transition-all hover:border-primary/50 group">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h3 class="font-headline-md text-[18px] font-bold text-on-surface mb-1">Scale-Up SaaS Alpha</h3>
+<span class="px-2 py-1 bg-surface-container-highest text-on-surface-variant text-[10px] font-bold uppercase tracking-widest rounded border border-outline-variant">Paused</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div>
+<p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 mb-1">Leads</p>
+<p class="font-headline-md text-headline-md text-on-surface">452</p>
+</div>
+<div>
+<p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 mb-1">Emails Sent</p>
+<p class="font-headline-md text-headline-md text-on-surface">1,120</p>
+</div>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between items-end mb-1.5">
+<p class="text-[11px] font-medium text-on-surface-variant">Open Rate</p>
+<p class="text-[11px] font-bold text-primary">48.0%</p>
+</div>
+<div class="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 48.0%"></div>
+</div>
+</div>
+<div class="flex justify-between">
+<p class="text-[11px] font-medium text-on-surface-variant">Click Rate</p>
+<p class="text-[11px] font-bold text-on-surface">5.4%</p>
+</div>
+</div>
+</div>
+<!-- Campaign Card 3 -->
+<div class="col-span-12 md:col-span-6 xl:col-span-4 bg-surface-container border border-outline-variant p-6 rounded transition-all hover:border-primary/50 group">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h3 class="font-headline-md text-[18px] font-bold text-on-surface mb-1">Cold Outreach - Fintech</h3>
+<span class="px-2 py-1 bg-tertiary-container/20 text-tertiary text-[10px] font-bold uppercase tracking-widest rounded border border-tertiary/20">Completed</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div>
+<p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 mb-1">Leads</p>
+<p class="font-headline-md text-headline-md text-on-surface">2,800</p>
+</div>
+<div>
+<p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 mb-1">Emails Sent</p>
+<p class="font-headline-md text-headline-md text-on-surface">15,420</p>
+</div>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between items-end mb-1.5">
+<p class="text-[11px] font-medium text-on-surface-variant">Open Rate</p>
+<p class="text-[11px] font-bold text-primary">72.1%</p>
+</div>
+<div class="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 72.1%"></div>
+</div>
+</div>
+<div class="flex justify-between">
+<p class="text-[11px] font-medium text-on-surface-variant">Click Rate</p>
+<p class="text-[11px] font-bold text-on-surface">21.3%</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Email Templates Section -->
+<section class="bg-surface-container border border-outline-variant rounded overflow-hidden">
+<div class="px-6 py-5 border-b border-outline-variant flex items-center justify-between">
+<h3 class="font-headline-md text-[18px] font-bold text-on-surface">Email Templates</h3>
+<button class="text-primary hover:text-primary-container font-label-sm text-label-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]" data-icon="add_box">add_box</span>
+                            Create Template
+                        </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high/30">
+<th class="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Template Name</th>
+<th class="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Subject Line Preview</th>
+<th class="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60 text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-highest/40 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="mail">mail</span>
+<div>
+<p class="font-body-md text-body-md font-semibold text-on-surface">Intro - Solution Deck</p>
+<p class="text-[11px] text-on-surface-variant/70">Modified 2 days ago</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-on-surface-variant font-body-md italic">
+                                        "Hi {{first_name}}, a quick question regarding your infrastructure..."
+                                    </td>
+<td class="px-6 py-4 text-right">
+<div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 hover:bg-primary/10 rounded transition-colors text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined text-[20px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 hover:bg-error/10 rounded transition-colors text-on-surface-variant hover:text-error">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-highest/40 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary" data-icon="drafts">drafts</span>
+<div>
+<p class="font-body-md text-body-md font-semibold text-on-surface">Follow-up: 3 Day Bump</p>
+<p class="text-[11px] text-on-surface-variant/70">Draft</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-on-surface-variant font-body-md italic">
+                                        "Following up on our last conversation about..."
+                                    </td>
+<td class="px-6 py-4 text-right">
+<div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 hover:bg-primary/10 rounded transition-colors text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined text-[20px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 hover:bg-error/10 rounded transition-colors text-on-surface-variant hover:text-error">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-highest/40 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="mail">mail</span>
+<div>
+<p class="font-body-md text-body-md font-semibold text-on-surface">Closing: Partner Program</p>
+<p class="text-[11px] text-on-surface-variant/70">Modified 1 week ago</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-on-surface-variant font-body-md italic">
+                                        "Final call for our Q4 SIPHON-X Partner Program perks"
+                                    </td>
+<td class="px-6 py-4 text-right">
+<div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 hover:bg-primary/10 rounded transition-colors text-on-surface-variant hover:text-primary">
+<span class="material-symbols-outlined text-[20px]" data-icon="edit">edit</span>
+</button>
+<button class="p-2 hover:bg-error/10 rounded transition-colors text-on-surface-variant hover:text-error">
+<span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Footer System State -->
+<div class="flex items-center justify-between pt-8 pb-4 text-on-surface-variant/40">
+<div class="flex items-center gap-4 text-[11px] font-bold uppercase tracking-widest">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            System Online
+                        </div>
+<div>Last Sync: 12:42:01 UTC</div>
+</div>
+<div class="text-[11px] font-bold uppercase tracking-widest">
+                        v2.4.0-STABLE
+                    </div>
+</div>
+</div>
+</main>
+</div>
+<!-- Micro-interaction effects -->
+<script>
+        document.querySelectorAll('a, button').forEach(elem => {
+            elem.addEventListener('click', function(e) {
+                let ripple = document.createElement('div');
+                ripple.classList.add('ripple');
+                this.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 600);
+            });
+        });
+    </script>
+<style>
+        .ripple {
+            position: absolute;
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple 0.6s linear;
+            pointer-events: none;
+        }
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
+</body></html>

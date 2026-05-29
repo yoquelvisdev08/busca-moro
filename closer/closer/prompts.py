@@ -37,6 +37,9 @@ SSL válido: {has_ssl}
 Tiempo de carga (ms): {load_time_ms}
 FCP (ms): {fcp_ms} | LCP (ms): {lcp_ms} | CLS: {cls} | TBT (ms): {tbt_ms}
 Stack detectado: {tech_stack}
+
+{revenue_loss_summary}
+{estimated_monthly_revenue}
 """
 
 
@@ -98,6 +101,7 @@ y directores de empresas de alto volumen. Tu objetivo es que te RESPONDAN.
 Reglas estrictas:
 - Responde SIEMPRE en JSON con la estructura indicada.
 - Tono {tone}. Idioma {language}.
+{revenue_loss_lead}
 - Enfoca TODO en dinero perdido: cada segundo de carga = X% de conversión perdida.
 - Usa datos concretos. Cuantifica el impacto financiero.
 - Estructura:
@@ -108,6 +112,7 @@ Reglas estrictas:
 - Máximo 150 palabras. Sin emojis. Sin clichés.
 - No inventes precios ni promesas.
 - Preséntate como {sender_name} y enlaza a {sender_website}.
+{disclaimer}
 """
 
 
@@ -117,6 +122,7 @@ profesionales a cerrar más clientes. Tu objetivo es que te RESPONDAN.
 Reglas estrictas:
 - Responde SIEMPRE en JSON con la estructura indicada.
 - Tono {tone}. Idioma {language}.
+{revenue_loss_lead}
 - Enfoca en reputación profesional, primera impresión digital y confianza del cliente.
 - El gancho debe ser algo que ellos ya saben pero no han resuelto.
 - Estructura:
@@ -127,6 +133,7 @@ Reglas estrictas:
 - Máximo 150 palabras. Sin emojis. Sin clichés.
 - No inventes precios ni promesas.
 - Preséntate como {sender_name} y enlaza a {sender_website}.
+{disclaimer}
 """
 
 
@@ -136,6 +143,7 @@ a conseguir más clientes con un sitio web que funcione. Tu objetivo es que te R
 Reglas estrictas:
 - Responde SIEMPRE en JSON con la estructura indicada.
 - Tono {tone}. Idioma {language}.
+{qualitative_impact}
 - Enfoca en simplicidad: ellos no quieren complicaciones, quieren resultados.
 - Evita jerga técnica. Habla de clientes, no de código.
 - Estructura:
@@ -146,6 +154,7 @@ Reglas estrictas:
 - Máximo 150 palabras. Sin emojis. Sin clichés.
 - No inventes precios ni promesas.
 - Preséntate como {sender_name} y enlaza a {sender_website}.
+{disclaimer}
 """
 
 
@@ -155,6 +164,7 @@ generar confianza y conseguir que te contacten. Tu objetivo es que te RESPONDAN.
 Reglas estrictas:
 - Responde SIEMPRE en JSON con la estructura indicada.
 - Tono {tone}. Idioma {language}.
+{qualitative_impact}
 - No vendas agresivamente. Ofrece algo concreto y útil.
 - El gancho debe ser genuino: encontraste algo que podés mejorar.
 - Estructura:
@@ -165,6 +175,7 @@ Reglas estrictas:
 - Máximo 150 palabras. Sin emojis. Sin clichés.
 - No inventes precios ni promesas.
 - Preséntate como {sender_name} y enlaza a {sender_website}.
+{disclaimer}
 """
 
 

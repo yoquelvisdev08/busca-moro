@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SIPHON-X | Command Center Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f0a1a;
+            color: #e7e0ed;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #15121b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #2d2045;
+            border-radius: 10px;
+        }
+        .glass-card {
+            background: rgba(26, 17, 40, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid #2d2045;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary-fixed-variant": "#5516be",
+                      "surface-container-lowest": "#0f0d15",
+                      "on-secondary-fixed": "#211439",
+                      "on-tertiary-container": "#3f2300",
+                      "on-primary": "#3c0091",
+                      "outline-variant": "#494454",
+                      "surface-container-low": "#1d1a23",
+                      "on-surface-variant": "#cbc3d7",
+                      "on-secondary-fixed-variant": "#4e4067",
+                      "inverse-primary": "#6d3bd7",
+                      "secondary-fixed-dim": "#d1bfed",
+                      "on-secondary": "#372a4f",
+                      "background": "#15121b",
+                      "surface-container-high": "#2c2832",
+                      "surface": "#15121b",
+                      "secondary-fixed": "#ebdcff",
+                      "primary-fixed-dim": "#d0bcff",
+                      "error": "#ffb4ab",
+                      "outline": "#958ea0",
+                      "surface-variant": "#37333d",
+                      "inverse-surface": "#e7e0ed",
+                      "surface-dim": "#15121b",
+                      "tertiary-fixed": "#ffdcbb",
+                      "tertiary-container": "#ca801e",
+                      "inverse-on-surface": "#322f39",
+                      "on-surface": "#e7e0ed",
+                      "on-error": "#690005",
+                      "error-container": "#93000a",
+                      "secondary-container": "#504269",
+                      "on-tertiary-fixed": "#2c1700",
+                      "on-tertiary-fixed-variant": "#673d00",
+                      "on-primary-fixed": "#23005c",
+                      "surface-container-highest": "#37333d",
+                      "on-background": "#e7e0ed",
+                      "tertiary": "#ffb869",
+                      "primary": "#d0bcff",
+                      "secondary": "#d1bfed",
+                      "primary-container": "#a078ff",
+                      "on-tertiary": "#482900",
+                      "tertiary-fixed-dim": "#ffb869",
+                      "on-secondary-container": "#c2b1df",
+                      "surface-bright": "#3b3742",
+                      "on-primary-container": "#340080",
+                      "surface-tint": "#d0bcff",
+                      "surface-container": "#211e27",
+                      "on-error-container": "#ffdad6"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "lg": "24px",
+                      "gutter": "20px",
+                      "base": "4px",
+                      "xl": "48px",
+                      "xs": "4px",
+                      "sm": "8px",
+                      "margin": "24px",
+                      "md": "16px"
+              },
+              "fontFamily": {
+                      "label-sm": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "body-md": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "headline-sm": ["Inter"],
+                      "headline-lg-mobile": ["Inter"],
+                      "label-md": ["Inter"],
+                      "headline-lg": ["Inter"]
+              },
+              "fontSize": {
+                      "label-sm": ["11px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                      "headline-md": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                      "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                      "headline-sm": ["18px", {"lineHeight": "1.4", "letterSpacing": "0", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["26px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                      "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            }
+          }
+        }
+    </script>
+</head>
+<body class="dark:bg-surface-container-lowest">
+<!-- TopNavBar -->
+<header class="bg-background dark:bg-background border-b border-outline-variant dark:border-outline-variant w-full h-16 flex justify-between items-center px-lg sticky top-0 z-50">
+<div class="flex items-center gap-md">
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-primary">SIPHON-X</span>
+</div>
+<div class="flex-1 flex justify-start px-xl">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg py-1.5 pl-10 pr-4 text-body-md focus:outline-none focus:border-primary transition-all" placeholder="Search system..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-highest transition-colors p-2 rounded-full cursor-pointer active:scale-95" data-icon="notifications">notifications</button>
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-highest transition-colors p-2 rounded-full cursor-pointer active:scale-95" data-icon="settings_system_daydream">settings_system_daydream</button>
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-highest transition-colors p-2 rounded-full cursor-pointer active:scale-95" data-icon="account_circle">account_circle</button>
+</div>
+</header>
+<div class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="bg-surface-container-low dark:bg-surface-container-low h-screen w-64 fixed left-0 top-0 pt-20 flex flex-col py-md px-md overflow-y-auto border-r border-outline-variant dark:border-outline-variant hidden md:flex">
+<div class="mb-lg px-2">
+<div class="flex items-center gap-sm mb-base">
+<img class="w-10 h-10 rounded-xl object-cover border border-primary-container" data-alt="A highly detailed close-up shot of a sophisticated robotic eye with intricate glass lenses and glowing purple internal circuitry. The background is a deep matte black, emphasizing the technical precision and advanced AI capabilities of the SIPHON-X interface. Cool violet lighting reflects off metallic surfaces, creating a focused, high-tech atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCo5us4CszSlOpGBOBj4fyDaDS3eENds2_tdxI_2vRASSyxX5QcSrf9Ib2FTn2UH19ozWdJpgaRkjCy3JNJS-32l4-QjMmd-B5SduQjcs9hf_fErBRYyLhYOPyw6cpuETpsWV81avIugfhiRXHgfVw92HbbblQ57hAyg2Wdf-MEIvG4vt4sRmAcolZ1UpZ5zYpe6Es4EFmbHS2BYsVfrwJiD8QS-F6evehd2hPmzwZKY4wAEmkqIX2DQGhDoZZMqroJgSivkbNJQR4U"/>
+<div>
+<p class="font-label-md text-label-md text-primary">Command Center</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Operator 01</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-md px-3 py-2 text-primary dark:text-primary font-bold transition-all bg-surface-container-highest rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">General</span>
+</a>
+<a class="flex items-center gap-md px-3 py-2 text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="extension">extension</span>
+<span class="font-label-md text-label-md">Modules</span>
+</a>
+<a class="flex items-center gap-md px-3 py-2 text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="vpn_key">vpn_key</span>
+<span class="font-label-md text-label-md">API Keys</span>
+</a>
+<a class="flex items-center gap-md px-3 py-2 text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span class="font-label-md text-label-md">Logs</span>
+</a>
+<a class="flex items-center gap-md px-3 py-2 text-on-surface-variant dark:text-on-surface-variant hover:text-on-surface transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-label-md text-label-md">Advanced</span>
+</a>
+</nav>
+<div class="mt-auto space-y-1 border-t border-outline-variant pt-md">
+<button class="w-full flex items-center gap-md px-3 py-2 text-on-surface-variant hover:text-on-surface transition-all rounded-lg">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+<span class="font-label-md text-label-md">Help</span>
+</button>
+<button class="w-full flex items-center gap-md px-3 py-2 text-on-surface-variant hover:text-on-surface transition-all rounded-lg">
+<span class="material-symbols-outlined" data-icon="support_agent">support_agent</span>
+<span class="font-label-md text-label-md">Support</span>
+</button>
+<button class="mt-md w-full bg-primary-container text-on-primary-container py-2 rounded-lg font-label-md text-label-md hover:bg-opacity-90 transition-all active:scale-95">
+                    Deploy Changes
+                </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 p-lg bg-surface-container-lowest min-h-screen">
+<div class="max-w-5xl mx-auto space-y-gutter">
+<!-- Page Header -->
+<div class="flex flex-col gap-xs mb-xl">
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Settings</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Global system configuration and module orchestration.</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Left Column: General & Modules -->
+<div class="lg:col-span-7 space-y-gutter">
+<!-- General Settings -->
+<section class="glass-card rounded-xl p-md">
+<div class="flex items-center gap-sm mb-md pb-sm border-b border-outline-variant">
+<span class="material-symbols-outlined text-primary" data-icon="settings">settings</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">General Settings</h2>
+</div>
+<div class="space-y-md">
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase">App Name</label>
+<input class="bg-surface-container-lowest border border-outline-variant rounded py-2 px-md font-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" type="text" value="SIPHON-X"/>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase">Timezone</label>
+<select class="bg-surface-container-lowest border border-outline-variant rounded py-2 px-md font-body-md text-on-surface focus:border-primary outline-none appearance-none cursor-pointer">
+<option>UTC (GMT+0)</option>
+<option selected="">PST (GMT-8)</option>
+<option>EST (GMT-5)</option>
+<option>CET (GMT+1)</option>
+</select>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase">Language</label>
+<select class="bg-surface-container-lowest border border-outline-variant rounded py-2 px-md font-body-md text-on-surface focus:border-primary outline-none appearance-none cursor-pointer">
+<option selected="">English (US)</option>
+<option>German</option>
+<option>Japanese</option>
+</select>
+</div>
+</div>
+</div>
+</section>
+<!-- Module Toggles -->
+<section class="glass-card rounded-xl p-md">
+<div class="flex items-center gap-sm mb-md pb-sm border-b border-outline-variant">
+<span class="material-symbols-outlined text-primary" data-icon="extension">extension</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Module Orchestration</h2>
+</div>
+<div class="space-y-sm">
+<!-- Scout -->
+<div class="flex items-center justify-between p-sm hover:bg-surface-container-high rounded transition-colors group">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-primary-container/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="radar">radar</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Scout</p>
+<p class="font-body-md text-xs text-on-surface-variant">Lead Discovery &amp; Extraction</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-outline-variant rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
+</label>
+</div>
+<!-- Auditor -->
+<div class="flex items-center justify-between p-sm hover:bg-surface-container-high rounded transition-colors group">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Auditor</p>
+<p class="font-body-md text-xs text-on-surface-variant">Integrity &amp; Quality Check</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-outline-variant rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
+</label>
+</div>
+<!-- Closer -->
+<div class="flex items-center justify-between p-sm hover:bg-surface-container-high rounded transition-colors group">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-tertiary-container/20 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" data-icon="auto_fix_high">auto_fix_high</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Closer</p>
+<p class="font-body-md text-xs text-on-surface-variant">Conversion Optimization</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-outline-variant rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
+</label>
+</div>
+<!-- Sniper -->
+<div class="flex items-center justify-between p-sm hover:bg-surface-container-high rounded transition-colors group">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 rounded bg-primary-container/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="target">target</span>
+</div>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Sniper</p>
+<p class="font-body-md text-xs text-on-surface-variant">Precision Targeting Logic</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-outline-variant rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
+</label>
+</div>
+</div>
+</section>
+</div>
+<!-- Right Column: API, Email & Danger -->
+<div class="lg:col-span-5 space-y-gutter">
+<!-- API Integrations -->
+<section class="glass-card rounded-xl p-md">
+<div class="flex items-center gap-sm mb-md pb-sm border-b border-outline-variant">
+<span class="material-symbols-outlined text-primary" data-icon="vpn_key">vpn_key</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">API Vault</h2>
+</div>
+<div class="space-y-md">
+<!-- DeepSeek -->
+<div class="p-sm bg-surface-container-low rounded border border-outline-variant/30">
+<div class="flex justify-between items-center mb-sm">
+<p class="font-label-md text-label-md text-on-surface">DeepSeek</p>
+<span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20 uppercase font-bold">Active</span>
+</div>
+<div class="flex items-center gap-sm">
+<input class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-xs text-on-surface-variant font-mono outline-none" readonly="" type="password" value="sk-••••••••••••••••34a1"/>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors text-lg" data-icon="content_copy">content_copy</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-error transition-colors text-lg" data-icon="refresh">refresh</button>
+</div>
+</div>
+<!-- Brave Search -->
+<div class="p-sm bg-surface-container-low rounded border border-outline-variant/30">
+<div class="flex justify-between items-center mb-sm">
+<p class="font-label-md text-label-md text-on-surface">Brave Search</p>
+<span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded border border-primary/20 uppercase font-bold">Active</span>
+</div>
+<div class="flex items-center gap-sm">
+<input class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-xs text-on-surface-variant font-mono outline-none" readonly="" type="password" value="br-••••••••••••••••99f2"/>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors text-lg" data-icon="content_copy">content_copy</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-error transition-colors text-lg" data-icon="refresh">refresh</button>
+</div>
+</div>
+<!-- Resend -->
+<div class="p-sm bg-surface-container-low rounded border border-outline-variant/30">
+<div class="flex justify-between items-center mb-sm">
+<p class="font-label-md text-label-md text-on-surface">Resend</p>
+<span class="text-[10px] bg-outline-variant/10 text-on-surface-variant px-2 py-0.5 rounded border border-outline-variant/20 uppercase font-bold">Pending</span>
+</div>
+<div class="flex items-center gap-sm">
+<input class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-xs text-on-surface-variant font-mono outline-none" readonly="" type="password" value="re-••••••••••••••••00x1"/>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors text-lg" data-icon="content_copy">content_copy</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-error transition-colors text-lg" data-icon="refresh">refresh</button>
+</div>
+</div>
+</div>
+</section>
+<!-- SMTP Configuration -->
+<section class="glass-card rounded-xl p-md">
+<div class="flex items-center gap-sm mb-md pb-sm border-b border-outline-variant">
+<span class="material-symbols-outlined text-primary" data-icon="mail">mail</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">SMTP Relay</h2>
+</div>
+<div class="space-y-md">
+<div class="grid grid-cols-4 gap-md">
+<div class="col-span-3 flex flex-col gap-xs">
+<label class="font-label-md text-[10px] text-on-surface-variant uppercase">Host</label>
+<input class="bg-surface-container-lowest border border-outline-variant rounded px-3 py-1.5 text-xs text-on-surface focus:border-primary outline-none transition-all" placeholder="smtp.resend.com" type="text"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-[10px] text-on-surface-variant uppercase">Port</label>
+<input class="bg-surface-container-lowest border border-outline-variant rounded px-3 py-1.5 text-xs text-on-surface focus:border-primary outline-none transition-all" placeholder="587" type="text"/>
+</div>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-[10px] text-on-surface-variant uppercase">Username</label>
+<input class="bg-surface-container-lowest border border-outline-variant rounded px-3 py-1.5 text-xs text-on-surface focus:border-primary outline-none transition-all" placeholder="siphon-x-auth" type="text"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-md text-[10px] text-on-surface-variant uppercase">Password</label>
+<input class="bg-surface-container-lowest border border-outline-variant rounded px-3 py-1.5 text-xs text-on-surface focus:border-primary outline-none transition-all" type="password" value="••••••••••••••••"/>
+</div>
+</div>
+</section>
+<!-- Danger Zone -->
+<section class="border border-error/30 bg-error/5 rounded-xl p-md">
+<div class="flex items-center gap-sm mb-md pb-sm border-b border-error/20">
+<span class="material-symbols-outlined text-error" data-icon="report">report</span>
+<h2 class="font-headline-sm text-headline-sm text-error">Danger Zone</h2>
+</div>
+<div class="space-y-md">
+<div class="flex items-center justify-between">
+<div>
+<p class="font-label-md text-label-md text-on-surface">Reset System</p>
+<p class="font-body-md text-[10px] text-on-surface-variant">Revert all configurations to factory defaults.</p>
+</div>
+<button class="px-md py-1.5 rounded border border-error/50 text-error font-label-md text-xs hover:bg-error/10 transition-all active:scale-95">Reset</button>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<p class="font-label-md text-label-md text-on-surface">Purge Database</p>
+<p class="font-body-md text-[10px] text-on-surface-variant">Irreversibly delete all logs and cached data.</p>
+</div>
+<button class="px-md py-1.5 rounded bg-error text-on-error font-label-md text-xs hover:bg-opacity-90 transition-all active:scale-95">Purge</button>
+</div>
+</div>
+</section>
+</div>
+</div>
+<!-- Footer Action Bar -->
+<div class="flex justify-end gap-md pt-xl border-t border-outline-variant">
+<button class="px-xl py-2 rounded border border-outline-variant text-on-surface-variant font-label-md text-label-md hover:bg-surface-container-high transition-all">Discard</button>
+<button class="px-xl py-2 rounded bg-primary text-on-primary-container font-label-md text-label-md hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20">Save Configuration</button>
+</div>
+</div>
+</main>
+</div>
+<!-- Mobile Nav Bar (Hidden on Web) -->
+<div class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface-container-low border-t border-outline-variant flex justify-around items-center z-50">
+<button class="flex flex-col items-center gap-xs text-primary">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-[10px] font-bold">General</span>
+</button>
+<button class="flex flex-col items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="extension">extension</span>
+<span class="text-[10px]">Modules</span>
+</button>
+<button class="flex flex-col items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="vpn_key">vpn_key</span>
+<span class="text-[10px]">Keys</span>
+</button>
+<button class="flex flex-col items-center gap-xs text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span class="text-[10px]">Logs</span>
+</button>
+</div>
+<script>
+        // Micro-interactions for toggles and buttons
+        document.querySelectorAll('input[type="checkbox"]').forEach(toggle => {
+            toggle.addEventListener('change', (e) => {
+                const parent = e.target.closest('.group');
+                if (e.target.checked) {
+                    parent.classList.add('bg-primary/5');
+                } else {
+                    parent.classList.remove('bg-primary/5');
+                }
+            });
+        });
+
+        // Copy key interaction
+        document.querySelectorAll('[data-icon="content_copy"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.innerHTML = 'check';
+                btn.classList.add('text-primary');
+                setTimeout(() => {
+                    btn.innerHTML = 'content_copy';
+                    btn.classList.remove('text-primary');
+                }, 2000);
+            });
+        });
+
+        // System notification effect on load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('SIPHON-X Command Center Initialized...');
+        });
+    </script>
+</body></html>

@@ -1,0 +1,26 @@
+use_default_settings: true
+
+server:
+  secret_key: "6fcefe7d89eb971d372ccd6dc40ad0fb5d46b0ef053881daaed942a3c8c4705f"
+  limiter: false
+  image_proxy: false
+
+search:
+  formats:
+    - json
+
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+    disabled: false
+
+  - name: bing
+    engine: bing
+    shortcut: b
+    disabled: false
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false

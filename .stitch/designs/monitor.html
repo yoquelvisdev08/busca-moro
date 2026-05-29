@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SIPHON-X | Technical Monitor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary-container": "#340080",
+                      "on-primary-fixed-variant": "#5516be",
+                      "tertiary-fixed-dim": "#ffb869",
+                      "surface-variant": "#37333d",
+                      "surface": "#15121b",
+                      "secondary-fixed": "#e7dff3",
+                      "secondary-fixed-dim": "#cbc3d7",
+                      "inverse-primary": "#6d3bd7",
+                      "secondary-container": "#494454",
+                      "on-secondary-container": "#b9b2c5",
+                      "outline-variant": "#494454",
+                      "on-tertiary-container": "#3f2300",
+                      "primary": "#d0bcff",
+                      "on-error": "#690005",
+                      "inverse-surface": "#e7e0ed",
+                      "tertiary": "#ffb869",
+                      "on-tertiary-fixed": "#2c1700",
+                      "surface-container-highest": "#37333d",
+                      "surface-container-lowest": "#100d16",
+                      "on-tertiary-fixed-variant": "#673d00",
+                      "on-background": "#e7e0ed",
+                      "background": "#15121b",
+                      "surface-bright": "#3b3742",
+                      "on-secondary-fixed-variant": "#494454",
+                      "surface-dim": "#15121b",
+                      "error": "#ffb4ab",
+                      "surface-tint": "#d0bcff",
+                      "primary-container": "#a078ff",
+                      "on-primary-fixed": "#23005c",
+                      "surface-container": "#211e27",
+                      "on-secondary": "#332e3d",
+                      "outline": "#958ea0",
+                      "on-secondary-fixed": "#1d1928",
+                      "on-primary": "#3c0091",
+                      "tertiary-fixed": "#ffdcbb",
+                      "surface-container-high": "#2c2832",
+                      "secondary": "#cbc3d7",
+                      "on-surface": "#e7e0ed",
+                      "tertiary-container": "#ca801e",
+                      "on-tertiary": "#482900",
+                      "primary-fixed-dim": "#d0bcff",
+                      "primary-fixed": "#e9ddff",
+                      "on-error-container": "#ffdad6",
+                      "inverse-on-surface": "#322f39",
+                      "on-surface-variant": "#cbc3d7",
+                      "surface-container-low": "#1d1a23",
+                      "error-container": "#93000a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "4px",
+                      "lg": "4px",
+                      "xl": "8px",
+                      "full": "12px"
+              },
+              "spacing": {
+                      "lg": "24px",
+                      "unit": "4px",
+                      "margin-desktop": "32px",
+                      "sm": "8px",
+                      "margin-mobile": "16px",
+                      "md": "16px",
+                      "xs": "4px",
+                      "xl": "32px",
+                      "gutter": "16px"
+              },
+              "fontFamily": {
+                      "title-md": ["Inter"],
+                      "label-md": ["Inter"],
+                      "body-md": ["Inter"],
+                      "body-sm": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "headline-lg-mobile": ["Inter"],
+                      "code-sm": ["Inter"],
+                      "headline-lg": ["Inter"]
+              },
+              "fontSize": {
+                      "title-md": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "code-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .pulse-green {
+            box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(74, 222, 128, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #15121b; }
+        ::-webkit-scrollbar-thumb { background: #494454; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased overflow-hidden">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 flex flex-col py-lg z-40 bg-surface-container border-r border-outline-variant">
+<div class="px-xl mb-xl">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-primary-container rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<div>
+<h1 class="font-title-md text-title-md text-primary font-black">SIPHON-X</h1>
+<p class="font-label-md text-label-md text-on-surface-variant opacity-70">Technical Monitor</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-md space-y-unit">
+<!-- Navigation Items Mapping -->
+<a class="flex items-center gap-md px-md py-sm rounded transition-all duration-200 ease-in-out text-on-surface-variant hover:bg-surface-bright" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded transition-all duration-200 ease-in-out text-on-surface-variant hover:bg-surface-bright" href="#">
+<span class="material-symbols-outlined">explore</span>
+<span class="font-label-md text-label-md">Discover</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded transition-all duration-200 ease-in-out text-on-surface-variant hover:bg-surface-bright" href="#">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-label-md text-label-md">Leads</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded transition-all duration-200 ease-in-out text-on-surface-variant hover:bg-surface-bright" href="#">
+<span class="material-symbols-outlined">campaign</span>
+<span class="font-label-md text-label-md">Campaigns</span>
+</a>
+<!-- Active State: Monitor -->
+<a class="flex items-center gap-md px-md py-sm rounded transition-all duration-200 ease-in-out bg-secondary-container text-primary border-r-2 border-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">monitoring</span>
+<span class="font-label-md text-label-md">Monitor</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded transition-all duration-200 ease-in-out text-on-surface-variant hover:bg-surface-bright" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</nav>
+<div class="px-xl mt-auto pt-xl border-t border-outline-variant/30">
+<div class="flex items-center gap-md p-sm hover:bg-surface-bright rounded transition-colors cursor-pointer">
+<img alt="User Profile" class="w-8 h-8 rounded bg-surface-container-highest" data-alt="A professional headshot of a software engineer in a dark tech-focused environment. The lighting is low-key with subtle violet rim light reflecting off their glasses, conveying a mood of deep concentration and technical expertise. The background is a blurred server rack with dim blinking lights." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbxo5FCaif0ct6WQTtz_ocuxHP98JJZjEBop-KE_KlqA2xLoVxq9ZUahN7O2qF1TRhEeye1bSPBHcVhm6dubAhaiJMkxTRYLKVdb0nOEWYyJd_ytSCdi6r_Sf5KM01HZ7Wa3D-s-DvmNw1ctI4Nl2TuxoXji7pORDr98hATfQKocQcWKgz3t6J7CdSJl3vboL8d8VcrrkzIaXZf1TnNt7JyrX1XIr2hRsPfUmRX_q4GyETqqEf02wQXCYEwGvF_UKSgqXIBgZ-srOq"/>
+<div class="flex-1 min-w-0">
+<p class="font-label-md text-label-md truncate">Admin.root</p>
+<p class="text-[10px] text-on-surface-variant truncate">S-X Level 4</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant">more_vert</span>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 left-64 h-16 bg-surface z-50 flex justify-between items-center px-xl border-b border-outline-variant">
+<div class="flex flex-col">
+<h2 class="font-headline-lg text-headline-lg text-primary">Monitor</h2>
+<span class="font-label-md text-label-md text-on-surface-variant -mt-1">System health and uptime</span>
+</div>
+<div class="flex items-center gap-lg">
+<div class="relative group">
+<input class="bg-surface-container-low border border-outline-variant rounded px-md py-sm w-64 font-body-sm text-body-sm focus:border-primary focus:ring-0 transition-all outline-none" placeholder="Search system logs..." type="text"/>
+<span class="material-symbols-outlined absolute right-md top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+</div>
+<div class="flex items-center gap-md">
+<button class="p-xs hover:bg-surface-bright rounded text-on-surface-variant transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-xs hover:bg-surface-bright rounded text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined">help</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Scrollable Content Canvas -->
+<div class="mt-16 p-xl space-y-xl overflow-y-auto max-h-[calc(100vh-64px)]">
+<!-- Top Section: 3 Status Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-xl">
+<!-- System Status -->
+<div class="bg-surface-container border border-outline-variant p-lg rounded relative overflow-hidden group">
+<div class="flex justify-between items-start mb-md">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">System Status</p>
+<div class="w-3 h-3 bg-green-500 rounded-full pulse-green"></div>
+</div>
+<p class="font-headline-lg text-headline-lg text-on-background">ALL SYSTEMS OPERATIONAL</p>
+<div class="absolute bottom-0 left-0 w-full h-1 bg-green-500/20"></div>
+</div>
+<!-- Avg Response Time -->
+<div class="bg-surface-container border border-outline-variant p-lg rounded group">
+<div class="flex justify-between items-start mb-md">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Avg Response Time</p>
+<div class="flex items-center text-primary gap-unit">
+<span class="material-symbols-outlined text-[18px]">trending_down</span>
+<span class="font-label-md text-label-md">-12ms</span>
+</div>
+</div>
+<div class="flex items-baseline gap-xs">
+<p class="font-display-lg text-display-lg text-primary">142</p>
+<p class="font-title-md text-title-md text-on-surface-variant opacity-60">ms</p>
+</div>
+</div>
+<!-- Uptime 30d -->
+<div class="bg-surface-container border border-outline-variant p-lg rounded group">
+<div class="flex justify-between items-start mb-md">
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Uptime 30d</p>
+<span class="material-symbols-outlined text-on-surface-variant">history</span>
+</div>
+<div class="flex items-baseline gap-xs">
+<p class="font-display-lg text-display-lg text-on-background">99.98</p>
+<p class="font-title-md text-title-md text-on-surface-variant opacity-60">%</p>
+</div>
+</div>
+</div>
+<!-- Service List Table Container -->
+<div class="bg-surface-container border border-outline-variant rounded overflow-hidden">
+<div class="px-xl py-md border-b border-outline-variant flex justify-between items-center bg-surface-container-high">
+<h3 class="font-title-md text-title-md">Service Infrastructure</h3>
+<div class="flex gap-md">
+<button class="bg-surface border border-outline-variant px-md py-xs rounded font-label-md text-label-md hover:border-primary transition-colors">Export CSV</button>
+<button class="bg-primary text-on-primary px-md py-xs rounded font-label-md text-label-md hover:opacity-90 transition-opacity">Deploy Node</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant">
+<th class="px-xl py-md font-label-md text-label-md text-on-surface-variant uppercase">Service</th>
+<th class="px-xl py-md font-label-md text-label-md text-on-surface-variant uppercase">Status</th>
+<th class="px-xl py-md font-label-md text-label-md text-on-surface-variant uppercase">Last Check</th>
+<th class="px-xl py-md font-label-md text-label-md text-on-surface-variant uppercase">Response</th>
+<th class="px-xl py-md font-label-md text-label-md text-on-surface-variant uppercase text-right">Uptime</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm divide-y divide-outline-variant/30">
+<!-- Scout Row -->
+<tr class="hover:bg-surface-bright transition-colors group">
+<td class="px-xl py-md font-bold text-primary">Scout</td>
+<td class="px-xl py-md">
+<div class="flex items-center gap-sm">
+<div class="w-2 h-2 bg-green-500 rounded-full"></div>
+<span>Online</span>
+</div>
+</td>
+<td class="px-xl py-md text-on-surface-variant">2m ago</td>
+<td class="px-xl py-md">84ms</td>
+<td class="px-xl py-md text-right font-code-sm">99.99%</td>
+</tr>
+<!-- Auditor Row -->
+<tr class="hover:bg-surface-bright transition-colors group">
+<td class="px-xl py-md font-bold text-primary">Auditor</td>
+<td class="px-xl py-md">
+<div class="flex items-center gap-sm">
+<div class="w-2 h-2 bg-green-500 rounded-full"></div>
+<span>Online</span>
+</div>
+</td>
+<td class="px-xl py-md text-on-surface-variant">1m ago</td>
+<td class="px-xl py-md">112ms</td>
+<td class="px-xl py-md text-right font-code-sm">99.97%</td>
+</tr>
+<!-- Closer Row -->
+<tr class="hover:bg-surface-bright transition-colors group">
+<td class="px-xl py-md font-bold text-primary">Closer</td>
+<td class="px-xl py-md">
+<div class="flex items-center gap-sm">
+<div class="w-2 h-2 bg-green-500 rounded-full"></div>
+<span>Online</span>
+</div>
+</td>
+<td class="px-xl py-md text-on-surface-variant">5m ago</td>
+<td class="px-xl py-md">95ms</td>
+<td class="px-xl py-md text-right font-code-sm">100%</td>
+</tr>
+<!-- Sniper Row -->
+<tr class="hover:bg-surface-bright transition-colors group">
+<td class="px-xl py-md font-bold text-primary">Sniper</td>
+<td class="px-xl py-md">
+<div class="flex items-center gap-sm">
+<div class="w-2 h-2 bg-green-500 rounded-full"></div>
+<span>Online</span>
+</div>
+</td>
+<td class="px-xl py-md text-on-surface-variant">30s ago</td>
+<td class="px-xl py-md">240ms</td>
+<td class="px-xl py-md text-right font-code-sm">99.95%</td>
+</tr>
+<!-- API Row -->
+<tr class="hover:bg-surface-bright transition-colors group">
+<td class="px-xl py-md font-bold text-primary">API</td>
+<td class="px-xl py-md">
+<div class="flex items-center gap-sm">
+<div class="w-2 h-2 bg-green-500 rounded-full"></div>
+<span>Online</span>
+</div>
+</td>
+<td class="px-xl py-md text-on-surface-variant">10s ago</td>
+<td class="px-xl py-md">45ms</td>
+<td class="px-xl py-md text-right font-code-sm">99.99%</td>
+</tr>
+<!-- Email Row -->
+<tr class="hover:bg-surface-bright transition-colors group">
+<td class="px-xl py-md font-bold text-primary">Email</td>
+<td class="px-xl py-md">
+<div class="flex items-center gap-sm">
+<div class="w-2 h-2 bg-green-500 rounded-full"></div>
+<span>Online</span>
+</div>
+</td>
+<td class="px-xl py-md text-on-surface-variant">3m ago</td>
+<td class="px-xl py-md">1.2s</td>
+<td class="px-xl py-md text-right font-code-sm">99.92%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Bottom Section: Alerts Timeline -->
+<div class="bg-surface-container border border-outline-variant rounded p-xl">
+<div class="flex items-center justify-between mb-lg">
+<h3 class="font-title-md text-title-md flex items-center gap-md">
+<span class="material-symbols-outlined text-tertiary">notification_important</span>
+                        Recent Activity &amp; Alerts
+                    </h3>
+<button class="text-primary font-label-md text-label-md hover:underline">View All Logs</button>
+</div>
+<div class="space-y-lg relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[1px] before:bg-outline-variant">
+<!-- Alert 1 -->
+<div class="relative pl-xl flex gap-lg group">
+<div class="absolute left-0 top-1.5 w-[23px] h-[23px] bg-error rounded-full flex items-center justify-center border-4 border-surface-container z-10">
+<span class="material-symbols-outlined text-[14px] text-on-error">warning</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-md mb-unit">
+<span class="font-label-md text-label-md text-error px-sm py-xs bg-error/10 rounded">Just Now</span>
+<span class="font-bold text-on-background">API</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Latency spike detected in US-East. Peak reached 4.2s during load test synchronization.</p>
+</div>
+</div>
+<!-- Alert 2 -->
+<div class="relative pl-xl flex gap-lg group">
+<div class="absolute left-0 top-1.5 w-[23px] h-[23px] bg-primary rounded-full flex items-center justify-center border-4 border-surface-container z-10">
+<span class="material-symbols-outlined text-[14px] text-on-primary">sync</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-md mb-unit">
+<span class="font-label-md text-label-md text-on-surface-variant px-sm py-xs bg-surface-bright rounded">15m ago</span>
+<span class="font-bold text-on-background">Scout</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Re-indexing of node_772 complete. 1.2M records processed in 42 seconds.</p>
+</div>
+</div>
+<!-- Alert 3 -->
+<div class="relative pl-xl flex gap-lg group">
+<div class="absolute left-0 top-1.5 w-[23px] h-[23px] bg-outline-variant rounded-full flex items-center justify-center border-4 border-surface-container z-10">
+<span class="material-symbols-outlined text-[14px] text-on-surface">task_alt</span>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-md mb-unit">
+<span class="font-label-md text-label-md text-on-surface-variant px-sm py-xs bg-surface-bright rounded">1h ago</span>
+<span class="font-bold text-on-background">System</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Scheduled backup completed successfully. Archive: sx-backup-20231027-v1.tar.gz</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Meta -->
+<div class="flex justify-between items-center py-lg border-t border-outline-variant/20 text-on-surface-variant font-label-md text-label-md">
+<div class="flex gap-xl">
+<span>Region: US-EAST-1</span>
+<span>Load: 24.2%</span>
+<span>Nodes: 12 Active</span>
+</div>
+<div class="flex items-center gap-sm">
+<div class="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+<span>Data sync: 0.2s delay</span>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Micro-interaction for row hovering
+        document.querySelectorAll('tr').forEach(row => {
+            row.addEventListener('mouseenter', () => {
+                row.style.transition = 'all 0.2s ease';
+            });
+        });
+
+        // Atmospheric effect: Subtle canvas movement on mouse move
+        document.addEventListener('mousemove', (e) => {
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+            const glow = document.createElement('div');
+            // This could be used for a custom cursor or background glow follow
+        });
+    </script>
+</body></html>
