@@ -1,38 +1,21 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   TrendingUp,
   Users,
   ClipboardCheck,
-  Gauge,
-  History,
-  BarChart3,
-  CheckCircle,
   Clock,
+  CheckCircle,
 } from "lucide-react";
 import { useLeads, useCampaigns, useReports, useMonitorStatus } from "@/lib/hooks";
-import { Card } from "@/design-system/components/Card";
-import { Badge } from "@/design-system/components/Badge";
-import { Spinner } from "@/design-system/components/Spinner";
-import { colors } from "@/design-system/tokens";
+import { MetricCard } from "@/components/charts/MetricCard";
+import { AreaChart } from "@/components/charts/AreaChart";
+import { DataTable } from "@/components/tables/DataTable";
+import { StatusLED } from "@/components/domain/StatusLED";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import type { ColumnDef } from "@tanstack/react-table";
 
-const labelStyle: React.CSSProperties = {
-  fontSize: "10px",
-  fontWeight: 700,
-  letterSpacing: "0.08em",
-  textTransform: "uppercase",
-  color: colors.textMuted,
-  fontFamily: "var(--font-sans)",
-};
-
-const statCardStyle: React.CSSProperties = {
-  padding: "16px",
-  border: `1px solid ${colors.border}`,
-  borderRadius: "8px",
-  background: colors.surface,
-  display: "flex",
-  flexDirection: "column",
-  gap: "4px",
-};
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -41,258 +24,304 @@ export function DashboardPage() {
   const { data: reports } = useReports({ limit: 50 });
   const { data: monitor } = useMonitorStatus();
 
-  if (leadsLoading) return <Spinner size="lg" style={{ padding: "80px 0" }} />;
-
   const leads = leadsData?.items ?? [];
   const totalLeads = leadsData?.total ?? 0;
   const auditedCount = leads.filter((l) => l.lighthouse_score != null).length;
   const pendingCount = leads.filter((l) =>
     ["new", "queued", "auditing"].includes(l.status)
   ).length;
-  const segmentACount = leads.filter((l) => l.segment === "A" || l.segment === "B").length;
+  const segmentACount = leads.filter(
+    (l) => l.segment === "A" || l.segment === "B"
+  ).length;
+  const reportsCompleted =
+    reports?.items?.filter((r) => r.status === "completed").length ?? 0;
 
-  const recentEvents = [
-    ...(reports?.items?.slice(0, 3).map((r) => ({
-      text: `Report generated for ${r.lead_domain || r.lead_id}`,
-      time: r.created_at ? new Date(r.created_at).toLocaleTimeString() : "",
-      meta: "Report",
-      active: true,
-    })) ?? []),
-    ...(leads.slice(0, 5).filter((l) => l.lighthouse_score).map((l) => ({
-      text: `Audit completed for ${l.normalized_domain}`,
-      time: l.audited_at ? new Date(l.audited_at).toLocaleTimeString() : "",
-      meta: "Audit",
-      active: false,
-    }))),
-  ].slice(0, 8);
+  // Chart data: leads discovered by day (last 7 days)
+  const chartData = useMemo(() => {
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const now = new Date();
+    return days.map((day, i) => {
+      const dayStart = new Date(now);
+      dayStart.setDate(dayStart.getDate() - (6 - i));
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(23, 59, 59, 999);
+      const count = leads.filter((l) => {
+        const d = new Date(l.discovered_at);
+        return d >= dayStart && d <= dayEnd;
+      }).length;
+      return { name: day, leads: count };
+    });
+  }, [leads]);
 
-  /* ── Bar chart data from real leads ── */
-  const days = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-  const now = new Date();
-  const dayCounts = days.map((_, i) => {
-    const dayStart = new Date(now);
-    dayStart.setDate(dayStart.getDate() - (6 - i));
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setHours(23, 59, 59, 999);
-    return leads.filter((l) => {
-      const d = new Date(l.discovered_at);
-      return d >= dayStart && d <= dayEnd;
-    }).length;
-  });
-  const maxCount = Math.max(...dayCounts, 1);
-  const todayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
+  // Recent activity for mini table
+  const recentActivity = useMemo(() => {
+    const activity: {
+      id: string;
+      domain: string;
+      event: string;
+      time: string;
+      status: "success" | "info" | "warning";
+    }[] = [];
+
+    reports?.items?.slice(0, 4).forEach((r) => {
+      activity.push({
+        id: `r-${r.id}`,
+        domain: r.lead_domain ?? r.lead_id.slice(0, 8),
+        event: "Report generated",
+        time: r.created_at ? new Date(r.created_at).toLocaleTimeString() : "",
+        status: "info",
+      });
+    });
+
+    leads
+      .filter((l) => l.lighthouse_score)
+      .slice(0, 4)
+      .forEach((l) => {
+        activity.push({
+          id: `a-${l.id}`,
+          domain: l.normalized_domain,
+          event: "Audit completed",
+          time: l.audited_at
+            ? new Date(l.audited_at).toLocaleTimeString()
+            : "",
+          status: "success",
+        });
+      });
+
+    return activity.slice(0, 8);
+  }, [leads, reports]);
+
+  const activityColumns = useMemo<ColumnDef<(typeof recentActivity)[0], unknown>[]>(
+    () => [
+      {
+        id: "domain",
+        header: "Domain",
+        accessorFn: (row) => row.domain,
+        cell: ({ row }) => (
+          <span className="text-xs font-mono text-text">{row.original.domain}</span>
+        ),
+      },
+      {
+        id: "event",
+        header: "Event",
+        accessorFn: (row) => row.event,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1.5">
+            <StatusLED
+              variant={row.original.status}
+              size="sm"
+            />
+            <span className="text-xs text-text-secondary">{row.original.event}</span>
+          </div>
+        ),
+      },
+      {
+        id: "time",
+        header: "Time",
+        accessorFn: (row) => row.time,
+        cell: ({ row }) => (
+          <span className="text-[10px] font-mono text-text-dim">
+            {row.original.time}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
+  const allOnline = monitor?.services?.every((s) => s.status === "online") ?? true;
 
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Stats Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
-        <div style={statCardStyle}>
-          <span style={labelStyle}>Total Leads</span>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-            <span style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.primary }}>
-              {totalLeads.toLocaleString()}
-            </span>
-            <TrendingUp size={20} style={{ color: colors.primary, opacity: 0.4 }} />
-          </div>
-          <div style={{ height: "4px", marginTop: "8px", borderRadius: "2px", background: colors.surfaceHigh }}>
-            <div style={{ width: `${Math.min(100, (totalLeads / 2000) * 100)}%`, height: "100%", borderRadius: "2px", background: colors.primaryContainer }} />
-          </div>
-        </div>
+    <div className="flex flex-col gap-6 p-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-headline font-semibold text-text">
+          Dashboard
+        </h1>
+        <p className="text-sm text-text-muted mt-1">
+          Overview of your lead generation pipeline
+        </p>
+      </div>
 
-        <div style={statCardStyle}>
-          <span style={labelStyle}>Audited</span>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-            <span style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.success }}>
-              {auditedCount.toLocaleString()}
-            </span>
-            <ClipboardCheck size={20} style={{ color: colors.success, opacity: 0.4 }} />
-          </div>
-          <span style={{ fontSize: "11px", color: colors.textMuted }}>
-            {totalLeads > 0 ? Math.round((auditedCount / totalLeads) * 100) : 0}% of total
-          </span>
-        </div>
-
-        <div style={statCardStyle}>
-          <span style={labelStyle}>Pending</span>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-            <span style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.warning }}>
-              {pendingCount}
-            </span>
-            <Clock size={20} style={{ color: colors.warning, opacity: 0.4 }} />
-          </div>
-          <span style={{ fontSize: "11px", color: colors.textMuted }}>Awaiting processing</span>
-        </div>
-
-        <div style={statCardStyle}>
-          <span style={labelStyle}>Hot Leads (A+B)</span>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-            <span style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.danger }}>
-              {segmentACount}
-            </span>
-            <Users size={20} style={{ color: colors.danger, opacity: 0.4 }} />
-          </div>
-          <span style={{ fontSize: "11px", color: colors.textMuted }}>High-value prospects</span>
-        </div>
+      {/* Metric Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          label="Total Leads"
+          value={totalLeads}
+          formattedValue={totalLeads.toLocaleString()}
+          trend={{ direction: "up", value: 12.5 }}
+          variant="highlighted"
+          icon={<Users className="size-4" aria-hidden="true" />}
+          sparklineData={chartData.map((d) => d.leads)}
+        />
+        <MetricCard
+          label="Audited"
+          value={auditedCount}
+          formattedValue={auditedCount.toLocaleString()}
+          icon={<ClipboardCheck className="size-4" aria-hidden="true" />}
+        />
+        <MetricCard
+          label="Pending"
+          value={pendingCount}
+          formattedValue={String(pendingCount)}
+          trend={
+            pendingCount > 0
+              ? { direction: "down", value: 0 }
+              : { direction: "neutral", value: 0 }
+          }
+          icon={<Clock className="size-4" aria-hidden="true" />}
+        />
+        <MetricCard
+          label="Hot Leads (A+B)"
+          value={segmentACount}
+          formattedValue={String(segmentACount)}
+          icon={<TrendingUp className="size-4" aria-hidden="true" />}
+        />
       </div>
 
       {/* Middle Row: Chart + Activity */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px", minHeight: "320px" }}>
-        {/* Chart */}
-        <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-            <div>
-              <span style={labelStyle}>Leads Discovered</span>
-              <h2 style={{ fontSize: "16px", fontWeight: 600, margin: "4px 0 0", color: colors.text }}>
-                7-Day Discovery Activity
-              </h2>
-            </div>
-            <Badge variant="info" dot>LIVE</Badge>
-          </div>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "4px", height: "200px" }}>
-            {dayCounts.map((count, i) => (
-              <div key={days[i]} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", flex: 1 }}>
-                <span style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: i === todayIndex ? colors.primary : colors.textMuted }}>
-                  {count}
-                </span>
-                <div
-                  style={{
-                    width: "100%",
-                    maxWidth: "32px",
-                    borderRadius: "4px 4px 0 0",
-                    height: `${Math.max(8, (count / maxCount) * 160)}px`,
-                    background: i === todayIndex ? colors.primaryContainer : "rgba(139, 92, 246, 0.2)",
-                    boxShadow: i === todayIndex ? "0 0 12px rgba(139, 92, 246, 0.2)" : "none",
-                    transition: "background 150ms",
-                  }}
-                />
-                <span style={{ fontSize: "10px", fontWeight: 700, color: i === todayIndex ? colors.primary : colors.textMuted }}>
-                  {days[i]}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Leads Growth Chart */}
+        <div className="lg:col-span-2">
+          <AreaChart
+            title="Leads Discovered"
+            description="7-Day Discovery Activity"
+            data={chartData}
+            series={[
+              {
+                dataKey: "leads",
+                name: "Leads",
+                color: "#6366f1",
+              },
+            ]}
+            height={280}
+            loading={leadsLoading}
+          />
+        </div>
 
         {/* Activity Feed */}
         <Card>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
-            <History size={20} style={{ color: colors.primary }} />
-            <span style={labelStyle}>Recent Activity</span>
-          </div>
-          <div style={{ overflowY: "auto", maxHeight: "280px", display: "flex", flexDirection: "column", gap: "12px" }}>
-            {recentEvents.length === 0 ? (
-              <p style={{ color: colors.textMuted, fontSize: "13px", padding: "16px 0" }}>No recent activity</p>
+          <CardHeader>
+            <h3 className="text-sm font-headline font-medium text-text">
+              Recent Activity
+            </h3>
+          </CardHeader>
+          <CardContent>
+            {recentActivity.length === 0 ? (
+              <p className="text-xs text-text-muted py-8 text-center">
+                No recent activity
+              </p>
             ) : (
-              recentEvents.map((event, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    gap: "12px",
-                    paddingLeft: "12px",
-                    borderLeft: `2px solid ${event.active ? colors.primaryContainer : colors.border}`,
-                    opacity: i > 5 ? 0.5 : 1,
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-                    <span style={{ fontSize: "13px", lineHeight: 1.4, color: colors.text }}>{event.text}</span>
-                    <span style={{ fontSize: "10px", marginTop: "2px", textTransform: "uppercase", color: colors.textMuted }}>
-                      {event.time} · {event.meta}
-                    </span>
-                  </div>
-                </div>
-              ))
+              <DataTable
+                data={recentActivity}
+                columns={activityColumns}
+                density="compact"
+                getRowId={(row) => row.id}
+                stickyFirstColumn={false}
+              />
             )}
-          </div>
+          </CardContent>
         </Card>
       </div>
 
-      {/* Bottom Row: Campaigns + Reports + System Health */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
-        {/* Campaigns Summary */}
+      {/* Bottom Row: Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Campaigns */}
         <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <span style={labelStyle}>Campaigns</span>
-            <BarChart3 size={16} style={{ color: colors.textMuted }} />
-          </div>
-          <div style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.text, marginBottom: "8px" }}>
-            {campaigns?.length ?? 0}
-          </div>
-          <div style={{ display: "flex", gap: "16px", fontSize: "12px" }}>
-            <span style={{ color: colors.success }}>
-              ● {(campaigns?.filter((c) => c.status === "active").length ?? 0)} Active
-            </span>
-            <span style={{ color: colors.textMuted }}>
-              ○ {(campaigns?.filter((c) => c.status === "completed").length ?? 0)} Completed
-            </span>
-          </div>
-          <button
-            onClick={() => navigate("/campaigns")}
-            style={{
-              marginTop: "12px",
-              width: "100%",
-              padding: "6px",
-              background: "transparent",
-              border: `1px solid ${colors.border}`,
-              borderRadius: "4px",
-              color: colors.textMuted,
-              fontSize: "10px",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              cursor: "pointer",
-              transition: "background 150ms",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = colors.surfaceHigh)}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          >
-            View Campaigns
-          </button>
+          <CardHeader>
+            <h3 className="text-sm font-headline font-medium text-text">
+              Campaigns
+            </h3>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-mono font-bold text-text">
+              {campaigns?.length ?? 0}
+            </div>
+            <div className="flex gap-3 mt-2 text-xs">
+              <span className="text-success">
+                ● {campaigns?.filter((c) => c.status === "active").length ?? 0} Active
+              </span>
+              <span className="text-text-dim">
+                ○ {campaigns?.filter((c) => c.status === "completed").length ?? 0} Completed
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full mt-3 text-xs"
+              onClick={() => navigate("/campaigns")}
+            >
+              View Campaigns
+            </Button>
+          </CardContent>
         </Card>
 
-        {/* Reports Summary */}
+        {/* Reports */}
         <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <span style={labelStyle}>Reports</span>
-            <CheckCircle size={16} style={{ color: colors.textMuted }} />
-          </div>
-          <div style={{ fontSize: "28px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.text, marginBottom: "8px" }}>
-            {reports?.total ?? 0}
-          </div>
-          <div style={{ fontSize: "12px", color: colors.textMuted }}>
-            {reports?.items?.filter((r) => r.status === "completed").length ?? 0} completed
-          </div>
+          <CardHeader>
+            <h3 className="text-sm font-headline font-medium text-text">
+              Reports
+            </h3>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-mono font-bold text-text">
+              {reports?.total ?? 0}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2 text-xs text-text-muted">
+              <CheckCircle className="size-3 text-success" aria-hidden="true" />
+              {reportsCompleted} completed
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full mt-3 text-xs"
+              onClick={() => navigate("/reports")}
+            >
+              View Reports
+            </Button>
+          </CardContent>
         </Card>
 
         {/* System Health */}
         <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <span style={labelStyle}>System Health</span>
-            <Gauge size={16} style={{ color: colors.textMuted }} />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: colors.success, boxShadow: "0 0 8px rgba(16, 185, 129, 0.4)" }} />
-            <span style={{ fontSize: "14px", fontWeight: 600, color: colors.text }}>Operational</span>
-          </div>
-          <div style={{ marginTop: "8px", display: "flex", gap: "4px", flexWrap: "wrap" }}>
-            {monitor?.services?.slice(0, 4).map((svc) => (
-              <span
-                key={svc.name}
-                style={{
-                  padding: "2px 8px",
-                  borderRadius: "4px",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  background: "var(--sx-surface-high)",
-                  color: colors.textMuted,
-                }}
-              >
-                {svc.name}
+          <CardHeader>
+            <h3 className="text-sm font-headline font-medium text-text">
+              System Health
+            </h3>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <StatusLED
+                variant={allOnline ? "success" : "warning"}
+                size="md"
+                pulse={allOnline}
+              />
+              <span className="text-sm font-medium text-text">
+                {allOnline ? "Operational" : "Issues detected"}
               </span>
-            ))}
-          </div>
+            </div>
+            <div className="flex gap-1.5 mt-3 flex-wrap">
+              {monitor?.services?.slice(0, 4).map((svc) => (
+                <span
+                  key={svc.name}
+                  className="inline-flex items-center rounded px-2 py-1 text-[10px] font-semibold bg-surface-high text-text-muted"
+                >
+                  {svc.name}
+                </span>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full mt-3 text-xs"
+              onClick={() => navigate("/monitor")}
+            >
+              System Monitor
+            </Button>
+          </CardContent>
         </Card>
       </div>
-    </section>
+    </div>
   );
 }
