@@ -7,7 +7,7 @@ import {
   Clock,
   CheckCircle,
 } from "lucide-react";
-import { useLeads, useCampaigns, useReports, useMonitorStatus } from "@/lib/hooks";
+import { useLeads, useReports, useMonitorStatus } from "@/lib/hooks";
 import { MetricCard } from "@/components/charts/MetricCard";
 import { AreaChart } from "@/components/charts/AreaChart";
 import { DataTable } from "@/components/tables/DataTable";
@@ -20,7 +20,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 export function DashboardPage() {
   const navigate = useNavigate();
   const { data: leadsData, isLoading: leadsLoading } = useLeads({ limit: 200 });
-  const { data: campaigns } = useCampaigns();
   const { data: reports } = useReports({ limit: 50 });
   const { data: monitor } = useMonitorStatus();
 
@@ -35,6 +34,11 @@ export function DashboardPage() {
   ).length;
   const reportsCompleted =
     reports?.items?.filter((r) => r.status === "completed").length ?? 0;
+  const contactedCount = leads.filter((l) =>
+    ["contacted", "replied", "interested", "negotiation", "closed_won"].includes(
+      l.status,
+    ),
+  ).length;
 
   // Chart data: leads discovered by day (last 7 days)
   const chartData = useMemo(() => {
@@ -227,32 +231,27 @@ export function DashboardPage() {
 
       {/* Bottom Row: Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Campaigns */}
+        {/* Outreach */}
         <Card>
           <CardHeader>
             <h3 className="text-sm font-headline font-medium text-text">
-              Campaigns
+              Outreach
             </h3>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-mono font-bold text-text">
-              {campaigns?.length ?? 0}
+              {contactedCount}
             </div>
-            <div className="flex gap-3 mt-2 text-xs">
-              <span className="text-success">
-                ● {campaigns?.filter((c) => c.status === "active").length ?? 0} Active
-              </span>
-              <span className="text-text-dim">
-                ○ {campaigns?.filter((c) => c.status === "completed").length ?? 0} Completed
-              </span>
-            </div>
+            <p className="text-xs text-text-muted mt-2">
+              Leads contactados o en conversación
+            </p>
             <Button
               variant="outline"
               size="sm"
               className="w-full mt-3 text-xs"
-              onClick={() => navigate("/campaigns")}
+              onClick={() => navigate("/leads")}
             >
-              View Campaigns
+              Ver leads
             </Button>
           </CardContent>
         </Card>

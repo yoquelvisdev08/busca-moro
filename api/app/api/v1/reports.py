@@ -73,7 +73,13 @@ async def generate_report(
     try:
         service = PDFService(session)
         result = await service.generate_report(lead_id)
-        return result
+        report = await session.get(Report, uuid.UUID(result["report_id"]))
+        if report is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Report record missing after generation.",
+            )
+        return _build_detail(report, lead)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
@@ -148,37 +154,60 @@ async def get_report(
 
 
 # ---------------------------------------------------------------------------
-# Download PDF
+# Download / preview PDF
 # ---------------------------------------------------------------------------
+
+def _resolve_report_pdf(report: Report) -> tuple[str, str]:
+    """Return (absolute_path, filename) or raise HTTPException."""
+    if not is_report_completed(report.status):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Report is not ready. Current status: {report_status_value(report.status)}",
+        )
+    if not report.file_path or not os.path.isfile(report.file_path):
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="PDF file no longer exists on disk.",
+        )
+    filename = os.path.basename(report.file_path)
+    return report.file_path, filename
+
 
 @router.get("/reports/{report_id}/download")
 async def download_report(
     report_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    """Stream the generated PDF file."""
+    """Stream the generated PDF file (attachment)."""
     report = await session.get(Report, report_id)
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    if not is_report_completed(report.status):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Report is not ready. Current status: {report_status_value(report.status)}",
-        )
-
-    if not os.path.isfile(report.file_path):
-        raise HTTPException(
-            status_code=status.HTTP_410_GONE,
-            detail="PDF file no longer exists on disk.",
-        )
-
-    filename = os.path.basename(report.file_path)
+    file_path, filename = _resolve_report_pdf(report)
     return FileResponse(
-        path=report.file_path,
+        path=file_path,
         media_type="application/pdf",
         filename=filename,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/reports/{report_id}/preview")
+async def preview_report(
+    report_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    """Stream PDF for in-browser preview (inline, no forced download)."""
+    report = await session.get(Report, report_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    file_path, filename = _resolve_report_pdf(report)
+    return FileResponse(
+        path=file_path,
+        media_type="application/pdf",
+        filename=filename,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
     )
 
 

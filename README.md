@@ -20,12 +20,12 @@ Plataforma de generación de leads con inteligencia artificial para agencias de 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        Frontend (React)                      │
-│  Dashboard │ Leads │ LeadDetail │ Campaigns │ Reports       │
+│  Dashboard │ Leads │ LeadDetail │ Reports │ Monitor       │
 └────────────────────────┬────────────────────────────────────┘
                          │ REST API
 ┌────────────────────────┴────────────────────────────────────┐
 │                      API (FastAPI)                           │
-│  /leads │ /reports │ /outreach │ /follow-ups │ /campaigns   │
+│  /leads │ /reports │ /outreach │ /follow-ups │ /monitor     │
 └──┬──────────┬──────────┬──────────┬──────────┬──────────────┘
    │          │          │          │          │
    ▼          ▼          ▼          ▼          ▼
@@ -109,7 +109,7 @@ frontend/src/
 │   ├── ui/              # shadcn/ui primitives (Button, Input, Card, etc.)
 │   ├── charts/          # AreaChart, MetricCard, Sparkline, TrendIndicator
 │   ├── tables/          # DataTable con sorting/filtering/pagination
-│   ├── domain/          # StatusLED, Chip, LeadCard, CampaignCard, TabGroup
+│   ├── domain/          # StatusLED, Chip, LeadCard, TabGroup
 │   └── layout/          # Sidebar, Header, PageContainer
 ├── pages/               # 8 páginas (Dashboard, Leads, LeadDetail, etc.)
 ├── lib/                 # Utils, API client
@@ -198,7 +198,7 @@ vercel --prod
 
 ### ✅ Fase 4: Stitch UI Redesign
 - Design system con 9 componentes reutilizables
-- 8 páginas rediseñadas (Dashboard, Leads, LeadDetail, Settings, Discover, Monitor, Campaigns, Reports)
+- 7 páginas (Dashboard, Leads, LeadDetail, Settings, Discover, Monitor, Reports)
 - 20+ React Query hooks
 - Tema oscuro profesional con acentos indigo/purple
 - **Commit**: `36b136b` | **Líneas**: ~3,100

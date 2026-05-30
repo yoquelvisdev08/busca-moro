@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   Compass,
   Users,
-  Megaphone,
   Activity,
   Settings,
   Bell,
@@ -14,7 +13,6 @@ const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/discover", label: "Discover", icon: Compass },
   { to: "/leads", label: "Leads", icon: Users },
-  { to: "/campaigns", label: "Campaigns", icon: Megaphone },
   { to: "/monitor", label: "Monitor", icon: Activity },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
@@ -23,7 +21,6 @@ function getPageTitle(pathname: string): string {
   if (pathname === "/") return "Command Center";
   if (pathname.startsWith("/discover")) return "Discover";
   if (pathname.startsWith("/leads")) return "Leads";
-  if (pathname.startsWith("/campaigns")) return "Campaigns";
   if (pathname.startsWith("/monitor")) return "Monitor";
   if (pathname.startsWith("/settings")) return "Settings";
   return "SIPHON-X";
@@ -64,11 +61,6 @@ export function Layout() {
           {pathname === "/leads" && (
             <span className="text-xs uppercase tracking-widest" style={{ color: "var(--sx-text-muted)" }}>
               Manage and qualify prospects
-            </span>
-          )}
-          {pathname === "/campaigns" && (
-            <span className="text-xs uppercase tracking-widest" style={{ color: "var(--sx-text-muted)" }}>
-              Outreach and email management
             </span>
           )}
           {pathname === "/monitor" && (

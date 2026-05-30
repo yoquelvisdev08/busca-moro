@@ -12,7 +12,10 @@ router = APIRouter(prefix="/scout", tags=["scout"])
 @router.post("/start")
 async def start_discovery(
     industry: str = Query(..., description="Tipo de negocio a buscar (ej: 'clínicas dentales')"),
-    location: str = Query(default="", description="Ubicación (ej: 'Madrid, España')"),
+    location: str = Query(
+        default="",
+        description="País o mercado (ej: 'México', 'España', 'Estados Unidos')",
+    ),
     num_dorks: int = Query(default=15, ge=5, le=30, description="Cantidad de dorks a generar"),
     language: str = Query(default="es", description="Idioma de las búsquedas"),
 ):

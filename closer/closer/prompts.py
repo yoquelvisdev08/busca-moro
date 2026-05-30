@@ -179,6 +179,63 @@ Reglas estrictas:
 """
 
 
+SUPPLEMENT_SYSTEM = """Eres un consultor senior. Generas material interno para el consultor
+y narrativa para un informe PDF dirigido al CLIENTE (dueño del sitio).
+
+Reglas:
+- Idioma: {language}.
+- JSON válido únicamente.
+- sales_brief: texto para que el consultor hable 30 s con el lead (tú → consultor, no va al PDF).
+- report_narrative: PDF para el cliente en PRIMERA PERSONA del auditor (yo revisé, medí); sin precios, sin SIPHON-X; prohibido "este es un sitio", "se detectó".
+- cold_email_alt: segunda variante de email (ángulo distinto al principal), máx. 150 palabras.
+- Si el dominio es de marca global o subdominio regional, analiza el sitio auditado con precisión.
+"""
+
+
+SUPPLEMENT_USER = """Basado en la auditoría de {company} ({url}).
+
+Consultor (primera persona en report_narrative):
+- Nombre: {sender_name}
+- Título: {sender_title}
+- Bio: {sender_bio}
+- Servicios: {sender_services}
+
+Pain points:
+{pain_points}
+
+Métricas: Lighthouse {lighthouse_score}, carga {load_time_ms} ms, móvil {mobile_friendly}, SSL {has_ssl}.
+
+Email principal ya generado (no repetir):
+Asunto: {primary_subject}
+Cuerpo (extracto): {primary_body_excerpt}
+
+Devuelve JSON:
+{{
+  "sales_brief": "3-5 frases: gancho, problema, propuesta de valor, CTA verbal para llamada",
+  "report_narrative": {{
+    "report_title": "título específico del informe",
+    "site_context": "1-2 frases en yo (yo identifiqué que es...)",
+    "executive_summary": ["párrafo en yo", "párrafo en yo"],
+    "site_diagnosis": ["análisis con datos"],
+    "business_risks": ["riesgo con métrica"],
+    "priority_actions": [{{"title": "", "why": "", "effort": "bajo|medio|alto"}}],
+    "quick_wins": ["acción concreta"],
+    "deep_analysis": ["3 párrafos profundos: métricas → impacto negocio/ventas/posicionamiento marca"],
+    "consultant_offer": {{
+      "headline": "posicionamiento en yo (ejecuto, no solo informo)",
+      "positioning": "2-3 frases: informe con datos + yo implemento; vender confianza sin paquetes",
+      "what_i_do": ["implementación 1", "implementación 2", "implementación 3"],
+      "collaboration": ["paso de trabajo 1", "paso 2"],
+      "next_step": "invitación 15 min en yo, sin precios"
+    }},
+    "closing_note": "1 frase cierre en yo"
+  }},
+  "cold_email_subject_alt": "asunto variante",
+  "cold_email_body_alt": "cuerpo variante"
+}}
+"""
+
+
 def segment_system_prompt(segment: str) -> str:
     """Devuelve el system prompt apropiado para el segmento del lead."""
     mapping = {

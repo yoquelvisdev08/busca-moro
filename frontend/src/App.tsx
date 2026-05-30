@@ -19,9 +19,6 @@ const LeadsPage = lazy(() =>
 const LeadDetailPage = lazy(() =>
   import("@/pages/LeadDetailPage").then((m) => ({ default: m.LeadDetailPage }))
 );
-const CampaignsPage = lazy(() =>
-  import("@/pages/CampaignsPage").then((m) => ({ default: m.CampaignsPage }))
-);
 const ReportsPage = lazy(() =>
   import("@/pages/ReportsPage").then((m) => ({ default: m.ReportsPage }))
 );
@@ -30,6 +27,9 @@ const MonitorPage = lazy(() =>
 );
 const SettingsPage = lazy(() =>
   import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage }))
+);
+const MensajeriaPage = lazy(() =>
+  import("@/pages/MensajeriaPage").then((m) => ({ default: m.MensajeriaPage }))
 );
 
 function PageFallback() {
@@ -53,10 +53,12 @@ function AppRoutes() {
       <Route path="/discover" element={<DiscoverPage />} />
       <Route path="/leads" element={<LeadsPage />} />
       <Route path="/leads/:id" element={<LeadDetailPage />} />
-      <Route path="/campaigns" element={<CampaignsPage />} />
       <Route path="/reports" element={<ReportsPage />} />
+      <Route path="/mensajeria" element={<MensajeriaPage />} />
+      <Route path="/ensaria" element={<Navigate to="/mensajeria" replace />} />
       <Route path="/monitor" element={<MonitorPage />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/campaigns" element={<Navigate to="/leads" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

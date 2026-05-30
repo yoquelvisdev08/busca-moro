@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -12,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.lead import Lead, LeadStatus
 from app.schemas.lead import LeadCreate, LeadUpdate
+from app.services.lead_delete_reasons import format_deleted_reason
 
 
 def normalize_domain(url: str) -> str:
@@ -87,7 +89,26 @@ class LeadService:
         return lead
 
     async def get(self, lead_id: uuid.UUID) -> Optional[Lead]:
-        return await self._session.get(Lead, lead_id)
+        result = await self._session.execute(
+            select(Lead).where(Lead.id == lead_id, Lead.deleted_at.is_(None))
+        )
+        return result.scalar_one_or_none()
+
+    async def soft_delete(
+        self,
+        lead_id: uuid.UUID,
+        *,
+        reason: str,
+        detail: Optional[str] = None,
+    ) -> bool:
+        """Marca el lead como eliminado (soft delete) con motivo."""
+        lead = await self.get(lead_id)
+        if lead is None:
+            return False
+        lead.deleted_at = datetime.now(tz=timezone.utc)
+        lead.deleted_reason = format_deleted_reason(reason, detail)
+        await self._session.commit()
+        return True
 
     async def list(
         self,
@@ -121,6 +142,8 @@ class LeadService:
         if lead is None:
             return None
         lead.status = status
+        if status == LeadStatus.contacted and lead.contacted_at is None:
+            lead.contacted_at = datetime.now(tz=timezone.utc)
         await self._session.commit()
         await self._session.refresh(lead)
         return lead

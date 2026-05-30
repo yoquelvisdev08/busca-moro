@@ -239,20 +239,6 @@ Tarjeta de lead con avatar y métricas.
 <LeadCard lead={lead} onClick={() => navigate(`/leads/${lead.id}`)} />
 ```
 
-### CampaignCard
-Tarjeta de campaña con métricas y acciones.
-
-**Props**:
-| Name | Type | Default | Description |
-|------|------|---------|-------------|
-| campaign | `Campaign` | required | Datos de la campaña |
-| onPause | `() => void` | `undefined` | Callback al pausar |
-
-**Example**:
-```tsx
-<CampaignCard campaign={campaign} onPause={() => pauseCampaign(campaign.id)} />
-```
-
 ### TabGroup
 Grupo de tabs con variantes.
 

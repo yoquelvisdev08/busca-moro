@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { LeadStatus } from "@/lib/api";
+import type { LeadStatus, MessageDirection } from "@/lib/api";
 import {
   api,
   type ReportRead,
@@ -31,13 +31,11 @@ export const queryKeys = {
     detail: (id: string) => ["reports", id] as const,
   },
   outreach: {
-    list: (params?: { lead_id?: string }) => ["outreach", "list", params] as const,
+    list: (params?: { lead_id?: string; direction?: string }) =>
+      ["outreach", "list", params] as const,
   },
   followUps: {
     list: (leadId: string) => ["follow-ups", leadId] as const,
-  },
-  campaigns: {
-    all: ["campaigns"] as const,
   },
   monitor: {
     status: ["monitor", "status"] as const,
@@ -68,6 +66,22 @@ export function useUpdateLeadMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Lead> }) => api.updateLead(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["leads"] }),
+  });
+}
+
+export function useDeleteLeadMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      reason,
+      detail,
+    }: {
+      id: string;
+      reason: string;
+      detail?: string;
+    }) => api.deleteLead(id, { reason, detail }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["leads"] }),
   });
 }
@@ -144,8 +158,41 @@ export function useDeleteReportMutation() {
 export function useOutreach(leadId?: string) {
   return useQuery<{ items: OutreachMessage[]; total: number; limit: number; offset: number }>({
     queryKey: queryKeys.outreach.list({ lead_id: leadId }),
-    queryFn: () => api.listOutreach({ lead_id: leadId }),
+    queryFn: () => api.listOutreach({ lead_id: leadId, limit: 100 }),
     enabled: !!leadId,
+  });
+}
+
+export function useMensajeriaMessages(
+  direction?: MessageDirection,
+  pagination?: { limit: number; offset: number },
+) {
+  return useQuery({
+    queryKey: ["mensajeria", direction ?? "all", pagination?.limit, pagination?.offset],
+    queryFn: () =>
+      api.listOutreach({
+        direction,
+        limit: pagination?.limit ?? 50,
+        offset: pagination?.offset ?? 0,
+      }),
+  });
+}
+
+export function useRecordInboundMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      lead_id: string;
+      sender_email: string;
+      subject?: string;
+      body: string;
+    }) => api.recordInboundMessage(payload),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["outreach"] });
+      qc.invalidateQueries({ queryKey: ["mensajeria"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "detail", variables.lead_id] });
+    },
   });
 }
 
@@ -167,7 +214,9 @@ export function useSendOutreachMutation() {
     }) => api.sendOutreachEmail(leadId, subject, body, attachReportId, toEmail),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["leads", "detail", variables.leadId] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["outreach"] });
+      qc.invalidateQueries({ queryKey: ["mensajeria"] });
     },
   });
 }
@@ -217,66 +266,6 @@ export function useCancelAllFollowUpsMutation() {
     onSuccess: (_data, leadId) => {
       qc.invalidateQueries({ queryKey: queryKeys.followUps.list(leadId) });
     },
-  });
-}
-
-/* ═══════════════════════════════════════════════════════
-   Campaigns (client-side for now, API later)
-   ═══════════════════════════════════════════════════════ */
-
-type CampaignStatus = "active" | "paused" | "completed";
-
-export interface Campaign {
-  id: string;
-  name: string;
-  status: CampaignStatus;
-  lead_count: number;
-  sent_count: number;
-  opened_count: number;
-  replied_count: number;
-  bounced_count: number;
-  created_at: string;
-}
-
-// Campaigns are client-state only for MVP — no backend endpoint yet
-let campaignsCache: Campaign[] = [];
-
-export async function fetchCampaigns(): Promise<Campaign[]> {
-  return campaignsCache;
-}
-
-export function useCampaigns() {
-  return useQuery<Campaign[]>({
-    queryKey: queryKeys.campaigns.all,
-    queryFn: fetchCampaigns,
-    staleTime: 60_000,
-  });
-}
-
-export function useCreateCampaignMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (campaign: Omit<Campaign, "id" | "created_at">) => {
-      const newCampaign: Campaign = {
-        ...campaign,
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-      };
-      campaignsCache = [...campaignsCache, newCampaign];
-      return Promise.resolve(newCampaign);
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.campaigns.all }),
-  });
-}
-
-export function useUpdateCampaignMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Campaign> }) => {
-      campaignsCache = campaignsCache.map((c) => (c.id === id ? { ...c, ...data } : c));
-      return Promise.resolve(campaignsCache.find((c) => c.id === id)!);
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.campaigns.all }),
   });
 }
 

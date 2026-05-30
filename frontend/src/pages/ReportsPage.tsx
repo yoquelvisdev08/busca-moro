@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { notify } from "@/lib/notify";
-import { FileText, Download, Mail, Trash2 } from "lucide-react";
+import { FileText, Download, Mail, Trash2, Eye } from "lucide-react";
 import {
   useReports,
   useResendReportMutation,
@@ -9,7 +9,8 @@ import {
 import { api, type ReportRead } from "@/lib/api";
 import { DataTable } from "@/components/tables/DataTable";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -19,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ReportPdfPreviewDialog } from "@/components/domain/ReportPdfPreviewDialog";
 
 export function ReportsPage() {
   const [searchValue, setSearchValue] = useState("");
@@ -28,6 +30,7 @@ export function ReportsPage() {
   });
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [previewReportId, setPreviewReportId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useReports({
     limit: pagination.pageSize,
@@ -143,18 +146,44 @@ export function ReportsPage() {
         header: "Actions",
         cell: ({ row }) => {
           const report = row.original;
+          const ready = report.status === "completed";
           return (
             <div className="flex items-center justify-center gap-1">
-              <a
-                href={downloadUrl(report.id)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex"
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                disabled={!ready}
+                aria-label="Vista previa del PDF"
+                onClick={() => setPreviewReportId(report.id)}
               >
-                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Download report">
+                <Eye className="size-3.5" aria-hidden="true" />
+              </Button>
+              {ready ? (
+                <a
+                  href={downloadUrl(report.id)}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Descargar PDF"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                    "h-7 w-7",
+                  )}
+                >
+                  <Download className="size-3.5" aria-hidden="true" />
+                </a>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled
+                  aria-label="Descargar PDF"
+                >
                   <Download className="size-3.5" aria-hidden="true" />
                 </Button>
-              </a>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -199,6 +228,14 @@ export function ReportsPage() {
           </p>
         </div>
       </div>
+
+      <ReportPdfPreviewDialog
+        reportId={previewReportId}
+        open={previewReportId !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewReportId(null);
+        }}
+      />
 
       <DataTable<ReportRead>
         data={reports}

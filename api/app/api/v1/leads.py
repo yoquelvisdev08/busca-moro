@@ -12,9 +12,33 @@ from app.core.config import Settings, get_settings
 from app.core.database import get_session
 from app.core.redis_client import get_redis
 from app.models.lead import LeadStatus
-from app.schemas.lead import LeadCreate, LeadListResponse, LeadRead, LeadUpdate
+from app.schemas.lead import (
+    LeadCreate,
+    LeadListResponse,
+    LeadOutreachSummary,
+    LeadRead,
+    LeadUpdate,
+)
+from app.services.lead_delete_reasons import REASON_CODES
 from app.services.lead_service import LeadService
+from app.services.outreach_service import OutreachService
 from app.services.queue_service import QueueService
+
+
+def _lead_read_with_outreach(lead, stats_row) -> LeadRead:
+    base = LeadRead.model_validate(lead)
+    if stats_row is None:
+        return base
+    return base.model_copy(
+        update={
+            "outreach": LeadOutreachSummary(
+                has_message_sent=stats_row.has_message_sent,
+                messages_sent_count=stats_row.messages_sent_count,
+                has_reply_received=stats_row.has_reply_received,
+                inbound_messages_count=stats_row.inbound_messages_count,
+            )
+        }
+    )
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
@@ -54,8 +78,10 @@ async def list_leads(
 ) -> LeadListResponse:
     service = LeadService(session)
     items, total = await service.list(limit=limit, offset=offset, status=status_filter)
+    outreach_service = OutreachService(session)
+    stats = await outreach_service.stats_for_leads([item.id for item in items])
     return LeadListResponse(
-        items=[LeadRead.model_validate(item) for item in items],
+        items=[_lead_read_with_outreach(item, stats.get(item.id)) for item in items],
         total=total,
         limit=limit,
         offset=offset,
@@ -71,7 +97,31 @@ async def get_lead(
     lead = await service.get(lead_id)
     if lead is None:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
-    return LeadRead.model_validate(lead)
+    outreach_service = OutreachService(session)
+    stats = await outreach_service.stats_for_leads([lead_id])
+    return _lead_read_with_outreach(lead, stats.get(lead_id))
+
+
+@router.delete(
+    "/{lead_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Eliminar lead (soft delete)",
+)
+async def delete_lead(
+    lead_id: uuid.UUID,
+    reason: str = Query(..., min_length=1, max_length=64, description="Código de motivo"),
+    detail: Optional[str] = Query(default=None, max_length=500),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str]:
+    """Motivo obligatorio por query string (?reason=no_email&detail=...)."""
+    if reason not in REASON_CODES:
+        raise HTTPException(status_code=400, detail=f"Motivo no válido: {reason}")
+
+    service = LeadService(session)
+    deleted = await service.soft_delete(lead_id, reason=reason, detail=detail)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    return {"status": "deleted", "lead_id": str(lead_id)}
 
 
 @router.patch("/{lead_id}", response_model=LeadRead)
@@ -84,7 +134,9 @@ async def update_lead(
     lead = await service.update(lead_id, payload)
     if lead is None:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
-    return LeadRead.model_validate(lead)
+    outreach_service = OutreachService(session)
+    stats = await outreach_service.stats_for_leads([lead_id])
+    return _lead_read_with_outreach(lead, stats.get(lead_id))
 
 
 @router.post(
@@ -149,7 +201,9 @@ async def get_lead_detail(
     from app.schemas.sales_intelligence import SalesIntelligenceRead
 
     # Get lead
-    result = await session.execute(select(Lead).where(Lead.id == lead_id))
+    result = await session.execute(
+        select(Lead).where(Lead.id == lead_id, Lead.deleted_at.is_(None))
+    )
     lead = result.scalar_one_or_none()
     if lead is None:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
@@ -179,8 +233,12 @@ async def get_lead_detail(
     )
     all_intel = list(result.scalars().all())
 
+    outreach_service = OutreachService(session)
+    stats = await outreach_service.stats_for_leads([lead_id])
+    lead_read = _lead_read_with_outreach(lead, stats.get(lead_id))
+
     return {
-        "lead": LeadRead.model_validate(lead).model_dump(),
+        "lead": lead_read.model_dump(),
         "latest_audit": AuditRead.model_validate(latest_audit).model_dump() if latest_audit else None,
         "audits": [AuditRead.model_validate(a).model_dump() for a in all_audits],
         "sales_intelligence": [SalesIntelligenceRead.model_validate(i).model_dump() for i in all_intel],

@@ -1,12 +1,34 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mail, FileText, Users } from "lucide-react";
+import { Mail, FileText, Users, Trash2, Send, Inbox } from "lucide-react";
 import { notify } from "@/lib/notify";
-import { useLeads, useTriggerAuditMutation } from "@/lib/hooks";
+import { useLeads, useTriggerAuditMutation, useDeleteLeadMutation } from "@/lib/hooks";
 import type { Lead, LeadStatus } from "@/lib/api";
 import { DataTable, type BulkAction, type FilterConfig } from "@/components/tables/DataTable";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  LEAD_DELETE_REASONS,
+  suggestDeleteReason,
+  type LeadDeleteReasonCode,
+} from "@/lib/delete-lead-reasons";
 import { StatusLED, type StatusLEDVariant } from "@/components/domain/StatusLED";
 import { Chip, type ChipColor } from "@/components/domain/Chip";
 import { cn } from "@/lib/utils";
@@ -59,10 +81,70 @@ export function LeadsPage() {
   });
 
   const triggerAudit = useTriggerAuditMutation();
+  const deleteLead = useDeleteLeadMutation();
+  const [deleteTarget, setDeleteTarget] = useState<Lead | Lead[] | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState<LeadDeleteReasonCode | "">("");
+  const [deleteDetail, setDeleteDetail] = useState("");
 
   const leads = data?.items ?? [];
   const total = data?.total ?? 0;
   const pageCount = Math.ceil(total / pagination.pageSize);
+
+  const openDeleteDialog = (target: Lead | Lead[]) => {
+    setDeleteTarget(target);
+    if (!Array.isArray(target)) {
+      setDeleteReason(suggestDeleteReason(target));
+    } else {
+      setDeleteReason("");
+    }
+    setDeleteDetail("");
+    setDeleteDialogOpen(true);
+  };
+
+  const canConfirmDelete =
+    Boolean(deleteReason) &&
+    (deleteReason !== "other" || deleteDetail.trim().length >= 3);
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget || !deleteReason || !canConfirmDelete) return;
+    const targets = Array.isArray(deleteTarget) ? deleteTarget : [deleteTarget];
+    const payload = {
+      reason: deleteReason,
+      detail: deleteDetail.trim() || undefined,
+    };
+    notify.promise(
+      Promise.all(
+        targets.map((lead) =>
+          deleteLead.mutateAsync({ id: lead.id, ...payload }),
+        ),
+      ).then(() => undefined),
+      {
+        loading:
+          targets.length === 1
+            ? "Eliminando lead..."
+            : `Eliminando ${targets.length} leads...`,
+        success:
+          targets.length === 1
+            ? "Lead eliminado"
+            : `${targets.length} leads eliminados`,
+        error: (err) =>
+          err instanceof Error ? err.message : "No se pudo eliminar",
+      },
+    );
+    setDeleteDialogOpen(false);
+    setDeleteTarget(null);
+    setDeleteReason("");
+    setDeleteDetail("");
+  };
+
+  const deleteDialogLabel = (() => {
+    if (!deleteTarget) return "";
+    if (Array.isArray(deleteTarget)) {
+      return `${deleteTarget.length} leads seleccionados`;
+    }
+    return deleteTarget.normalized_domain;
+  })();
 
   const bulkActions: BulkAction<Lead>[] = [
     {
@@ -80,6 +162,12 @@ export function LeadsPage() {
         );
       },
       variant: "default",
+    },
+    {
+      label: "Eliminar",
+      icon: <Trash2 className="size-3" />,
+      action: (rows) => openDeleteDialog(rows),
+      variant: "destructive",
     },
   ];
 
@@ -181,6 +269,42 @@ export function LeadsPage() {
         },
       },
       {
+        id: "mensaje",
+        header: "Mensaje",
+        accessorFn: (row) =>
+          row.outreach?.has_message_sent ? "sent" : "none",
+        cell: ({ row }) => {
+          const o = row.original.outreach;
+          const sent = o?.has_message_sent ?? false;
+          const replied = o?.has_reply_received ?? false;
+          if (!sent) {
+            return (
+              <span className="inline-flex items-center gap-1 text-[11px] text-text-muted">
+                <Mail className="size-3 opacity-60" aria-hidden />
+                Sin enviar
+              </span>
+            );
+          }
+          return (
+            <div className="flex flex-col gap-0.5">
+              <span className="inline-flex items-center gap-1 text-[11px] text-primary font-medium">
+                <Send className="size-3" aria-hidden />
+                Enviado
+                {o && o.messages_sent_count > 1
+                  ? ` (${o.messages_sent_count})`
+                  : ""}
+              </span>
+              {replied && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-success">
+                  <Inbox className="size-3" aria-hidden />
+                  Respondió
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
         id: "score",
         header: "Score",
         accessorFn: (row) => row.score,
@@ -248,8 +372,21 @@ export function LeadsPage() {
                   e.stopPropagation();
                   navigate(`/leads/${lead.id}`);
                 }}
+                aria-label="Ver lead"
               >
                 <Mail className="size-3.5" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-danger hover:text-danger hover:bg-danger/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openDeleteDialog(lead);
+                }}
+                aria-label="Eliminar lead"
+              >
+                <Trash2 className="size-3.5" aria-hidden="true" />
               </Button>
             </div>
           );
@@ -290,6 +427,96 @@ export function LeadsPage() {
         density="compact"
         getRowId={(row) => row.id}
       />
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar lead</DialogTitle>
+            <DialogDescription>
+              {Array.isArray(deleteTarget) && deleteTarget.length > 1 ? (
+                <>
+                  Vas a eliminar <strong>{deleteTarget.length} leads</strong>.
+                  Se ocultarán de la lista; los datos relacionados (auditorías,
+                  informes) se conservan en base de datos.
+                </>
+              ) : (
+                <>
+                  Vas a eliminar <strong>{deleteDialogLabel}</strong>. El lead
+                  dejará de aparecer en la lista.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="delete-reason">Motivo</Label>
+              <Select
+                value={deleteReason}
+                onValueChange={(v) =>
+                  setDeleteReason(v as LeadDeleteReasonCode)
+                }
+              >
+                <SelectTrigger id="delete-reason" className="w-full">
+                  <SelectValue placeholder="Selecciona por qué lo archivas" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEAD_DELETE_REASONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-text-muted">
+                Queda guardado en base de datos por si revisas descartes más
+                adelante.
+              </p>
+            </div>
+
+            {deleteReason === "other" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="delete-detail">Detalle</Label>
+                <Textarea
+                  id="delete-detail"
+                  rows={3}
+                  value={deleteDetail}
+                  onChange={(e) => setDeleteDetail(e.target.value)}
+                  placeholder="Ej.: solo formulario genérico, sin email público..."
+                />
+              </div>
+            )}
+
+            {!Array.isArray(deleteTarget) && deleteTarget && !deleteTarget.email && (
+              <p className="text-xs text-warning rounded-md border border-warning/30 bg-warning/5 p-2">
+                Este lead no tiene email guardado; por eso sugerimos
+                &quot;Sin email para contactar&quot;.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDeleteTarget(null);
+                setDeleteReason("");
+                setDeleteDetail("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleteLead.isPending || !canConfirmDelete}
+            >
+              {deleteLead.isPending ? "Eliminando..." : "Eliminar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Error Banner */}
       {error && (

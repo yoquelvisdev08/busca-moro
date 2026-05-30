@@ -14,6 +14,8 @@ from closer.prompts import (
     COLD_EMAIL_USER,
     PAIN_POINTS_SYSTEM,
     PAIN_POINTS_USER,
+    SUPPLEMENT_SYSTEM,
+    SUPPLEMENT_USER,
     segment_system_prompt,
 )
 
@@ -28,6 +30,7 @@ class GeneratedIntelligence:
     pain_points: list[dict[str, Any]]
     cold_email_subject: Optional[str]
     cold_email_body: Optional[str]
+    extras: dict[str, Any]
     prompt_hash: str
     tokens_input: Optional[int]
     tokens_output: Optional[int]
@@ -127,12 +130,58 @@ class IntelligenceEngine:
         if signature and body and signature.strip() not in body:
             body = body.rstrip() + "\n\n" + signature.strip()
 
+        supplement_user = SUPPLEMENT_USER.format(
+            company=lead.get("company_name") or self._infer_company(lead),
+            url=lead.get("url", ""),
+            sender_name=sp.get("name") or "Consultor",
+            sender_title=sp.get("title") or "",
+            sender_bio=sp.get("bio") or "",
+            sender_services=self._compact_list(sp.get("services")),
+            pain_points=self._format_pain_points_for_prompt(pain_points),
+            lighthouse_score=audit.get("lighthouse_score"),
+            load_time_ms=audit.get("load_time_ms"),
+            mobile_friendly=audit.get("mobile_friendly"),
+            has_ssl=audit.get("has_ssl"),
+            primary_subject=subject or "",
+            primary_body_excerpt=(body or "")[:400],
+        )
+        supplement_response = await self._llm.chat(
+            system=SUPPLEMENT_SYSTEM.format(language=self._settings.language),
+            user=supplement_user,
+            json_response=True,
+            temperature=0.5,
+            max_tokens=self._settings.llm_max_tokens,
+        )
+        supplement_payload = LLMClient.safe_json_loads(supplement_response.content) or {}
+        extras: dict[str, Any] = {
+            "sales_brief": str(supplement_payload.get("sales_brief", "")).strip(),
+            "cold_email_subject_alt": str(
+                supplement_payload.get("cold_email_subject_alt", "")
+            ).strip()
+            or None,
+            "cold_email_body_alt": str(
+                supplement_payload.get("cold_email_body_alt", "")
+            ).strip()
+            or None,
+        }
+        report_narrative = supplement_payload.get("report_narrative")
+        if isinstance(report_narrative, dict):
+            extras["report_narrative"] = report_narrative
+
         prompt_hash = hashlib.sha256(
-            (pain_points_user + "||" + email_user).encode("utf-8")
+            (pain_points_user + "||" + email_user + "||" + supplement_user).encode("utf-8")
         ).hexdigest()
 
-        tokens_input = (pain_response.prompt_tokens or 0) + (email_response.prompt_tokens or 0) or None
-        tokens_output = (pain_response.completion_tokens or 0) + (email_response.completion_tokens or 0) or None
+        tokens_input = (
+            (pain_response.prompt_tokens or 0)
+            + (email_response.prompt_tokens or 0)
+            + (supplement_response.prompt_tokens or 0)
+        ) or None
+        tokens_output = (
+            (pain_response.completion_tokens or 0)
+            + (email_response.completion_tokens or 0)
+            + (supplement_response.completion_tokens or 0)
+        ) or None
 
         return GeneratedIntelligence(
             model=self._settings.llm_model,
@@ -141,6 +190,7 @@ class IntelligenceEngine:
             pain_points=pain_points,
             cold_email_subject=subject,
             cold_email_body=body,
+            extras=extras,
             prompt_hash=prompt_hash,
             tokens_input=tokens_input,
             tokens_output=tokens_output,

@@ -3,7 +3,7 @@ import {
   LayoutDashboard,
   Compass,
   Users,
-  Megaphone,
+  MessagesSquare,
   Activity,
   Settings,
   PanelLeftClose,
@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/discover", label: "Discover", icon: Compass },
   { to: "/leads", label: "Leads", icon: Users },
-  { to: "/campaigns", label: "Campaigns", icon: Megaphone },
+  { to: "/mensajeria", label: "Mensajería", icon: MessagesSquare },
   { to: "/monitor", label: "Monitor", icon: Activity },
   { to: "/settings", label: "Settings", icon: Settings },
 ];

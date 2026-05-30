@@ -262,7 +262,7 @@ func worker(
 			"segment", verdict.Segment,
 		)
 
-		if !verdict.Eligible {
+		if !verdict.Eligible || verdict.Segment == "D" {
 			continue
 		}
 

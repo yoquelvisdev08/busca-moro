@@ -6,7 +6,9 @@ import uuid
 from datetime import datetime
 from typing import Any, Optional
 
-from pydantic import AnyHttpUrl, BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.services.lead_delete_reasons import REASON_CODES
 
 from app.models.lead import LeadStatus
 
@@ -54,6 +56,15 @@ class LeadUpdate(BaseModel):
     commercial_signals: Optional[list[str]] = None
 
 
+class LeadOutreachSummary(BaseModel):
+    """Resumen de mensajería para listados de leads."""
+
+    has_message_sent: bool = False
+    messages_sent_count: int = 0
+    has_reply_received: bool = False
+    inbound_messages_count: int = 0
+
+
 class LeadRead(LeadBase):
     model_config = ConfigDict(from_attributes=True)
 
@@ -78,6 +89,21 @@ class LeadRead(LeadBase):
     discovered_at: datetime
     audited_at: Optional[datetime] = None
     contacted_at: Optional[datetime] = None
+    outreach: LeadOutreachSummary = Field(default_factory=LeadOutreachSummary)
+
+
+class LeadDeleteRequest(BaseModel):
+    """Motivo obligatorio al archivar un lead."""
+
+    reason: str = Field(..., min_length=1, max_length=64)
+    detail: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason_code(cls, value: str) -> str:
+        if value not in REASON_CODES:
+            raise ValueError(f"Motivo no válido: {value}")
+        return value
 
 
 class LeadListResponse(BaseModel):

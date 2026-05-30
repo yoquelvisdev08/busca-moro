@@ -2,491 +2,309 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Informe de rendimiento web &mdash; {{ lead.company_name }}</title>
-  <link rel="stylesheet" href="css/report.css">
-  <style>
-    /* Inline critical styles for WeasyPrint compatibility */
-    {% include "css/report.css" %}
-  </style>
+  <title>{{ narrative.report_title }} — {{ lead.domain }}</title>
+  <style>{% include "css/report.css" %}</style>
 </head>
 <body>
 
-<!-- ==========================================================================
-     COVER PAGE
-     ========================================================================== -->
-<section class="cover-page">
-  <div class="brand-mark">
-    <span>{{ consultant.name[:2] | upper }}</span>
-  </div>
-  <h1 class="agency-name">Informe de rendimiento web</h1>
-  <p class="report-title">Análisis y plan de mejora para<br>
-    <strong>{{ lead.company_name }}</strong></p>
-
-  <p class="cover-intro">
-    Documento confidencial con los hallazgos de una auditoría técnica de
-    <strong>{{ lead.domain }}</strong> y las acciones que puedo implementar para
-    mejorar velocidad, experiencia móvil y conversiones.
-  </p>
-
-  <div class="meta">
-    <div class="meta-row">
-      <span class="label">Sitio: </span>{{ lead.domain }}
-    </div>
-    <div class="meta-row">
-      <span class="label">Fecha: </span>{{ generated_at }}
-    </div>
-    <div class="meta-row">
-      <span class="label">Preparado por: </span>{{ consultant.byline }}
-    </div>
-    {% if consultant.company %}
-    <div class="meta-row">
-      <span class="label">Marca: </span>{{ consultant.company }}
-    </div>
+<header class="doc-header break-keep">
+  <div class="doc-header-top">
+    <p class="doc-kicker">Auditoría digital · Confidencial</p>
+    <p class="doc-byline">
+      <strong>{{ consultant.name }}</strong>{% if consultant.title %} — {{ consultant.title }}{% endif %}{% if consultant.website %} · {{ consultant.website }}{% endif %}
+    </p>
+    <h1 class="doc-title">{{ narrative.report_title }}</h1>
+    <p class="doc-domain">{{ lead.url }}</p>
+    <p class="doc-intro">
+      Yo, <strong>{{ consultant.name }}</strong>, realicé esta auditoría técnica de
+      <strong>{{ lead.domain }}</strong> el {{ generated_at }}, con Lighthouse y métricas
+      de rendimiento reales, para <strong>{{ lead.company_name }}</strong>.
+    </p>
+    {% if narrative.site_context %}
+    <p class="doc-context">{{ narrative.site_context }}</p>
     {% endif %}
-  </div>
-
-  <p class="cover-note">
-    SIPHON-X es mi herramienta interna de análisis; el trabajo y la propuesta
-    comercial son responsabilidad personal de {{ consultant.name }}.
-  </p>
-</section>
-
-<!-- ==========================================================================
-     EXECUTIVE SUMMARY
-     ========================================================================== -->
-<div class="page-break"></div>
-<section class="section">
-  <div class="section-header">
-    <div class="icon">1</div>
-    <h2>Resumen ejecutivo</h2>
-  </div>
-
-  <div class="summary-box">
-    <div class="stat-row">
-      <div class="stat">
-        <div class="stat-value">{{ pain_points | length }}</div>
-        <div class="stat-label">Hallazgos prioritarios</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">{{ revenue_loss.conversion_drop_pct }}%</div>
-        <div class="stat-label">Fricción estimada en conversión</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">{{ lead.segment }}</div>
-        <div class="stat-label">Segmento comercial</div>
-      </div>
-    </div>
-  </div>
-
-  <p>
-    He revisado <strong>{{ lead.company_name }}</strong> ({{ lead.domain }}),
-    {% if lead.industry %}negocio del sector {{ lead.industry }}{% else %}su presencia online{% endif %}
-    {% if lead.country != "N/A" %} en {{ lead.country }}{% endif %}.
-    {% if audit %}
-      La auditoría detectó
-      <strong>{{ pain_points | length }} problemas relevantes</strong> que afectan
-      rendimiento, experiencia de usuario y, sobre todo, la capacidad de convertir visitas en clientes.
-    {% else %}
-      El análisis inicial muestra oportunidades claras de mejora en rendimiento y visibilidad.
-    {% endif %}
-  </p>
-
-  <p>
-    <strong>En resumen:</strong> hay margen claro para mejorar rendimiento, confianza del visitante
-    y conversiones. Los detalles están en este informe; el alcance y prioridades los definimos
-    juntos en una primera conversación (sin compromiso).
-  </p>
-
-  {% if revenue_loss.confidence == "high" %}
-  <p><em>Nivel de confianza: alto — varias señales técnicas coinciden.</em></p>
-  {% elif revenue_loss.confidence == "medium" %}
-  <p><em>Nivel de confianza: medio — conviene validar con analítica real del negocio.</em></p>
-  {% else %}
-  <p><em>Nivel de confianza: bajo — recomiendo una auditoría más profunda antes de invertir.</em></p>
-  {% endif %}
-
-  {% if revenue_loss.primary_factors %}
-  <p>
-    <strong>Factores principales: </strong>
-    {% for factor in revenue_loss.primary_factors %}
-      <span class="signal-tag">{{ factor | replace("_", " ") | title }}</span>
-    {% endfor %}
-  </p>
-  {% endif %}
-</section>
-
-<!-- ==========================================================================
-     TECHNICAL AUDIT
-     ========================================================================== -->
-<section class="section">
-  <div class="section-header">
-    <div class="icon">2</div>
-    <h2>Technical Audit</h2>
   </div>
 
   {% if audit %}
-    {% set scores = [
-      ("Lighthouse", audit.lighthouse_bar),
-      ("Performance", audit.performance_bar),
-      ("SEO", audit.seo_bar),
-      ("Accessibility", audit.accessibility_bar),
-      ("Best Practices", audit.best_practices_bar),
-    ] %}
-
-    <div class="score-grid">
-      {% for name, bar in scores %}
-      <div class="score-item">
-        <div class="score-value" style="color: {{ bar.color }}">{{ bar.value }}</div>
-        <div class="score-label">{{ name }}</div>
-        <div class="progress-bar">
-          <div class="fill {% if bar.value >= 90 %}good{% elif bar.value >= 50 %}warning{% else %}danger{% endif %}"
-               style="width: {{ bar.pct }}%"></div>
-        </div>
-        <div style="font-size: 7pt; color: var(--text-muted); margin-top: 2pt;">{{ bar.label }}</div>
+  <div class="doc-kpis">
+    <div class="doc-kpi">
+      <div class="doc-kpi-value {% if audit.lighthouse_score is not none and audit.lighthouse_score < 50 %}bad{% elif audit.lighthouse_score is not none and audit.lighthouse_score < 80 %}warn{% else %}good{% endif %}">
+        {{ audit.lighthouse_score if audit.lighthouse_score is not none else "—" }}
       </div>
+      <div class="doc-kpi-label">Lighthouse</div>
+    </div>
+    <div class="doc-kpi">
+      <div class="doc-kpi-value">{{ audit.load_time_display }}</div>
+      <div class="doc-kpi-label">Carga</div>
+    </div>
+    <div class="doc-kpi">
+      <div class="doc-kpi-value">{{ pain_points | length }}</div>
+      <div class="doc-kpi-label">Hallazgos</div>
+    </div>
+    <div class="doc-kpi">
+      <div class="doc-kpi-value">{% if audit.mobile_friendly and audit.has_ssl %}OK{% else %}!{% endif %}</div>
+      <div class="doc-kpi-label">Móvil / SSL</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="doc-meta">
+    <span><strong>Cliente:</strong> {{ lead.company_name }}</span>
+    <span><strong>Fecha:</strong> {{ generated_at }}</span>
+    {% if lead.industry and lead.industry != "No especificado" %}
+    <span><strong>Sector:</strong> {{ lead.industry }}</span>
+    {% endif %}
+  </div>
+</header>
+
+<main class="report-body">
+
+  <section class="section">
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <h2>Resumen ejecutivo</h2>
+    </div>
+    <div class="prose">
+      {% for paragraph in narrative.executive_summary %}
+      <p>{{ paragraph }}</p>
       {% endfor %}
     </div>
+  </section>
 
-    <table style="margin-top: 14pt;">
-      <thead>
-        <tr>
-          <th>Metric</th>
-          <th>Value</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Page Load Time</td>
-          <td>{{ audit.load_time_display }}</td>
-          <td>
-            {% if audit.load_time_ms and audit.load_time_ms > 3000 %}
-              <span class="badge danger">Slow</span>
-            {% elif audit.load_time_ms and audit.load_time_ms > 1000 %}
-              <span class="badge warning">Fair</span>
-            {% else %}
-              <span class="badge success">Good</span>
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
-          <td>First Contentful Paint</td>
-          <td>{{ format_load_time(audit.fcp_ms) if audit.fcp_ms else "N/A" }}</td>
-          <td>
-            {% if audit.fcp_ms and audit.fcp_ms > 1800 %}
-              <span class="badge warning">Needs Work</span>
-            {% elif audit.fcp_ms %}
-              <span class="badge success">Good</span>
-            {% else %}
-              <span class="badge">N/A</span>
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
-          <td>Largest Contentful Paint</td>
-          <td>{{ format_load_time(audit.lcp_ms) if audit.lcp_ms else "N/A" }}</td>
-          <td>
-            {% if audit.lcp_ms and audit.lcp_ms > 2500 %}
-              <span class="badge danger">Poor</span>
-            {% elif audit.lcp_ms %}
-              <span class="badge success">Good</span>
-            {% else %}
-              <span class="badge">N/A</span>
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
-          <td>Cumulative Layout Shift</td>
-          <td>{{ audit.cls if audit.cls is not none else "N/A" }}</td>
-          <td>
-            {% if audit.cls is not none and audit.cls > 0.1 %}
-              <span class="badge warning">Unstable</span>
-            {% elif audit.cls is not none %}
-              <span class="badge success">Stable</span>
-            {% else %}
-              <span class="badge">N/A</span>
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
-          <td>Total Blocking Time</td>
-          <td>{{ "{}ms".format(audit.tbt_ms) if audit.tbt_ms is not none else "N/A" }}</td>
-          <td>
-            {% if audit.tbt_ms is not none and audit.tbt_ms > 300 %}
-              <span class="badge danger">High</span>
-            {% elif audit.tbt_ms is not none %}
-              <span class="badge success">Low</span>
-            {% else %}
-              <span class="badge">N/A</span>
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
-          <td>Mobile-Friendly</td>
-          <td>{% if audit.mobile_friendly %}Yes{% elif audit.mobile_friendly is false %}No{% else %}Unknown{% endif %}</td>
-          <td>
-            {% if audit.mobile_friendly %}
-              <span class="badge success">Pass</span>
-            {% else %}
-              <span class="badge danger">Fail</span>
-            {% endif %}
-          </td>
-        </tr>
-        <tr>
-          <td>SSL Certificate</td>
-          <td>{% if audit.has_ssl %}Valid{% elif audit.has_ssl is false %}Missing{% else %}Unknown{% endif %}</td>
-          <td>
-            {% if audit.has_ssl %}
-              <span class="badge success">Secure</span>
-            {% else %}
-              <span class="badge danger">Not Secure</span>
-            {% endif %}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  {% else %}
-    <div class="card">
-      <p><em>No technical audit data available for this lead. A full Lighthouse audit is recommended to generate accurate metrics.</em></p>
-      <div class="stat-grid" style="margin-top: 10pt;">
-        <div class="stat-item">
-          <div class="label">Lighthouse Score</div>
-          <div class="value">{{ lead.score if lead.score else "Unknown" }}</div>
-        </div>
-        <div class="stat-item">
-          <div class="label">Load Time</div>
-          <div class="value">{{ format_load_time(lead.load_time_ms) if lead.load_time_ms else "Unknown" }}</div>
-        </div>
-      </div>
+  <section class="section">
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <h2>Diagnóstico</h2>
     </div>
-  {% endif %}
-</section>
-
-<!-- ==========================================================================
-     COMMERCIAL ANALYSIS
-     ========================================================================== -->
-<section class="section">
-  <div class="section-header">
-    <div class="icon">3</div>
-    <h2>Commercial Analysis</h2>
-  </div>
-
-  <div class="card-row">
-    <div class="card card-col">
-      <h4>Segment Classification</h4>
-      <div style="display: flex; align-items: center; gap: 10pt;">
-        <div style="font-size: 32pt; font-weight: 800; color: var(--brand-primary);">{{ lead.segment }}</div>
-        <div>
-          <p style="font-size: 9pt; color: var(--text-secondary);">
-            {% if lead.segment == "A" %}
-              High-value target with strong commercial signals. Pricing page, testimonials, and active business model detected.
-            {% elif lead.segment == "B" %}
-              Strong potential with some commercial signals. Likely revenue-generating but may need website improvements.
-            {% elif lead.segment == "C" %}
-              Moderate potential. Limited commercial signals but could benefit from performance optimization.
-            {% else %}
-              Baseline segment. Limited data available. Further discovery and analysis recommended.
-            {% endif %}
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <div class="card card-col">
-      <h4>Commercial Signals</h4>
-      <table>
-        <tbody>
-          <tr>
-            <td>Revenue Signal</td>
-            <td><span class="badge {% if lead.revenue_signal != 'none' %}success{% else %}warning{% endif %}">{{ lead.revenue_signal | default("none") }}</span></td>
-          </tr>
-          <tr>
-            <td>Pricing Page</td>
-            <td>
-              {% if lead.has_pricing_page %}
-                <span class="badge success">Yes</span>
-              {% else %}
-                <span class="badge warning">No</span>
-              {% endif %}
-            </td>
-          </tr>
-          <tr>
-            <td>Testimonials</td>
-            <td>
-              {% if lead.has_testimonials %}
-                <span class="badge success">Yes</span>
-              {% else %}
-                <span class="badge warning">No</span>
-              {% endif %}
-            </td>
-          </tr>
-          <tr>
-            <td>Commercial Score</td>
-            <td><strong>{{ lead.commercial_score if lead.commercial_score is not none else 0 }}</strong></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  {% if lead.commercial_signals %}
-    <div style="margin-top: 6pt;">
-      <strong style="font-size: 9pt;">Detected signals: </strong>
-      {% for signal in lead.commercial_signals %}
-        <span class="signal-tag">{{ signal | replace("_", " ") | title }}</span>
+    <div class="prose">
+      {% for item in narrative.site_diagnosis %}
+      <p>{{ item }}</p>
       {% endfor %}
     </div>
-  {% endif %}
-</section>
+    {% if narrative.business_risks %}
+    <p class="subhead">Riesgos detectados</p>
+    <ul class="bullet-list">
+      {% for risk in narrative.business_risks %}
+      <li>{{ risk }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
 
-<!-- ==========================================================================
-     PAIN POINTS
-     ========================================================================== -->
-<section class="section">
-  <div class="section-header">
-    <div class="icon">4</div>
-    <h2>Problemas detectados e impacto</h2>
-  </div>
-
-  {% if pain_points %}
-    {% for pp in pain_points %}
-    <div class="pain-point severity-{{ pp.severity }}">
-      <div class="pp-title">
-        {% if pp.severity == "critical" %}&#9888;{% elif pp.severity == "high" %}&#9650;{% else %}&#9679;{% endif %}
-        {{ pp.title }}
-      </div>
-      <div class="pp-desc">{{ pp.description }}</div>
-      <div class="pp-loss">
-        {% if pp.severity == "critical" %}
-          Impacto: alto — conviene atenderlo pronto.
-        {% elif pp.severity == "high" %}
-          Impacto: relevante para conversión y confianza.
-        {% else %}
-          Impacto: mejora recomendable en una siguiente fase.
-        {% endif %}
-      </div>
-      {% if pp.evidence %}
-      <div class="pp-evidence">Evidencia: {{ pp.evidence }}</div>
+  <section class="section">
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2>Hallazgos prioritarios</h2>
+    </div>
+    <div class="findings-list">
+      {% if pain_points %}
+        {% for pp in pain_points %}
+        <div class="pain-point severity-{{ pp.severity }} break-keep">
+          <div class="pp-title">{{ pp.title }}</div>
+          <div class="pp-desc">{{ pp.description }}</div>
+          {% if pp.evidence %}
+          <div class="pp-evidence">{{ pp.evidence }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="card">
+          <p>No se detectaron problemas críticos con los datos actuales. Una revisión en vivo puede revelar oportunidades adicionales.</p>
+        </div>
       {% endif %}
     </div>
-    {% endfor %}
-  {% else %}
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2>Métricas técnicas</h2>
+    </div>
+
+    {% if audit %}
+    <div class="score-grid">
+      <div class="score-card primary break-keep">
+        <div class="score-lbl">Rendimiento global</div>
+        <div class="score-num">{{ audit.lighthouse_bar.value }}/100</div>
+        <div class="score-bar-wrap">
+          <div class="score-bar" style="width: {{ audit.lighthouse_bar.pct }}%; background: {{ audit.lighthouse_bar.color }};"></div>
+        </div>
+        <div class="score-status">{{ audit.lighthouse_bar.label }}</div>
+      </div>
+      <div class="score-card break-keep">
+        <div class="score-num">{{ audit.performance_bar.value }}</div>
+        <div class="score-lbl">Performance</div>
+        <div class="score-status">{{ audit.performance_bar.label }}</div>
+      </div>
+      <div class="score-card break-keep">
+        <div class="score-num">{{ audit.seo_bar.value }}</div>
+        <div class="score-lbl">SEO</div>
+        <div class="score-status">{{ audit.seo_bar.label }}</div>
+      </div>
+      <div class="score-card break-keep">
+        <div class="score-num">{{ audit.accessibility_bar.value }}</div>
+        <div class="score-lbl">Accesibilidad</div>
+        <div class="score-status">{{ audit.accessibility_bar.label }}</div>
+      </div>
+      <div class="score-card break-keep">
+        <div class="score-num">{{ audit.best_practices_bar.value }}</div>
+        <div class="score-lbl">Best practices</div>
+        <div class="score-status">{{ audit.best_practices_bar.label }}</div>
+      </div>
+    </div>
+
+    <div class="card-row">
+      <div class="card card-col">
+        <h4>Core Web Vitals</h4>
+        <table class="compact">
+          <tbody>
+            <tr><td>Tiempo de carga</td><td>{{ audit.load_time_display }}</td></tr>
+            <tr><td>LCP</td><td>{% if audit.lcp_ms %}{{ audit.lcp_ms }} ms{% else %}N/D{% endif %}</td></tr>
+            <tr><td>CLS</td><td>{% if audit.cls is not none %}{{ "%.3f"|format(audit.cls) }}{% else %}N/D{% endif %}</td></tr>
+            <tr><td>TBT</td><td>{% if audit.tbt_ms %}{{ audit.tbt_ms }} ms{% else %}N/D{% endif %}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card card-col">
+        <h4>Disponibilidad</h4>
+        <table class="compact">
+          <tbody>
+            <tr>
+              <td>Experiencia móvil</td>
+              <td>{% if audit.mobile_friendly %}<span class="badge success">Correcta</span>{% else %}<span class="badge warning">Mejorar</span>{% endif %}</td>
+            </tr>
+            <tr>
+              <td>HTTPS / SSL</td>
+              <td>{% if audit.has_ssl %}<span class="badge success">Activo</span>{% else %}<span class="badge danger">Falta</span>{% endif %}</td>
+            </tr>
+            <tr><td>Segmento</td><td>{{ lead.segment }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if audit.detected_tech %}
+    <p class="tech-tags">
+      <strong>Stack:</strong>
+      {% for key, val in audit.detected_tech.items() %}
+        {{ key }}{% if val %} ({{ val }}){% endif %}{% if not loop.last %} · {% endif %}
+      {% endfor %}
+    </p>
+    {% endif %}
+    {% else %}
     <div class="card">
-      <p><em>No se detectaron problemas graves con los datos actuales. Aun así, una revisión en vivo puede revelar oportunidades.</em></p>
+      <p>Sin auditoría Lighthouse completa. Ejecuta una auditoría para obtener métricas comparables.</p>
     </div>
-  {% endif %}
+    {% endif %}
+  </section>
 
-  <div style="margin-top: 14pt; font-size: 8pt; color: var(--text-muted); font-style: italic;">
-    Las prioridades finales dependen del tráfico real, del modelo de negocio y de tus objetivos;
-    por eso el siguiente paso es hablarlo contigo, no cerrar cifras por correo.
-  </div>
-</section>
+  <section class="section">
+    <div class="section-head">
+      <span class="section-num">05</span>
+      <h2>Plan de acción</h2>
+    </div>
 
-<!-- ==========================================================================
-     RECOMMENDATIONS
-     ========================================================================== -->
-<section class="section">
-  <div class="section-header">
-    <div class="icon">5</div>
-    <h2>Recomendaciones prioritarias</h2>
-  </div>
+    <div class="callout break-keep">{{ segment_summary }}</div>
 
-  {% set recs = [
-    {"title": "Rendimiento y Core Web Vitals", "desc": "Reducir el tiempo de carga desde " ~ (format_load_time(audit.load_time_ms) if audit and audit.load_time_ms else "los niveles actuales") ~ " hacia menos de 2 s: imágenes, caché, CDN y código más liviano.", "impact": "Mejor experiencia y menos abandono en la primera visita."},
-    {"title": "Experiencia móvil", "desc": "Diseño responsive, objetivos táctiles claros y contenido legible en pantallas pequeñas.", "impact": "La mayoría del tráfico llega por móvil; ahí se gana o se pierde la conversión."},
-    {"title": "SSL y seguridad", "desc": "HTTPS en todo el sitio, cabeceras de seguridad y revisión si hay pagos o formularios sensibles.", "impact": "Más confianza del usuario y señal positiva para buscadores."},
-    {"title": "SEO y contenido", "desc": "Metadatos, jerarquía de títulos, velocidad y datos estructurados donde aplique.", "impact": "Más visibilidad orgánica a medio plazo."},
-    {"title": "UX y conversión", "desc": "Recorridos más claros, CTAs visibles, prueba social y formularios simples.", "impact": "Más consultas y ventas sin depender solo de anuncios."},
-  ] %}
+    {% if narrative.priority_actions %}
+    <div class="action-list">
+      {% for action in narrative.priority_actions %}
+      <div class="action-item break-keep">
+        <div class="action-rank">{{ loop.index }}</div>
+        <div class="action-body">
+          <h4>{{ action.title }}</h4>
+          <p>{{ action.why }}</p>
+          {% if action.effort %}
+          <p class="action-effort">Esfuerzo: {{ action.effort }}</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
 
-  {% for rec in recs %}
-  <div class="recommendation avoid-break">
-    <div class="rec-number">{{ loop.index }}</div>
-    <div class="rec-content">
-      <h4>{{ rec.title }}</h4>
-      <p>{{ rec.desc }}</p>
-      <p style="font-size: 8pt; color: var(--success); margin-top: 4pt;">
-        <strong>Beneficio esperado:</strong> {{ rec.impact }}
+    {% if narrative.quick_wins %}
+    <p class="subhead">Quick wins (semana 1)</p>
+    <ul class="bullet-list">
+      {% for win in narrative.quick_wins %}
+      <li>{{ win }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+  </section>
+
+  <section class="section section-deep">
+    <div class="section-head">
+      <span class="section-num">06</span>
+      <h2>Análisis en profundidad</h2>
+    </div>
+    <div class="prose">
+      {% for paragraph in narrative.deep_analysis %}
+      <p>{{ paragraph }}</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% set offer = narrative.consultant_offer %}
+  <section class="section consultant-close break-keep">
+    <div class="section-head">
+      <span class="section-num">07</span>
+      <h2>Cómo puedo ayudarte a ejecutar las mejoras</h2>
+    </div>
+
+    {% if offer.headline %}
+    <p class="offer-headline">{{ offer.headline }}</p>
+    {% endif %}
+
+    {% if consultant.bio %}
+    <p class="offer-bio"><strong>Sobre mí:</strong> {{ consultant.bio }}</p>
+    {% endif %}
+
+    {% if offer.positioning %}
+    <p class="offer-positioning">{{ offer.positioning }}</p>
+    {% endif %}
+
+    {% if offer.what_i_do %}
+    <p class="subhead">Lo que hago por ti (implementación, no solo informe)</p>
+    <ul class="bullet-list offer-list">
+      {% for item in offer.what_i_do %}
+      <li>{{ item }}</li>
+      {% endfor %}
+    </ul>
+    {% elif consultant.services %}
+    <p class="subhead">Servicios</p>
+    <ul class="bullet-list offer-list">
+      {% for svc in consultant.services %}
+      <li>{{ svc }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if offer.collaboration %}
+    <p class="subhead">Cómo trabajaríamos</p>
+    <ul class="bullet-list offer-list">
+      {% for step in offer.collaboration %}
+      <li>{{ step }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="offer-cta">
+      <p class="offer-next">{{ offer.next_step if offer.next_step else narrative.closing_note }}</p>
+      <p class="offer-contact">
+        <strong>{{ consultant.name }}</strong>{% if consultant.title %} · {{ consultant.title }}{% endif %}
+        {% if consultant.website %}<br>{{ consultant.website }}{% endif %}
       </p>
     </div>
-  </div>
-  {% endfor %}
-</section>
+  </section>
 
-<!-- ==========================================================================
-     SERVICE PROPOSAL
-     ========================================================================== -->
-<section class="section">
-  <div class="section-header">
-    <div class="icon">6</div>
-    <h2>Propuesta de trabajo</h2>
-  </div>
+</main>
 
-  <p style="margin-bottom: 12pt;">
-    Te propongo un acompañamiento práctico para <strong>{{ lead.company_name }}</strong>:
-    corregir lo urgente, optimizar lo que más impacta conversiones y dejar el sitio
-    listo para crecer. Yo mismo puedo ejecutar el trabajo (no es un software automático).
-  </p>
-
-  <div class="proposal-box">
-    <h2>Qué incluye mi propuesta</h2>
-
-    <div class="package">
-      <div class="check">&#10003;</div>
-      <div class="detail">
-        <h4>Auditoría técnica y correcciones prioritarias</h4>
-        <p>Revisión con Lighthouse, causas raíz y arreglos que más impactan velocidad y SEO.</p>
-      </div>
-    </div>
-
-    <div class="package">
-      <div class="check">&#10003;</div>
-      <div class="detail">
-        <h4>Experiencia móvil</h4>
-        <p>Que el sitio se vea y funcione bien en teléfono, tablet y escritorio.</p>
-      </div>
-    </div>
-
-    <div class="package">
-      <div class="check">&#10003;</div>
-      <div class="detail">
-        <h4>Seguridad e infraestructura</h4>
-        <p>HTTPS, endurecimiento básico y hosting alineado con rendimiento.</p>
-      </div>
-    </div>
-
-    <div class="package">
-      <div class="check">&#10003;</div>
-      <div class="detail">
-        <h4>Seguimiento (opcional)</h4>
-        <p>Monitoreo y revisiones periódicas si quieres mantener el sitio en buen estado.</p>
-      </div>
-    </div>
-
-    <div class="cta" style="margin-top: 16pt;">
-      <p><strong>Siguiente paso: primer contacto</strong></p>
-      <p>
-        No incluyo precios ni paquetes cerrados en este PDF. Prefiero una llamada o mensaje corto
-        para entender tu negocio, priorizar y proponerte un plan a medida.
-      </p>
-      <p>
-        Escríbeme a <strong>{{ consultant.website }}</strong>, responde a este correo
-        o dime cuándo te va bien para 15–20 minutos.
-      </p>
-      <p style="margin-top: 6pt; font-size: 9pt;">— {{ consultant.name }}{% if consultant.title %}, {{ consultant.title }}{% endif %}</p>
-    </div>
-  </div>
-</section>
-
-<!-- ==========================================================================
-     FOOTER
-     ========================================================================== -->
-<div class="footer">
-  <p>{{ brand.name }} &mdash; {{ brand.tagline }} | {{ brand.website }}</p>
-  <p>Informe generado el {{ generated_at }}. Datos obtenidos con auditoría automatizada; conviene validar en entorno real.</p>
-  <p>Confidencial &mdash; preparado exclusivamente para {{ lead.company_name }} por {{ consultant.name }}</p>
-</div>
+<footer class="doc-footer">
+  {{ consultant.name }}{% if consultant.title %} · {{ consultant.title }}{% endif %}
+  · Informe del {{ generated_at }} · Confidencial para {{ lead.company_name }}
+</footer>
 
 </body>
 </html>

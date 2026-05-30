@@ -30,6 +30,7 @@ class SalesIntelligenceService:
             prompt_hash=payload.prompt_hash,
             tokens_input=payload.tokens_input,
             tokens_output=payload.tokens_output,
+            extras=payload.extras or {},
         )
         self._session.add(intel)
 

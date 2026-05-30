@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { notify } from "@/lib/notify";
 import {
   ArrowLeft,
@@ -14,6 +14,7 @@ import {
   Send,
   Clock,
   Download,
+  Eye,
   RefreshCw,
   Mail,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import {
   useScheduleFollowUpMutation,
   useCancelAllFollowUpsMutation,
   useOutreach,
+  useRecordInboundMutation,
 } from "@/lib/hooks";
 import type {
   Lead,
@@ -40,7 +42,7 @@ import type {
 import { api, screenshotPublicUrl } from "@/lib/api";
 import { ColumnDef } from "@tanstack/react-table";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -58,6 +60,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { TabGroup, type Tab } from "@/components/domain/TabGroup";
+import { ReportPdfPreviewDialog } from "@/components/domain/ReportPdfPreviewDialog";
 import { StatusLED, type StatusLEDVariant } from "@/components/domain/StatusLED";
 import { MetricCard } from "@/components/charts/MetricCard";
 import { DataTable } from "@/components/tables/DataTable";
@@ -68,12 +71,15 @@ type TabId = "overview" | "audit" | "reports" | "outreach";
 export function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [outreachSubject, setOutreachSubject] = useState("");
   const [outreachBody, setOutreachBody] = useState("");
   const [outreachToEmail, setOutreachToEmail] = useState("");
   const [attachReportId, setAttachReportId] = useState<string | undefined>();
   const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [emailVariant, setEmailVariant] = useState<"a" | "b">("a");
+  const [previewReportId, setPreviewReportId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useLead(id);
   const { data: reportsData } = useReports({ lead_id: id });
@@ -88,6 +94,13 @@ export function LeadDetailPage() {
   const cancelFollowUps = useCancelAllFollowUpsMutation();
 
   const lead = data?.lead as Lead | undefined;
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "outreach" || tab === "audit" || tab === "reports" || tab === "overview") {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
   const audit = data?.latest_audit as Audit | null | undefined;
   const intel = data?.sales_intelligence?.[0] as SalesIntelligence | undefined;
 
@@ -113,11 +126,30 @@ export function LeadDetailPage() {
   }, [outreachToEmail]);
 
   useEffect(() => {
-    if (intel?.cold_email_subject && !outreachSubject)
+    if (!intel) return;
+    if (emailVariant === "b" && intel.extras?.cold_email_body_alt) {
+      if (!outreachSubject)
+        setOutreachSubject(intel.extras.cold_email_subject_alt ?? "");
+      if (!outreachBody) setOutreachBody(intel.extras.cold_email_body_alt);
+      return;
+    }
+    if (intel.cold_email_subject && !outreachSubject)
       setOutreachSubject(intel.cold_email_subject);
-    if (intel?.cold_email_body && !outreachBody)
+    if (intel.cold_email_body && !outreachBody)
       setOutreachBody(intel.cold_email_body);
-  }, [intel]);
+  }, [intel, emailVariant]);
+
+  const applyEmailVariant = (variant: "a" | "b") => {
+    setEmailVariant(variant);
+    if (!intel) return;
+    if (variant === "b" && intel.extras?.cold_email_body_alt) {
+      setOutreachSubject(intel.extras.cold_email_subject_alt ?? "");
+      setOutreachBody(intel.extras.cold_email_body_alt);
+      return;
+    }
+    setOutreachSubject(intel.cold_email_subject ?? "");
+    setOutreachBody(intel.cold_email_body ?? "");
+  };
 
   useEffect(() => {
     if (outreachToEmail.trim()) return;
@@ -292,6 +324,23 @@ export function LeadDetailPage() {
                 pulse={lead.status === "auditing"}
               />
             )}
+            {lead?.outreach?.has_message_sent ? (
+              <Badge variant="default" className="font-mono text-[10px]">
+                Mensaje enviado
+                {lead.outreach.messages_sent_count > 1
+                  ? ` ×${lead.outreach.messages_sent_count}`
+                  : ""}
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="font-mono text-[10px]">
+                Sin mensaje enviado
+              </Badge>
+            )}
+            {lead?.outreach?.has_reply_received && (
+              <Badge variant="outline" className="font-mono text-[10px] text-success border-success/40">
+                Respondió
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex gap-2 w-full sm:w-auto sm:shrink-0">
@@ -342,12 +391,17 @@ export function LeadDetailPage() {
             <ReportsTab
               leadId={id!}
               reports={reportsData?.items ?? []}
+              onPreview={(reportId) => setPreviewReportId(reportId)}
               onGenerate={() =>
                 generateReport.mutate(id!, {
-                  onSuccess: () =>
+                  onSuccess: (report) => {
                     notify.success("Reporte generado", {
                       href: id ? `/leads/${id}` : undefined,
-                    }),
+                    });
+                    if (report?.id && report.status === "completed") {
+                      setPreviewReportId(report.id);
+                    }
+                  },
                   onError: (err) =>
                     notify.error(
                       err instanceof Error
@@ -379,10 +433,22 @@ export function LeadDetailPage() {
               onQuickFollowUp={handleQuickFollowUp}
               onCancelFollowUps={() => cancelFollowUps.mutate(id!)}
               isSending={sendOutreach.isPending}
+              intel={intel}
+              emailVariant={emailVariant}
+              onEmailVariantChange={applyEmailVariant}
             />
           )}
         </CardContent>
       </Card>
+
+      <ReportPdfPreviewDialog
+        reportId={previewReportId}
+        title="Vista previa del informe"
+        open={previewReportId !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewReportId(null);
+        }}
+      />
 
       {/* Send Modal */}
       <Dialog open={sendModalOpen} onOpenChange={setSendModalOpen}>
@@ -570,18 +636,40 @@ function OverviewTab({
         </div>
       </div>
 
-      {/* AI Sales Intelligence */}
-      {intel?.cold_email_body && (
+      {intel?.extras?.sales_brief && (
         <div>
           <h3 className="flex items-center gap-2 text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
-            <Sparkles className="size-4 text-warning" aria-hidden="true" /> AI Sales Intelligence
+            <Sparkles className="size-4 text-warning" aria-hidden="true" />
+            Pitch 30 s (para ti)
           </h3>
           <div className="rounded-lg bg-bg border border-border p-4">
             <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
-              {intel.cold_email_body.slice(0, 500)}
-              {intel.cold_email_body.length > 500 ? "..." : ""}
+              {intel.extras.sales_brief}
             </p>
           </div>
+        </div>
+      )}
+
+      {intel?.pain_points && intel.pain_points.length > 0 && (
+        <div>
+          <h3 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
+            Hallazgos IA
+          </h3>
+          <ul className="space-y-2">
+            {intel.pain_points.slice(0, 5).map((pp: { title?: string; severity?: string }, i: number) => (
+              <li
+                key={i}
+                className="text-sm text-text-secondary border border-border rounded-lg px-3 py-2"
+              >
+                <span className="font-medium text-text">{pp.title}</span>
+                {pp.severity ? (
+                  <span className="ml-2 text-[10px] font-mono uppercase text-text-muted">
+                    {pp.severity}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
@@ -721,11 +809,13 @@ function AuditTab({ audit }: { audit: Audit | null | undefined }) {
 function ReportsTab({
   reports,
   onGenerate,
+  onPreview,
   isGenerating,
 }: {
   leadId: string;
   reports: ReportRead[];
   onGenerate: () => void;
+  onPreview: (reportId: string) => void;
   isGenerating: boolean;
 }) {
   const columns = useMemo<ColumnDef<ReportRead, unknown>[]>(
@@ -784,16 +874,45 @@ function ReportsTab({
         header: "",
         cell: ({ row }) => {
           const r = row.original;
+          const ready = r.status === "completed";
           return (
-            <a
-              href={api.getReportDownloadUrl(r.id)}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Button variant="ghost" size="icon" className="h-7 w-7">
-                <Download className="size-3.5" aria-hidden="true" />
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                disabled={!ready}
+                aria-label="Vista previa del PDF"
+                onClick={() => onPreview(r.id)}
+              >
+                <Eye className="size-3.5" aria-hidden="true" />
               </Button>
-            </a>
+              {ready ? (
+                <a
+                  href={api.getReportDownloadUrl(r.id)}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Descargar PDF"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                    "h-7 w-7",
+                  )}
+                >
+                  <Download className="size-3.5" aria-hidden="true" />
+                </a>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled
+                  aria-label="Descargar PDF"
+                >
+                  <Download className="size-3.5" aria-hidden="true" />
+                </Button>
+              )}
+            </div>
           );
         },
       },
@@ -829,6 +948,162 @@ function ReportsTab({
   );
 }
 
+function MessageHistorySection({
+  leadId,
+  outreach,
+}: {
+  leadId: string | undefined;
+  outreach: OutreachMessage[];
+}) {
+  const recordInbound = useRecordInboundMutation();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [senderEmail, setSenderEmail] = useState("");
+  const [replySubject, setReplySubject] = useState("");
+  const [replyBody, setReplyBody] = useState("");
+
+  const sorted = useMemo(
+    () =>
+      [...outreach].sort((a, b) => {
+        const ta = new Date(a.sent_at ?? a.created_at).getTime();
+        const tb = new Date(b.sent_at ?? b.created_at).getTime();
+        return tb - ta;
+      }),
+    [outreach],
+  );
+
+  const handleRecordReply = () => {
+    if (!leadId || !senderEmail.trim() || replyBody.trim().length < 3) return;
+    notify.promise(
+      recordInbound.mutateAsync({
+        lead_id: leadId,
+        sender_email: senderEmail.trim(),
+        subject: replySubject.trim() || undefined,
+        body: replyBody.trim(),
+      }),
+      {
+        loading: "Registrando respuesta...",
+        success: "Respuesta registrada",
+        error: (err) =>
+          err instanceof Error ? err.message : "No se pudo registrar",
+      },
+    );
+    setDialogOpen(false);
+    setReplySubject("");
+    setReplyBody("");
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+        <h3 className="flex items-center gap-2 text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider">
+          <Mail className="size-3.5" aria-hidden="true" /> Historial de mensajes
+        </h3>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!leadId}
+          onClick={() => setDialogOpen(true)}
+        >
+          Registrar respuesta recibida
+        </Button>
+      </div>
+      {sorted.length === 0 ? (
+        <p className="text-sm text-text-muted">Aún no hay mensajes enviados ni recibidos.</p>
+      ) : (
+        <div className="space-y-2">
+          {sorted.map((msg) => {
+            const isOut = msg.direction === "outbound";
+            return (
+              <div
+                key={msg.id}
+                className="flex items-start justify-between rounded-lg bg-bg border border-border px-4 py-3 gap-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant={isOut ? "default" : "secondary"} className="text-[10px]">
+                      {isOut ? "Enviado" : "Recibido"}
+                    </Badge>
+                    <span className="text-sm font-medium text-text truncate">
+                      {msg.subject || "(sin asunto)"}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-text-muted">
+                    {isOut ? "Para" : "De"}: {msg.recipient} ·{" "}
+                    {new Date(msg.sent_at ?? msg.created_at).toLocaleString("es-ES")}
+                  </div>
+                  <p className="text-xs text-text-secondary mt-2 line-clamp-2">
+                    {msg.body}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1 text-[11px] text-text-muted shrink-0">
+                  {isOut && msg.opened && <span className="text-success">Abierto</span>}
+                  {isOut && msg.replied && <span className="text-success">Marcó respuesta</span>}
+                  {msg.has_attachment && <span>PDF</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar mensaje recibido</DialogTitle>
+            <DialogDescription>
+              Guarda una respuesta del lead para verla en Mensajería y marcar el lead como respondido.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div>
+              <Label htmlFor="inbound-from">Email del remitente</Label>
+              <Input
+                id="inbound-from"
+                value={senderEmail}
+                onChange={(e) => setSenderEmail(e.target.value)}
+                placeholder="contacto@empresa.com"
+              />
+            </div>
+            <div>
+              <Label htmlFor="inbound-subject">Asunto</Label>
+              <Input
+                id="inbound-subject"
+                value={replySubject}
+                onChange={(e) => setReplySubject(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="inbound-body">Mensaje</Label>
+              <Textarea
+                id="inbound-body"
+                rows={6}
+                value={replyBody}
+                onChange={(e) => setReplyBody(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleRecordReply}
+              disabled={
+                recordInbound.isPending ||
+                !senderEmail.trim() ||
+                replyBody.trim().length < 3
+              }
+            >
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════
    Outreach Tab
    ═══════════════════════════════════════════ */
@@ -852,6 +1127,9 @@ function OutreachTab({
   onQuickFollowUp,
   onCancelFollowUps,
   isSending,
+  intel,
+  emailVariant,
+  onEmailVariantChange,
 }: {
   lead: Lead | undefined;
   followUps: FollowUpRead[];
@@ -871,7 +1149,11 @@ function OutreachTab({
   onQuickFollowUp: () => void;
   onCancelFollowUps: () => void;
   isSending: boolean;
+  intel: SalesIntelligence | undefined;
+  emailVariant: "a" | "b";
+  onEmailVariantChange: (v: "a" | "b") => void;
 }) {
+  const hasAltEmail = Boolean(intel?.extras?.cold_email_body_alt);
   const pendingFollowUps = followUps.filter(
     (f) => f.status === "pending"
   );
@@ -911,11 +1193,40 @@ function OutreachTab({
         </Card>
       </div>
 
-      {/* Email Editor */}
       <div className="space-y-3">
-        <h3 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider">
-          Compose Email
-        </h3>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h3 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider">
+            Redactar email
+          </h3>
+          {hasAltEmail && (
+            <div className="flex gap-1 rounded-lg border border-border p-0.5">
+              <button
+                type="button"
+                className={cn(
+                  "text-[10px] font-mono px-2.5 py-1 rounded-md",
+                  emailVariant === "a"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-text-muted hover:text-text",
+                )}
+                onClick={() => onEmailVariantChange("a")}
+              >
+                Variante A
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "text-[10px] font-mono px-2.5 py-1 rounded-md",
+                  emailVariant === "b"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-text-muted hover:text-text",
+                )}
+                onClick={() => onEmailVariantChange("b")}
+              >
+                Variante B
+              </button>
+            </div>
+          )}
+        </div>
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label className="text-[11px] uppercase tracking-wider">
@@ -1010,49 +1321,7 @@ function OutreachTab({
         </div>
       </div>
 
-      {/* Email History */}
-      <div>
-        <h3 className="flex items-center gap-2 text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
-          <Mail className="size-3.5" aria-hidden="true" /> Email History
-        </h3>
-        {outreach.length === 0 ? (
-          <p className="text-sm text-text-muted">No emails sent yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {outreach.map((msg) => (
-              <div
-                key={msg.id}
-                className="flex items-center justify-between rounded-lg bg-bg border border-border px-4 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-text truncate">
-                    {msg.subject}
-                  </div>
-                  <div className="text-[11px] text-text-muted mt-0.5">
-                    To: {msg.recipient} ·{" "}
-                    {msg.sent_at
-                      ? new Date(msg.sent_at).toLocaleDateString()
-                      : "Pending"}
-                    {msg.replied && (
-                      <span className="ml-2 text-success">
-                        ● Replied
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-text-muted shrink-0 ml-4">
-                  {msg.opened_at ? (
-                    <span>✓ Opened</span>
-                  ) : (
-                    <span>— Unopened</span>
-                  )}
-                  {msg.has_attachment && <span>📎 PDF</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <MessageHistorySection leadId={lead?.id} outreach={outreach} />
 
       {/* Follow-up Schedule */}
       {followUps.length > 0 && (

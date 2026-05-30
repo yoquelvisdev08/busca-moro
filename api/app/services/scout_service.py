@@ -4,11 +4,88 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# Países donde las consultas en inglés suelen rendir mejor en buscadores.
+_ENGLISH_MARKETS = frozenset(
+    {
+        "Estados Unidos",
+        "Canadá",
+        "Reino Unido",
+        "Australia",
+        "Irlanda",
+        "Nueva Zelanda",
+        "Singapur",
+        "India",
+        "Sudáfrica",
+    }
+)
+
+_PORTUGUESE_MARKETS = frozenset({"Brasil", "Portugal"})
+
+
+def language_for_location(location: str) -> str:
+    if not location:
+        return "es"
+    if location in _PORTUGUESE_MARKETS:
+        return "pt"
+    if location in _ENGLISH_MARKETS:
+        return "en"
+    return "es"
+
+
+def build_dork_prompts(
+    industry: str,
+    location: str,
+    num_dorks: int,
+    language: str,
+) -> tuple[str, str]:
+    """Prompts orientados a PYMEs que pueden pagar optimización web."""
+    location_clause = f" en {location}" if location else ""
+    lang_note = {
+        "es": "español",
+        "en": "inglés",
+        "pt": "portugués",
+    }.get(language, language)
+
+    system_prompt = f"""Eres un experto en prospección B2B para un consultor senior de desarrollo web,
+rendimiento, SEO técnico y conversión.
+
+OBJETIVO: generar Google dorks que encuentren negocios REALES (no blogs personales ni directorios)
+de {industry}{location_clause} que:
+- Vendan servicios o productos y dependan de su web para captar clientes
+- Tengan presupuesto (clínicas, bufetes, inmobiliarias, hoteles, academias, e-commerce pequeño/mediano)
+- Probablemente tengan web lenta, antigua, WordPress desactualizado, sin HTTPS o mala experiencia móvil
+- NECESITEN contratar a un profesional (no equipos enterprise con web perfecta)
+
+EVITAR en los resultados (reflejar en los dorks con exclusiones -site:):
+- Portfolios de estudiantes, blogs personales, foros, Wikipedia, redes sociales
+- Marketplaces gigantes (amazon, mercadolibre como dominio principal)
+- Gobierno (.gov), universidades (.edu) salvo clínicas universitarias privadas
+- Agencias de desarrollo web competidoras (ya tienen equipo técnico)
+
+TÉCNICAS DE DORK (mezclar):
+- inurl:contacto OR inurl:contact OR inurl:cita OR inurl:reservar
+- intext:"reservar cita" OR intext:"solicitar presupuesto" OR intitle:servicios
+- WordPress/Joomla antiguos: inurl:wp-content inurl:wp-includes
+- Señales de negocio local: intext:"horario" intext:"teléfono"
+- Si hay país: incluir términos locales del país en al menos 5 dorks
+
+REGLAS:
+- Genera EXACTAMENTE {num_dorks} dorks, uno por línea
+- Sin numeración, sin explicación, sin markdown
+- Idioma de las consultas: {lang_note}
+- Cada dork debe ser una búsqueda ejecutable en Google/SearXNG"""
+
+    user_prompt = (
+        f"Genera {num_dorks} dorks para prospectar {industry}{location_clause}. "
+        "Prioriza negocios que pagarían entre 800 y 8000 USD por mejorar su web."
+    )
+    return system_prompt, user_prompt
 
 
 @dataclass
@@ -39,28 +116,16 @@ class ScoutService:
         industry: str,
         location: str = "",
         num_dorks: int = 15,
-        language: str = "es",
+        language: Optional[str] = None,
     ) -> list[str]:
         """Genera Google dorks usando LLM para encontrar sitios del target."""
-        location_part = f" en {location}" if location else ""
-
-        system_prompt = f"""Eres un experto en Google dorking para lead generation B2B.
-Tu trabajo es generar consultas de búsqueda (dorks) que encuentren sitios web
-de {industry}{location_part} que probablemente necesiten mejoras en su web.
-
-Reglas:
-- Genera EXACTAMENTE {num_dorks} dorks
-- Cada dork debe ser una línea
-- Usa operadores avanzados: inurl:, intext:, intitle:, site:, -site:
-- Enfocate en detectar sitios con problemas: WordPress viejo, Joomla, sitios lentos, sin SSL
-- NO incluyas sitios grandes conocidos (no google.com, no facebook.com, etc.)
-- Idioma de las consultas: {language}
-- Devuelve SOLO los dorks, uno por línea, sin numeración ni explicación"""
-
-        user_prompt = f"Genera {num_dorks} dorks para encontrar sitios de {industry}{location_part}"
+        lang = language or language_for_location(location)
+        system_prompt, user_prompt = build_dork_prompts(
+            industry, location, num_dorks, lang
+        )
 
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
+            async with httpx.AsyncClient(timeout=45) as client:
                 response = await client.post(
                     f"{self._llm_base_url}/v1/chat/completions",
                     headers={
@@ -73,19 +138,22 @@ Reglas:
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_prompt},
                         ],
-                        "temperature": 0.7,
-                        "max_tokens": 2000,
+                        "temperature": 0.55,
+                        "max_tokens": 2500,
                     },
                 )
                 response.raise_for_status()
                 data = response.json()
                 content = data["choices"][0]["message"]["content"].strip()
 
-                # Parsear líneas, filtrar vacías
-                dorks = [line.strip() for line in content.split("\n") if line.strip() and not line.startswith("#")]
+                dorks = [
+                    line.strip().lstrip("-•0123456789.) ")
+                    for line in content.split("\n")
+                    if line.strip() and not line.strip().startswith("#")
+                ]
                 return dorks[:num_dorks]
         except Exception as e:
-            logger.error(f"dork_generation_failed: {e}")
+            logger.error("dork_generation_failed: %s", e)
             return []
 
     async def start_discovery(
@@ -93,49 +161,57 @@ Reglas:
         industry: str,
         location: str = "",
         num_dorks: int = 15,
-        language: str = "es",
+        language: Optional[str] = None,
     ) -> ScoutStartResult:
         """Genera dorks, los encola y dispara el Scout."""
         import redis
 
-        # Generar dorks
-        dorks = await self.generate_dorks(industry, location, num_dorks, language)
+        lang = language or language_for_location(location)
+        dorks = await self.generate_dorks(industry, location, num_dorks, lang)
         if not dorks:
             return ScoutStartResult(
                 success=False,
                 dorks_generated=0,
                 seeds_count=0,
-                message="Failed to generate dorks. Check LLM configuration.",
+                message="No se generaron dorks. Revisa la configuración del LLM.",
             )
 
-        # Encolar dorks en Redis
         try:
             r = redis.from_url(self._redis_url, decode_responses=True)
             queue_key = "siphon:queue:discovery"
 
-            # Limpiar cola anterior (opcional)
             r.delete(queue_key)
 
-            # Agregar dorks como mensajes JSON
             for dork in dorks:
-                message = json.dumps({"type": "dork", "query": dork, "source": "ai_generated"})
+                message = json.dumps(
+                    {
+                        "type": "dork",
+                        "query": dork,
+                        "source": "ai_generated",
+                        "industry": industry,
+                        "location": location,
+                    }
+                )
                 r.lpush(queue_key, message)
 
-            # Señal para el Scout de que arranque YA
             r.set("siphon:signal:start", "1", ex=60)
 
             dorks_count = len(dorks)
+            loc_suffix = f" ({location})" if location else ""
             return ScoutStartResult(
                 success=True,
                 dorks_generated=dorks_count,
                 seeds_count=0,
-                message=f"Generated {dorks_count} dorks for '{industry}'{f' in {location}' if location else ''}. Scout started.",
+                message=(
+                    f"{dorks_count} dorks para '{industry}'{loc_suffix}. "
+                    "Scout iniciado (filtro: negocios con intención comercial)."
+                ),
             )
         except Exception as e:
-            logger.error(f"redis_error: {e}")
+            logger.error("redis_error: %s", e)
             return ScoutStartResult(
                 success=False,
                 dorks_generated=len(dorks),
                 seeds_count=0,
-                message=f"Generated dorks but failed to enqueue: {e}",
+                message=f"Dorks generados pero falló encolar en Redis: {e}",
             )

@@ -10,15 +10,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.database import get_session
-from app.models.lead import Lead
+from app.models.lead import Lead, LeadStatus
 from app.models.sales_intelligence import SalesIntelligence
-from app.schemas.outreach import OutreachCreate, OutreachListResponse, OutreachRead, OutreachUpdate
+from app.schemas.outreach import (
+    InboundMessageCreate,
+    OutreachCreate,
+    OutreachListResponse,
+    OutreachRead,
+    OutreachUpdate,
+)
 from app.services.email_service import EmailConfig, EmailService
 from app.services.lead_contact import persist_lead_email, resolve_lead_email
 from app.services.lead_service import LeadService
 from app.services.outreach_service import OutreachService
 
 router = APIRouter(prefix="/outreach", tags=["outreach"])
+
+
+def _to_outreach_read(msg, lead: Lead | None = None) -> OutreachRead:
+    data = OutreachRead.model_validate(msg)
+    if lead is not None:
+        return data.model_copy(
+            update={
+                "lead_domain": lead.normalized_domain,
+                "lead_company_name": lead.company_name,
+            }
+        )
+    return data
 
 
 @router.post("", response_model=OutreachRead, status_code=201)
@@ -28,20 +46,44 @@ async def create_outreach(
 ):
     service = OutreachService(session)
     msg = await service.create(payload)
-    return OutreachRead.model_validate(msg)
+    return _to_outreach_read(msg)
+
+
+@router.post("/inbound", response_model=OutreachRead, status_code=201)
+async def record_inbound_message(
+    payload: InboundMessageCreate,
+    session: AsyncSession = Depends(get_session),
+):
+    """Registra un mensaje recibido del lead (respuesta manual)."""
+    lead_service = LeadService(session)
+    lead = await lead_service.get(uuid.UUID(payload.lead_id))
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+    service = OutreachService(session)
+    msg = await service.record_inbound(payload)
+    await lead_service.transition_status(lead.id, LeadStatus.replied)
+    return _to_outreach_read(msg, lead)
 
 
 @router.get("", response_model=OutreachListResponse)
 async def list_outreach(
     lead_id: Optional[uuid.UUID] = Query(default=None),
+    direction: Optional[str] = Query(
+        default=None,
+        description="outbound (enviados) o inbound (recibidos)",
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_session),
 ):
+    if direction is not None and direction not in ("outbound", "inbound"):
+        raise HTTPException(status_code=400, detail="direction debe ser outbound o inbound")
+
     service = OutreachService(session)
-    items, total = await service.list(lead_id=lead_id, limit=limit, offset=offset)
+    rows, total = await service.list(lead_id=lead_id, direction=direction, limit=limit, offset=offset)
     return OutreachListResponse(
-        items=[OutreachRead.model_validate(i) for i in items],
+        items=[_to_outreach_read(msg, lead) for msg, lead in rows],
         total=total,
         limit=limit,
         offset=offset,
@@ -57,7 +99,8 @@ async def get_outreach(
     msg = await service.get(msg_id)
     if msg is None:
         raise HTTPException(status_code=404, detail="Outreach message not found")
-    return OutreachRead.model_validate(msg)
+    lead = await session.get(Lead, msg.lead_id)
+    return _to_outreach_read(msg, lead)
 
 
 @router.patch("/{msg_id}", response_model=OutreachRead)
@@ -70,7 +113,8 @@ async def update_outreach(
     msg = await service.update(msg_id, payload)
     if msg is None:
         raise HTTPException(status_code=404, detail="Outreach message not found")
-    return OutreachRead.model_validate(msg)
+    lead = await session.get(Lead, msg.lead_id)
+    return _to_outreach_read(msg, lead)
 
 
 @router.post("/{msg_id}/track-open")
@@ -113,13 +157,11 @@ async def send_outreach_email(
     """
     settings = get_settings()
 
-    # Get lead
-    result = await session.execute(select(Lead).where(Lead.id == lead_id))
+    result = await session.execute(select(Lead).where(Lead.id == lead_id, Lead.deleted_at.is_(None)))
     lead = result.scalar_one_or_none()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
 
-    # Get latest sales intelligence
     result = await session.execute(
         select(SalesIntelligence)
         .where(SalesIntelligence.lead_id == lead_id)
@@ -157,19 +199,17 @@ async def send_outreach_email(
 
     await persist_lead_email(session, lead, recipient)
 
-    # Use overrides if provided, otherwise fall back to generated intel
     final_subject = subject or intel.cold_email_subject or "Propuesta de mejora para su sitio web"
     final_body = body or intel.cold_email_body or ""
 
-    # Append sender signature if available
     from app.services.sender_profile_service import SenderProfileService
+
     profile_service = SenderProfileService(session)
     sender_profile = await profile_service.get_active()
     if sender_profile and sender_profile.email_signature:
         if sender_profile.email_signature not in final_body:
             final_body = final_body.rstrip() + "\n\n" + sender_profile.email_signature
 
-    # Build attachments if report_id provided
     attachments = None
     has_attachment = False
     report_id_val: Optional[uuid.UUID] = None
@@ -204,7 +244,6 @@ async def send_outreach_email(
                 status_code=500, detail=f"Failed to read report PDF: {e}"
             ) from e
 
-    # Send email
     email_service = EmailService(
         EmailConfig(
             provider=getattr(settings, "email_provider", "resend"),
@@ -222,12 +261,12 @@ async def send_outreach_email(
     )
 
     if result.success:
-        # Record the outreach message
         outreach_service = OutreachService(session)
         msg_create = OutreachCreate(
             lead_id=str(lead_id),
             sales_intel_id=str(intel.id),
             channel="email",
+            direction="outbound",
             recipient=recipient,
             subject=final_subject,
             body=final_body,
@@ -237,10 +276,8 @@ async def send_outreach_email(
             msg_create,
             has_attachment=has_attachment,
             report_id=report_id_val,
+            mark_sent=True,
         )
-
-        # Update lead status
-        from app.models.lead import LeadStatus
 
         lead_service = LeadService(session)
         await lead_service.transition_status(lead_id, LeadStatus.contacted)
@@ -252,5 +289,4 @@ async def send_outreach_email(
             "recipient": recipient,
             "has_attachment": has_attachment,
         }
-    else:
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {result.error}")
+    raise HTTPException(status_code=500, detail=f"Failed to send email: {result.error}")

@@ -24,6 +24,7 @@ from app.models.audit import Audit
 from app.models.lead import Lead
 from app.models.report import Report, ReportStatus, report_status_value
 from app.models.sales_intelligence import SalesIntelligence
+from app.services.report_narrative_service import generate_report_narrative
 from app.services.revenue_loss import calculate_revenue_loss, RevenueLossEstimate
 from app.services.sender_profile_service import SenderProfileService
 
@@ -64,14 +65,14 @@ def _format_score_bar(score: Optional[int]) -> dict[str, Any]:
         return {"value": 0, "pct": 0, "color": "#e0e0e0", "label": "N/A"}
     score = max(0, min(100, score))
     if score >= 90:
-        color = "#22c55e"  # green
-        label = "Good"
+        color = "#22c55e"
+        label = "Bueno"
     elif score >= 50:
-        color = "#eab308"  # amber
-        label = "Needs Work"
+        color = "#eab308"
+        label = "Mejorable"
     else:
-        color = "#ef4444"  # red
-        label = "Poor"
+        color = "#ef4444"
+        label = "Crítico"
     return {"value": score, "pct": score, "color": color, "label": label}
 
 
@@ -224,17 +225,41 @@ class PDFService:
                 lighthouse_score=lead.lighthouse_score,
             )
 
-        # Pain points with $ estimates (combine audit + intel + revenue loss)
         pain_points = self._build_pain_points(lead, audit, intel, revenue_loss)
 
         profile_service = SenderProfileService(self._session)
         sender = await profile_service.get_active()
         consultant, brand = self._build_report_identity(sender)
 
+        audit_ctx = self._build_audit_context(audit) if audit else None
+        intel_extras = (getattr(intel, "extras", None) or {}) if intel else {}
+
+        narrative_ctx = {
+            "lead": {
+                "url": lead.url,
+                "domain": lead.normalized_domain or lead.url,
+                "company_name": lead.company_name or lead.normalized_domain or lead.url,
+                "industry": lead.industry,
+                "segment": lead.segment,
+                "commercial_signals": lead.commercial_signals or [],
+            },
+            "audit": audit_ctx,
+            "pain_points": pain_points,
+            "intel_extras": intel_extras,
+            "consultant": consultant,
+        }
+        narrative = await generate_report_narrative(narrative_ctx)
+
         now = datetime.now(timezone.utc)
         generated_at = f"{now.day} de {_MONTHS_ES[now.month - 1]} de {now.year}"
 
-        # Build template context
+        segment_copy = {
+            "A": "Sitio con señales comerciales fuertes; las mejoras técnicas impactan directamente en ingresos.",
+            "B": "Negocio con potencial comercial; conviene alinear rendimiento con imagen profesional.",
+            "C": "Oportunidad moderada; priorizar lo que más afecta confianza y contacto.",
+            "D": "Datos limitados; el diagnóstico se basa sobre todo en métricas técnicas medidas.",
+        }
+
         return {
             "lead": {
                 "domain": lead.normalized_domain or lead.url,
@@ -250,10 +275,12 @@ class PDFService:
                 "has_testimonials": lead.has_testimonials,
                 "commercial_signals": lead.commercial_signals or [],
             },
-            "audit": self._build_audit_context(audit) if audit else None,
+            "audit": audit_ctx,
             "audit_id": audit.id if audit else None,
             "sales_intelligence": self._build_intel_context(intel) if intel else None,
             "sales_intel_id": intel.id if intel else None,
+            "narrative": narrative,
+            "segment_summary": segment_copy.get(lead.segment or "D", segment_copy["D"]),
             "revenue_loss": {
                 "monthly_revenue_lost": revenue_loss.monthly_revenue_lost,
                 "monthly_revenue_lost_fmt": _format_currency(revenue_loss.monthly_revenue_lost),
@@ -281,17 +308,23 @@ class PDFService:
             consultant_title = sender.title or "Consultor de rendimiento web"
             consultant_company = sender.company or agency_name
             consultant_website = sender.website or agency_site
+            consultant_bio = sender.bio
+            consultant_services = list(sender.services or [])
         else:
             consultant_name = owner_name
             consultant_title = "Consultor de rendimiento web"
             consultant_company = agency_name
             consultant_website = agency_site
+            consultant_bio = None
+            consultant_services = []
 
         consultant = {
             "name": consultant_name,
             "title": consultant_title,
             "company": consultant_company,
             "website": consultant_website,
+            "bio": consultant_bio,
+            "services": consultant_services,
             "byline": (
                 f"{consultant_name}, {consultant_title}"
                 if consultant_title
@@ -350,6 +383,7 @@ class PDFService:
             "cold_email_body": intel.cold_email_body,
             "language": intel.language,
             "generated_at": intel.generated_at.isoformat() if intel.generated_at else None,
+            "extras": intel.extras or {},
         }
 
     # ------------------------------------------------------------------
@@ -363,94 +397,105 @@ class PDFService:
         intel: SalesIntelligence | None,
         revenue_loss: RevenueLossEstimate,
     ) -> list[dict[str, Any]]:
-        points: list[dict[str, Any]] = []
+        """Prioriza hallazgos del Closer (español); reglas técnicas solo si faltan."""
 
-        # Revenue loss from technical issues
-        if revenue_loss.monthly_revenue_lost > 0:
-            points.append({
-                "title": "Revenue Loss from Technical Issues",
-                "description": (
-                    f"Your website is losing an estimated "
-                    f"{_format_currency(revenue_loss.monthly_revenue_lost)}/month "
-                    f"due to performance issues. This represents a "
-                    f"{revenue_loss.conversion_drop_pct}% conversion rate drop."
-                ),
-                "evidence": ", ".join(revenue_loss.primary_factors).replace("_", " "),
-                "severity": "high" if revenue_loss.monthly_revenue_lost > 1000 else "medium",
-                "estimated_loss": _format_currency(revenue_loss.monthly_revenue_lost),
-            })
+        def _from_intel() -> list[dict[str, Any]]:
+            if not intel or not intel.pain_points:
+                return []
+            out: list[dict[str, Any]] = []
+            for pp in intel.pain_points[:8]:
+                if not isinstance(pp, dict):
+                    continue
+                title = str(pp.get("title", "")).strip()
+                if not title:
+                    continue
+                impact = str(pp.get("business_impact", "")).strip()
+                evidence = str(pp.get("evidence", "")).strip()
+                out.append(
+                    {
+                        "title": title,
+                        "description": impact or evidence,
+                        "evidence": evidence,
+                        "severity": str(pp.get("severity", "medium")).lower() or "medium",
+                    }
+                )
+            return out
 
-        # Missing mobile support
+        points = _from_intel()
+        if points:
+            return points
+
+        load_time = audit.load_time_ms if audit else lead.load_time_ms
+        lh_score = audit.lighthouse_score if audit else lead.lighthouse_score
+
+        if load_time is not None and load_time > 2000:
+            points.append(
+                {
+                    "title": f"Carga lenta ({_format_load_time(load_time)})",
+                    "description": (
+                        f"El sitio tarda {_format_load_time(load_time)} en cargar; "
+                        "por encima del umbral recomendado de ~2 s, lo que aumenta el abandono."
+                    ),
+                    "evidence": f"Tiempo medido: {_format_load_time(load_time)}",
+                    "severity": "critical" if load_time > 4000 else "high",
+                }
+            )
+
+        if lh_score is not None and lh_score < 50:
+            points.append(
+                {
+                    "title": f"Rendimiento crítico (Lighthouse {lh_score}/100)",
+                    "description": (
+                        "Un puntaje bajo indica problemas de rendimiento que afectan "
+                        "experiencia, SEO y conversión."
+                    ),
+                    "evidence": f"Lighthouse: {lh_score}/100",
+                    "severity": "critical",
+                }
+            )
+
         if lead.mobile_friendly is False and (
             audit is None or audit.mobile_friendly is False
         ):
-            points.append({
-                "title": "Not Mobile-Friendly",
-                "description": (
-                    "Over 60% of web traffic comes from mobile devices. "
-                    "A non-responsive site is turning away the majority of your potential customers."
-                ),
-                "evidence": "Mobile-friendly check failed",
-                "severity": "high",
-                "estimated_loss": _format_currency(revenue_loss.monthly_revenue_lost * 0.15)
-                if revenue_loss.monthly_revenue_lost > 0
-                else "Unknown",
-            })
+            points.append(
+                {
+                    "title": "Experiencia móvil deficiente",
+                    "description": (
+                        "Gran parte del tráfico llega desde el móvil; un sitio difícil de usar "
+                        "en pantalla pequeña pierde visitas y consultas."
+                    ),
+                    "evidence": "Comprobación mobile-friendly fallida",
+                    "severity": "high",
+                }
+            )
 
-        # No SSL
         if lead.has_ssl is False and (audit is None or audit.has_ssl is False):
-            points.append({
-                "title": "No SSL Certificate",
-                "description": (
-                    "Browsers mark non-HTTPS sites as 'Not Secure', causing a 10% visitor "
-                    "drop. Google also penalizes non-HTTPS in search rankings."
-                ),
-                "evidence": "SSL verification failed",
-                "severity": "high",
-                "estimated_loss": _format_currency(revenue_loss.monthly_revenue_lost * 0.10)
-                if revenue_loss.monthly_revenue_lost > 0
-                else "Unknown",
-            })
+            points.append(
+                {
+                    "title": "Sin HTTPS / certificado SSL",
+                    "description": (
+                        "Los navegadores marcan el sitio como no seguro; eso reduce confianza "
+                        "y puede afectar el posicionamiento en buscadores."
+                    ),
+                    "evidence": "Verificación SSL fallida",
+                    "severity": "high",
+                }
+            )
 
-        # Slow load time
-        load_time = audit.load_time_ms if audit else lead.load_time_ms
-        if load_time is not None and load_time > 2000:
-            points.append({
-                "title": f"Slow Page Load ({_format_load_time(load_time)})",
-                "description": (
-                    f"Your site loads in {_format_load_time(load_time)} — well above the "
-                    f"2-second threshold. Every second of delay reduces conversions by 7% "
-                    f"(Google benchmark)."
-                ),
-                "evidence": f"Measured load time: {_format_load_time(load_time)}",
-                "severity": "critical" if load_time > 4000 else "high",
-                "estimated_loss": _format_currency(revenue_loss.monthly_revenue_lost),
-            })
-
-        # Low Lighthouse
-        lh_score = audit.lighthouse_score if audit else lead.lighthouse_score
-        if lh_score is not None and lh_score < 50:
-            points.append({
-                "title": f"Critical Performance Score ({lh_score}/100)",
-                "description": (
-                    f"A Lighthouse score of {lh_score}/100 indicates serious performance "
-                    f"issues affecting user experience, SEO rankings, and conversion rates."
-                ),
-                "evidence": f"Lighthouse score: {lh_score}/100",
-                "severity": "critical",
-                "estimated_loss": _format_currency(revenue_loss.monthly_revenue_lost * 0.25),
-            })
-
-        # Intel pain points
-        if intel and intel.pain_points:
-            for pp in intel.pain_points[:3]:  # max 3 AI-generated pain points
-                points.append({
-                    "title": pp.get("title", "Performance Issue"),
-                    "description": pp.get("business_impact", pp.get("evidence", "")),
-                    "evidence": pp.get("evidence", ""),
-                    "severity": pp.get("severity", "medium"),
-                    "estimated_loss": "See revenue analysis",
-                })
+        if revenue_loss.monthly_revenue_lost > 0 and revenue_loss.conversion_drop_pct > 0:
+            points.append(
+                {
+                    "title": "Fricción estimada en conversión",
+                    "description": (
+                        f"Las métricas actuales sugieren hasta un {revenue_loss.conversion_drop_pct}% "
+                        "de pérdida de eficacia en conversión por problemas técnicos."
+                    ),
+                    "evidence": ", ".join(
+                        f.replace("_", " ") for f in revenue_loss.primary_factors
+                    ),
+                    "severity": "medium",
+                }
+            )
 
         return points
 

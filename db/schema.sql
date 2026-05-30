@@ -241,6 +241,7 @@ CREATE TABLE IF NOT EXISTS outreach_messages (
     lead_id             UUID            NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
     sales_intel_id      UUID            REFERENCES sales_intelligence(id) ON DELETE SET NULL,
     channel             outreach_channel NOT NULL,
+    direction           VARCHAR(16)     NOT NULL DEFAULT 'outbound',
     recipient           TEXT            NOT NULL,
     subject             TEXT,
     body                TEXT            NOT NULL,

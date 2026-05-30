@@ -7,9 +7,8 @@ import { useUIStore } from "@/stores/ui-store";
 function getPageTitle(pathname: string): { title: string; subtitle?: string } {
   const pages: Record<string, { title: string; subtitle?: string }> = {
     "/": { title: "Command Center", subtitle: "System Active" },
-    "/discover": { title: "Discover", subtitle: "Lead discovery configuration" },
+    "/discover": { title: "Discover", subtitle: "Búsqueda de leads" },
     "/leads": { title: "Leads", subtitle: "Manage and qualify prospects" },
-    "/campaigns": { title: "Campaigns", subtitle: "Outreach and email management" },
     "/monitor": { title: "Monitor", subtitle: "System health and uptime" },
     "/settings": { title: "Configuración", subtitle: "Perfil, email y plantillas" },
     "/reports": { title: "Reports", subtitle: "Generated reports and exports" },

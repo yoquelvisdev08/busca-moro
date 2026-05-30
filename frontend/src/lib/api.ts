@@ -27,6 +27,13 @@ export type LeadStatus =
   | "rejected"
   | "error";
 
+export interface LeadOutreachSummary {
+  has_message_sent: boolean;
+  messages_sent_count: number;
+  has_reply_received: boolean;
+  inbound_messages_count: number;
+}
+
 export interface Lead {
   id: string;
   url: string;
@@ -34,6 +41,7 @@ export interface Lead {
   company_name: string | null;
   industry: string | null;
   status: LeadStatus;
+  outreach?: LeadOutreachSummary;
   score: number;
   lighthouse_score: number | null;
   mobile_friendly: boolean | null;
@@ -103,6 +111,13 @@ export interface Audit {
   extracted_contacts: Record<string, any>;
 }
 
+export interface SalesIntelligenceExtras {
+  sales_brief?: string;
+  cold_email_subject_alt?: string | null;
+  cold_email_body_alt?: string | null;
+  report_narrative?: Record<string, unknown>;
+}
+
 export interface SalesIntelligence {
   id: string;
   lead_id: string;
@@ -113,6 +128,7 @@ export interface SalesIntelligence {
   cold_email_body: string | null;
   language: string;
   tone: string | null;
+  extras?: SalesIntelligenceExtras;
   generated_at: string;
 }
 
@@ -140,6 +156,29 @@ export interface LeadDetailResponse {
   sales_intelligence: SalesIntelligence[];
 }
 
+function formatApiError(status: number, body: string): string {
+  const trimmed = body.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as {
+        detail?: string | { msg?: string }[];
+      };
+      if (typeof parsed.detail === "string") {
+        return parsed.detail;
+      }
+      if (Array.isArray(parsed.detail) && parsed.detail[0]?.msg) {
+        return parsed.detail[0].msg;
+      }
+    } catch {
+      /* cuerpo JSON malformado: usar texto crudo */
+    }
+  }
+  if (trimmed) {
+    return trimmed.length > 280 ? `${trimmed.slice(0, 280)}...` : trimmed;
+  }
+  return `Error del servidor (HTTP ${status})`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -151,20 +190,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const text = await response.text();
-    try {
-      const parsed = JSON.parse(text) as { detail?: string | { msg?: string }[] };
-      if (typeof parsed.detail === "string") {
-        throw new Error(parsed.detail);
-      }
-      if (Array.isArray(parsed.detail) && parsed.detail[0]?.msg) {
-        throw new Error(parsed.detail[0].msg);
-      }
-    } catch (err) {
-      if (err instanceof Error && !err.message.startsWith("API ")) {
-        throw err;
-      }
-    }
-    throw new Error(`API ${response.status}: ${text}`);
+    throw new Error(formatApiError(response.status, text));
+  }
+  if (response.status === 204 || response.status === 205) {
+    return undefined as T;
+  }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    const text = await response.text();
+    throw new Error(
+      formatApiError(
+        response.status,
+        text || "El servidor no devolvió JSON (¿error interno al generar el PDF?)",
+      ),
+    );
   }
   return response.json() as Promise<T>;
 }
@@ -233,30 +272,29 @@ export interface FollowUpSequenceRead {
   next_scheduled_at: string | null;
 }
 
-/* ── Campaign Types (client-side only for now) ── */
-
-export interface Campaign {
-  id: string;
-  name: string;
-  status: "active" | "paused" | "completed";
-  lead_count: number;
-  sent_count: number;
-  replied_count: number;
-  created_at: string;
-}
+export type MessageDirection = "outbound" | "inbound";
 
 export interface OutreachMessage {
   id: string;
   lead_id: string;
+  sales_intel_id: string | null;
   channel: string;
+  direction: MessageDirection;
   recipient: string;
-  subject: string;
-  status: string;
-  sent_at: string | null;
-  opened_at: string | null;
+  subject: string | null;
+  body: string;
+  provider_message_id: string | null;
+  delivered: boolean | null;
+  opened: boolean | null;
+  clicked: boolean | null;
   replied: boolean;
   has_attachment: boolean;
   report_id: string | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+  lead_domain?: string | null;
+  lead_company_name?: string | null;
 }
 
 export interface MonitorStatus {
@@ -292,6 +330,16 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+  },
+  deleteLead(id: string, payload: { reason: string; detail?: string }) {
+    const search = new URLSearchParams({ reason: payload.reason });
+    if (payload.detail?.trim()) {
+      search.set("detail", payload.detail.trim());
+    }
+    return request<{ status: string; lead_id: string }>(
+      `/v1/leads/${id}?${search.toString()}`,
+      { method: "DELETE" },
+    );
   },
   bulkUpdateLeads(ids: string[], data: Partial<Lead>) {
     return request<{ updated: number }>(`/v1/leads/bulk`, {
@@ -385,6 +433,9 @@ export const api = {
   getReportDownloadUrl(id: string) {
     return `${API_BASE}/v1/reports/${id}/download`;
   },
+  getReportPreviewUrl(id: string) {
+    return `${API_BASE}/v1/reports/${id}/preview`;
+  },
   resendReport(id: string) {
     return request<{ status: string; report_id: string }>(`/v1/reports/${id}/resend`, { method: "POST" });
   },
@@ -430,14 +481,34 @@ export const api = {
   },
 
   /* ── Outreach History ── */
-  listOutreach(params: { lead_id?: string; limit?: number; offset?: number } = {}) {
+  listOutreach(
+    params: {
+      lead_id?: string;
+      direction?: MessageDirection;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ) {
     const search = new URLSearchParams();
     if (params.lead_id) search.set("lead_id", params.lead_id);
+    if (params.direction) search.set("direction", params.direction);
     if (params.limit) search.set("limit", String(params.limit));
     if (params.offset) search.set("offset", String(params.offset));
     const qs = search.toString();
     return request<{ items: OutreachMessage[]; total: number; limit: number; offset: number }>(
-      `/v1/outreach${qs ? `?${qs}` : ""}`
+      `/v1/outreach${qs ? `?${qs}` : ""}`,
     );
+  },
+  recordInboundMessage(payload: {
+    lead_id: string;
+    sender_email: string;
+    subject?: string;
+    body: string;
+    channel?: string;
+  }) {
+    return request<OutreachMessage>("/v1/outreach/inbound", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
 };

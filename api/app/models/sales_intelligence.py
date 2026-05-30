@@ -37,6 +37,7 @@ class SalesIntelligence(Base):
     prompt_hash: Mapped[Optional[str]] = mapped_column(Text)
     tokens_input: Mapped[Optional[int]] = mapped_column(Integer)
     tokens_output: Mapped[Optional[int]] = mapped_column(Integer)
+    extras: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -117,13 +117,14 @@ class TestGenerateReport:
             "app.api.v1.reports.get_settings", lambda: mock_settings
         )
 
-        mock_session.get = AsyncMock(return_value=lead)
+        report = _make_report(lead_id=lead.id)
+        mock_session.get = AsyncMock(side_effect=[lead, report])
 
         with patch("app.api.v1.reports.PDFService") as MockService:
             mock_service = MagicMock()
             mock_service.generate_report = AsyncMock(
                 return_value={
-                    "report_id": str(uuid.uuid4()),
+                    "report_id": str(report.id),
                     "file_path": "/tmp/report.pdf",
                     "file_size": 250_000,
                     "status": "completed",
@@ -137,7 +138,7 @@ class TestGenerateReport:
         assert response.status_code == 201
         data = response.json()
         assert data["status"] == "completed"
-        assert "report_id" in data
+        assert data["id"] == str(report.id)
         assert "file_path" in data
 
     @pytest.mark.asyncio
@@ -324,6 +325,34 @@ class TestDownloadReport:
 
         response = await client.get(f"/reports/{uuid.uuid4()}/download")
 
+        assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# GET /reports/{report_id}/preview
+# ---------------------------------------------------------------------------
+
+
+class TestPreviewReport:
+    @pytest.mark.asyncio
+    async def test_preview_pdf(self, client, mock_session, tmp_path):
+        """Preview PDF returns inline disposition."""
+        pdf_path = tmp_path / "preview.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 fake pdf content")
+
+        report = _make_report(file_path=str(pdf_path))
+        mock_session.get = AsyncMock(return_value=report)
+
+        response = await client.get(f"/reports/{report.id}/preview")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert "inline" in response.headers.get("content-disposition", "")
+
+    @pytest.mark.asyncio
+    async def test_preview_report_not_found(self, client, mock_session):
+        mock_session.get = AsyncMock(return_value=None)
+        response = await client.get(f"/reports/{uuid.uuid4()}/preview")
         assert response.status_code == 404
 
 

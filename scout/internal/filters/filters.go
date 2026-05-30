@@ -106,23 +106,40 @@ func Evaluate(r *fingerprint.Result, signals *enrichment.CommercialSignals, rule
 			v.CommercialScore += 10
 			v.CommercialSignals = append(v.CommercialSignals, "has_testimonials")
 		}
+		if signals.HasCTA {
+			v.CommercialScore += 10
+			v.CommercialSignals = append(v.CommercialSignals, "has_cta")
+		}
+		if signals.HasPortfolio {
+			v.CommercialScore += 5
+			v.CommercialSignals = append(v.CommercialSignals, "has_portfolio")
+		}
+		// Alta intención: negocio que captura leads activamente
+		if signals.HasBooking && (signals.HasCTA || signals.HasCRM) {
+			v.CommercialScore += 15
+			v.CommercialSignals = append(v.CommercialSignals, "high_intent_leads")
+		}
+		if signals.RevenueSignal == "services" || signals.RevenueSignal == "subscription" {
+			v.CommercialScore += 10
+			v.CommercialSignals = append(v.CommercialSignals, "services_revenue")
+		}
 	}
 
 	// TOTAL SCORE
 	v.TotalScore = v.ProblemScore + v.CommercialScore
 
-	// ELIGIBILITY: problem >= 20 AND commercial >= 20
-	v.Eligible = v.ProblemScore >= 20 && v.CommercialScore >= 20
+	// Elegibilidad: web con problemas + señales de que pueden pagar mejoras
+	v.Eligible = v.ProblemScore >= 25 && v.CommercialScore >= 35
 
 	// SEGMENT ASSIGNMENT
 	if v.CommercialScore >= 80 && v.ProblemScore >= 40 {
-		v.Segment = "A" // Enterprise
-	} else if v.CommercialScore >= 50 && v.ProblemScore >= 30 {
-		v.Segment = "B" // Professional
-	} else if v.CommercialScore >= 20 && v.ProblemScore >= 20 {
-		v.Segment = "C" // SMB
+		v.Segment = "A"
+	} else if v.CommercialScore >= 55 && v.ProblemScore >= 30 {
+		v.Segment = "B"
+	} else if v.CommercialScore >= 35 && v.ProblemScore >= 25 {
+		v.Segment = "C"
 	} else {
-		v.Segment = "D" // Not priority
+		v.Segment = "D"
 	}
 
 	return v

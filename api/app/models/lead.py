@@ -86,3 +86,4 @@ class Lead(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    deleted_reason: Mapped[Optional[str]] = mapped_column(Text)

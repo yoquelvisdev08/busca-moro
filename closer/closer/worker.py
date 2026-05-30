@@ -142,6 +142,7 @@ class CloserWorker:
                 "prompt_hash": intel.prompt_hash,
                 "tokens_input": intel.tokens_input,
                 "tokens_output": intel.tokens_output,
+                "extras": intel.extras,
             }
             await self._publish_intel(payload)
             log.info(

@@ -27,7 +27,9 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY alembic.ini ./
 COPY migrations ./migrations
 COPY ./app ./app
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

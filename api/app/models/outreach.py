@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,6 +19,11 @@ class OutreachChannel(str, enum.Enum):
     whatsapp = "whatsapp"
     linkedin = "linkedin"
     phone = "phone"
+
+
+class MessageDirection(str, enum.Enum):
+    outbound = "outbound"
+    inbound = "inbound"
 
 
 class OutreachMessage(Base):
@@ -39,6 +44,12 @@ class OutreachMessage(Base):
     channel: Mapped[OutreachChannel] = mapped_column(
         Enum(OutreachChannel, name="outreach_channel", native_enum=True, create_type=False),
         nullable=False,
+    )
+    direction: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default=MessageDirection.outbound.value,
+        server_default=MessageDirection.outbound.value,
     )
     recipient: Mapped[str] = mapped_column(Text, nullable=False)
     subject: Mapped[Optional[str]] = mapped_column(Text)

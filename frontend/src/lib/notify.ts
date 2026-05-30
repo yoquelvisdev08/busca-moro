@@ -75,17 +75,24 @@ export const notify = {
     messages: {
       loading: string;
       success: string;
-      error: string;
+      error: string | ((err: unknown) => string);
     },
     options?: NotifyOptions,
   ): Promise<T> {
+    const resolveError = (err: unknown) =>
+      typeof messages.error === "function"
+        ? messages.error(err)
+        : err instanceof Error
+          ? err.message
+          : messages.error;
+
     return toast
       .promise(
         promise,
         {
           loading: messages.loading,
           success: messages.success,
-          error: messages.error,
+          error: (err) => resolveError(err),
         },
         { duration: 4000 },
       )
@@ -94,8 +101,7 @@ export const notify = {
         return result;
       })
       .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : messages.error;
-        pushHistory("error", msg, options);
+        pushHistory("error", resolveError(err), options);
         throw err;
       });
   },

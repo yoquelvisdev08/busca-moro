@@ -28,6 +28,7 @@ class SalesIntelligenceCreate(BaseModel):
     prompt_hash: Optional[str] = None
     tokens_input: Optional[int] = None
     tokens_output: Optional[int] = None
+    extras: dict[str, Any] = Field(default_factory=dict)
 
 
 class SalesIntelligenceRead(BaseModel):
@@ -42,4 +43,5 @@ class SalesIntelligenceRead(BaseModel):
     cold_email_body: Optional[str]
     language: str
     tone: Optional[str]
+    extras: dict[str, Any] = Field(default_factory=dict)
     generated_at: datetime
