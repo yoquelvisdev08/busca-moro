@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -15,7 +15,7 @@ import {
   Clock,
   Download,
   RefreshCw,
-  Eye,
+  Mail,
 } from "lucide-react";
 import {
   useLead,
@@ -29,15 +29,39 @@ import {
   useCancelAllFollowUpsMutation,
   useOutreach,
 } from "@/lib/hooks";
-import type { Lead, Audit, SalesIntelligence, FollowUpRead, ReportRead, OutreachMessage } from "@/lib/api";
-import { Card, CardHeader, CardBody } from "@/design-system/components/Card";
-import { Badge } from "@/design-system/components/Badge";
-import { Button } from "@/design-system/components/Button";
-import { Input } from "@/design-system/components/Input";
-import { Checkbox } from "@/design-system/components/Checkbox";
-import { Modal } from "@/design-system/components/Modal";
-import { Spinner } from "@/design-system/components/Spinner";
-import { colors } from "@/design-system/tokens";
+import type {
+  Lead,
+  Audit,
+  SalesIntelligence,
+  ReportRead,
+  OutreachMessage,
+  FollowUpRead,
+} from "@/lib/api";
+import { api } from "@/lib/api";
+import { ColumnDef } from "@tanstack/react-table";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+
+import { TabGroup, type Tab } from "@/components/domain/TabGroup";
+import { StatusLED, type StatusLEDVariant } from "@/components/domain/StatusLED";
+import { MetricCard } from "@/components/charts/MetricCard";
+import { DataTable } from "@/components/tables/DataTable";
+import { cn } from "@/lib/utils";
 
 type TabId = "overview" | "audit" | "reports" | "outreach";
 
@@ -67,31 +91,76 @@ export function LeadDetailPage() {
   const intel = data?.sales_intelligence?.[0] as SalesIntelligence | undefined;
 
   useEffect(() => {
-    if (intel?.cold_email_subject && !outreachSubject) setOutreachSubject(intel.cold_email_subject);
-    if (intel?.cold_email_body && !outreachBody) setOutreachBody(intel.cold_email_body);
+    if (intel?.cold_email_subject && !outreachSubject)
+      setOutreachSubject(intel.cold_email_subject);
+    if (intel?.cold_email_body && !outreachBody)
+      setOutreachBody(intel.cold_email_body);
   }, [intel]);
 
-  if (isLoading) return <Spinner size="lg" style={{ padding: "80px 0" }} />;
-  if (error) return <div style={{ padding: "32px", color: colors.danger, fontFamily: "var(--font-mono)" }}>Error: {(error as Error).message}</div>;
-  if (!data) return <div style={{ padding: "32px", color: colors.textMuted }}>Lead not found</div>;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-[400px] rounded-xl" />
+      </div>
+    );
+  }
 
-  const tabs: { id: TabId; label: string }[] = [
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+        <span className="text-danger text-sm font-mono">Error</span>
+        <p className="text-text-muted text-xs">
+          {(error as Error).message}
+        </p>
+        <Button variant="outline" size="sm" onClick={() => navigate("/leads")}>
+          <ArrowLeft className="size-3.5 mr-1.5" /> Back to Leads
+        </Button>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
+        <p className="text-text-muted">Lead not found</p>
+        <Button variant="outline" size="sm" onClick={() => navigate("/leads")}>
+          <ArrowLeft className="size-3.5 mr-1.5" /> Back to Leads
+        </Button>
+      </div>
+    );
+  }
+
+  const tabs: Tab[] = [
     { id: "overview", label: "Overview" },
     { id: "audit", label: "Audit" },
-    { id: "reports", label: "Reports" },
-    { id: "outreach", label: "Outreach" },
+    {
+      id: "reports",
+      label: "Reports",
+      count: reportsData?.items?.length ?? 0,
+    },
+    {
+      id: "outreach",
+      label: "Outreach",
+      count: outreachData?.items?.length ?? 0,
+    },
   ];
 
   const handleSendOutreach = () => {
     sendOutreach.mutate(
-      { leadId: id!, subject: outreachSubject, body: outreachBody, attachReportId },
       {
-        onSuccess: (data) => {
-          toast.success(`Email sent to ${data.recipient}`);
+        leadId: id!,
+        subject: outreachSubject,
+        body: outreachBody,
+        attachReportId,
+      },
+      {
+        onSuccess: (result) => {
+          toast.success(`Email sent to ${result.recipient}`);
           setSendModalOpen(false);
         },
         onError: (e) => toast.error(`Failed: ${(e as Error).message}`),
-      },
+      }
     );
   };
 
@@ -101,87 +170,155 @@ export function LeadDetailPage() {
         leadId: id!,
         sequenceName: "Quick Follow-up",
         steps: [
-          { delay_days: 0, subject: outreachSubject || intel?.cold_email_subject || "Initial outreach", body: outreachBody || intel?.cold_email_body || "", include_pdf: !!attachReportId },
-          { delay_days: 3, subject: "Following up on our conversation", body: "Hi! I wanted to follow up on my previous message. Let me know if you have any questions.", include_pdf: false },
-          { delay_days: 7, subject: "Last follow-up", body: "One last follow-up. Happy to jump on a call to discuss how we can help.", include_pdf: false },
+          {
+            delay_days: 0,
+            subject:
+              outreachSubject ||
+              intel?.cold_email_subject ||
+              "Initial outreach",
+            body:
+              outreachBody || intel?.cold_email_body || "",
+            include_pdf: !!attachReportId,
+          },
+          {
+            delay_days: 3,
+            subject: "Following up on our conversation",
+            body: "Hi! I wanted to follow up on my previous message. Let me know if you have any questions.",
+            include_pdf: false,
+          },
+          {
+            delay_days: 7,
+            subject: "Last follow-up",
+            body: "One last follow-up. Happy to jump on a call to discuss how we can help.",
+            include_pdf: false,
+          },
         ],
       },
       {
         onSuccess: () => toast.success("Follow-up sequence scheduled"),
         onError: (e) => toast.error(`Failed: ${(e as Error).message}`),
-      },
+      }
     );
   };
 
+  const statusToLED: Record<string, StatusLEDVariant> = {
+    new: "info",
+    queued: "info",
+    auditing: "info",
+    audited: "success",
+    enriched: "success",
+    contacted: "success",
+    interested: "success",
+    negotiation: "warning",
+    closed_won: "success",
+    closed_lost: "danger",
+    replied: "success",
+    won: "success",
+    rejected: "danger",
+    error: "danger",
+  };
+
   return (
-    <section>
+    <div className="flex flex-col gap-6 p-4 md:p-6">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
-        <Button variant="ghost" size="sm" onClick={() => navigate("/leads")}>
-          <ArrowLeft size={16} />
+      <div className="flex items-start gap-3 md:gap-4 flex-wrap">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/leads")}
+          aria-label="Back to Leads"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
         </Button>
-        <div style={{ flex: 1 }}>
-          <h2 style={{ fontSize: "18px", fontWeight: 600, color: colors.text, margin: "0 0 4px" }}>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-lg font-headline font-semibold text-text truncate">
             {lead?.normalized_domain}
           </h2>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "12px", color: colors.textMuted, fontFamily: "var(--font-mono)" }}>
-            <a href={lead?.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "4px", color: colors.primary }}>
-              <ExternalLink size={12} /> Visit
+          <div className="flex items-center gap-2 mt-1 text-xs text-text-muted font-mono flex-wrap">
+            <a
+              href={lead?.url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 text-primary hover:underline"
+              aria-label={`Open ${lead?.normalized_domain} in new tab`}
+            >
+              <ExternalLink className="size-3" aria-hidden="true" /> Visit
             </a>
-            {lead?.score != null && <span>Score: <strong style={{ color: colors.text }}>{lead.score}</strong></span>}
-            {lead?.segment && <Badge variant={lead.segment === "A" ? "danger" : lead.segment === "B" ? "warning" : "info"}>{lead.segment}</Badge>}
+            {lead?.score != null && (
+              <span>
+                Score:{" "}
+                <strong className="text-text">{lead.score}</strong>
+              </span>
+            )}
+            {lead?.status && (
+              <StatusLED
+                variant={statusToLED[lead.status] ?? "neutral"}
+                size="sm"
+                label={lead.status.replace(/_/g, " ")}
+                pulse={lead.status === "auditing"}
+              />
+            )}
           </div>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <Button variant="secondary" size="sm" onClick={() => triggerAudit.mutate(id!)} disabled={triggerAudit.isPending}>
-            <RefreshCw size={14} /> Re-audit
+        <div className="flex gap-2 w-full sm:w-auto sm:shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => triggerAudit.mutate(id!)}
+            disabled={triggerAudit.isPending}
+            className="flex-1 sm:flex-none"
+          >
+            <RefreshCw
+              className={cn(
+                "size-3.5 mr-1.5",
+                triggerAudit.isPending && "animate-spin"
+              )}
+              aria-hidden="true"
+            />
+            Re-audit
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => triggerCloser.mutate(id!)} disabled={triggerCloser.isPending}>
-            <Sparkles size={14} /> Re-gen intel
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => triggerCloser.mutate(id!)}
+            disabled={triggerCloser.isPending}
+            className="flex-1 sm:flex-none"
+          >
+            <Sparkles className="size-3.5 mr-1.5" aria-hidden="true" /> Re-gen intel
           </Button>
         </div>
       </div>
 
       {/* Tabs */}
-      <Card padding="0">
-        <CardHeader>
-          <div style={{ display: "flex", gap: "4px" }}>
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "4px",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  border: "none",
-                  transition: "all 150ms",
-                  background: activeTab === tab.id ? "rgba(139, 92, 246, 0.12)" : "transparent",
-                  color: activeTab === tab.id ? colors.primary : colors.textMuted,
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-0">
+          <TabGroup
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabChange={(t) => setActiveTab(t as TabId)}
+            variant="pills"
+          />
         </CardHeader>
-        <CardBody>
-          {activeTab === "overview" && <OverviewTab lead={lead} audit={audit} intel={intel} />}
+        <CardContent className="pt-4">
+          {activeTab === "overview" && (
+            <OverviewTab lead={lead} audit={audit} intel={intel} />
+          )}
           {activeTab === "audit" && <AuditTab audit={audit} />}
           {activeTab === "reports" && (
             <ReportsTab
               leadId={id!}
               reports={reportsData?.items ?? []}
-              onGenerate={() => generateReport.mutate(id!, { onSuccess: () => toast.success("Report generated") })}
+              onGenerate={() =>
+                generateReport.mutate(id!, {
+                  onSuccess: () => toast.success("Report generated"),
+                })
+              }
               isGenerating={generateReport.isPending}
             />
           )}
           {activeTab === "outreach" && (
             <OutreachTab
               lead={lead}
-              intel={intel}
               followUps={followUps?.items ?? []}
               outreach={outreachData?.items ?? []}
               reports={reportsData?.items ?? []}
@@ -197,97 +334,188 @@ export function LeadDetailPage() {
               isSending={sendOutreach.isPending}
             />
           )}
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Send Modal */}
-      <Modal
-        open={sendModalOpen}
-        onClose={() => setSendModalOpen(false)}
-        title="Send Outreach Email"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setSendModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleSendOutreach} loading={sendOutreach.isPending}>
-              <Send size={14} /> Send Email
-            </Button>
-          </>
-        }
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <Input label="Subject" value={outreachSubject} onChange={(e) => setOutreachSubject(e.target.value)} />
-          <div>
-            <label style={labelStyle}>Body</label>
-            <textarea
-              value={outreachBody}
-              onChange={(e) => setOutreachBody(e.target.value)}
-              style={{
-                width: "100%",
-                minHeight: "180px",
-                resize: "vertical",
-                padding: "8px 12px",
-                background: colors.bg,
-                border: `1px solid ${colors.borderStrong}`,
-                borderRadius: "4px",
-                fontSize: "13px",
-                color: colors.text,
-                fontFamily: "var(--font-sans)",
-              }}
-            />
+      <Dialog open={sendModalOpen} onOpenChange={setSendModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Outreach Email</DialogTitle>
+            <DialogDescription>
+              Compose and send an outreach email to {lead?.company_name ?? lead?.normalized_domain}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] uppercase tracking-wider">
+                Subject
+              </Label>
+              <Input
+                value={outreachSubject}
+                onChange={(e) => setOutreachSubject(e.target.value)}
+                placeholder="Email subject"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] uppercase tracking-wider">
+                Body
+              </Label>
+              <Textarea
+                rows={8}
+                value={outreachBody}
+                onChange={(e) => setOutreachBody(e.target.value)}
+                placeholder="Write your email..."
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="attach-report"
+                checked={!!attachReportId}
+                onCheckedChange={(checked) =>
+                  setAttachReportId(
+                    checked
+                      ? (reportsData?.items?.[0]?.id)
+                      : undefined
+                  )
+                }
+                disabled={!reportsData?.items?.length}
+              />
+              <Label
+                htmlFor="attach-report"
+                className="text-xs cursor-pointer"
+              >
+                Attach latest PDF report
+                {!reportsData?.items?.length && " (no reports available)"}
+              </Label>
+            </div>
           </div>
-          <Checkbox
-            label="Attach latest PDF report"
-            checked={!!attachReportId}
-            onChange={(checked) => setAttachReportId(checked ? (reportsData?.items?.[0]?.id) : undefined)}
-          />
-        </div>
-      </Modal>
-    </section>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSendModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendOutreach}
+              disabled={
+                !outreachSubject ||
+                !outreachBody ||
+                sendOutreach.isPending
+              }
+            >
+              <Send className="size-3.5 mr-1.5" aria-hidden="true" />
+              {sendOutreach.isPending ? "Sending..." : "Send Email"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
-/* ── Overview Tab ── */
-function OverviewTab({ lead, audit, intel }: { lead: Lead | undefined; audit: Audit | null | undefined; intel: SalesIntelligence | undefined }) {
+/* ═══════════════════════════════════════════
+   Overview Tab
+   ═══════════════════════════════════════════ */
+
+function OverviewTab({
+  lead,
+  audit,
+  intel,
+}: {
+  lead: Lead | undefined;
+  audit: Audit | null | undefined;
+  intel: SalesIntelligence | undefined;
+}) {
   const problems = [
-    { icon: <Shield size={16} />, label: "SSL", ok: lead?.has_ssl ?? false },
-    { icon: <Smartphone size={16} />, label: "Mobile Friendly", ok: lead?.mobile_friendly ?? false },
-    { icon: <Gauge size={16} />, label: `Load: ${lead?.load_time_ms ?? "—"}ms`, ok: (lead?.load_time_ms ?? Infinity) < 3000 },
+    {
+      icon: Shield,
+      label: "SSL",
+      ok: lead?.has_ssl ?? false,
+    },
+    {
+      icon: Smartphone,
+      label: "Mobile Friendly",
+      ok: lead?.mobile_friendly ?? false,
+    },
+    {
+      icon: Gauge,
+      label: `Load: ${lead?.load_time_ms ?? "—"}ms`,
+      ok: (lead?.load_time_ms ?? Infinity) < 3000,
+    },
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* Scores */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "16px" }}>
-        <ScoreCard label="Total Score" value={lead?.score} max={100} color={colors.primary} />
-        <ScoreCard label="Lighthouse" value={audit?.lighthouse_score as number | undefined} max={100} color="#10b981" />
-        <ScoreCard label="Performance" value={audit?.performance_score} max={100} color="#3b82f6" />
-        <ScoreCard label="Commercial Score" value={lead?.commercial_score} max={100} color="#f59e0b" />
+    <div className="flex flex-col gap-6">
+      {/* Score MetricCards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          label="Total Score"
+          value={lead?.score ?? 0}
+          formattedValue={String(lead?.score ?? "—")}
+        />
+        <MetricCard
+          label="Lighthouse"
+          value={audit?.lighthouse_score ?? 0}
+          formattedValue={String(audit?.lighthouse_score ?? "—")}
+        />
+        <MetricCard
+          label="Performance"
+          value={audit?.performance_score ?? 0}
+          formattedValue={String(audit?.performance_score ?? "—")}
+        />
+        <MetricCard
+          label="Commercial Score"
+          value={lead?.commercial_score ?? 0}
+          formattedValue={String(lead?.commercial_score ?? "—")}
+        />
       </div>
 
-      {/* Technical Checks */}
+      {/* Technical Diagnostics */}
       <div>
-        <h3 style={sectionTitleStyle}>Technical Diagnostics</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px" }}>
+        <h3 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
+          Technical Diagnostics
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {problems.map((p, i) => (
-            <div key={i} style={{ padding: "12px", borderRadius: "8px", border: `1px solid ${p.ok ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`, background: p.ok ? "rgba(16, 185, 129, 0.05)" : "rgba(239, 68, 68, 0.05)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                {p.ok ? <CheckCircle size={16} style={{ color: "#10b981" }} /> : <XCircle size={16} style={{ color: "#ef4444" }} />}
-                <span style={{ fontSize: "14px", color: p.ok ? "#10b981" : "#ef4444" }}>{p.label}</span>
-              </div>
+            <div
+              key={i}
+              className={cn(
+                "flex items-center gap-2 rounded-lg border p-3",
+                p.ok
+                  ? "border-success/30 bg-success/5"
+                  : "border-danger/30 bg-danger/5"
+              )}
+            >
+              {p.ok ? (
+                <CheckCircle className="size-4 text-success shrink-0" aria-hidden="true" />
+              ) : (
+                <XCircle className="size-4 text-danger shrink-0" aria-hidden="true" />
+              )}
+              <span
+                className={cn(
+                  "text-sm",
+                  p.ok ? "text-success" : "text-danger"
+                )}
+              >
+                {p.label}
+              </span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* AI Sales Argument */}
+      {/* AI Sales Intelligence */}
       {intel?.cold_email_body && (
         <div>
-          <h3 style={{ ...sectionTitleStyle, display: "flex", alignItems: "center", gap: "8px" }}>
-            <Sparkles size={16} style={{ color: "#f59e0b" }} /> AI Sales Intelligence
+          <h3 className="flex items-center gap-2 text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
+            <Sparkles className="size-4 text-warning" aria-hidden="true" /> AI Sales Intelligence
           </h3>
-          <div style={{ padding: "16px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px" }}>
-            <p style={{ fontSize: "13px", color: colors.textSecondary, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-              {intel.cold_email_body.slice(0, 500)}{intel.cold_email_body.length > 500 ? "..." : ""}
+          <div className="rounded-lg bg-bg border border-border p-4">
+            <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
+              {intel.cold_email_body.slice(0, 500)}
+              {intel.cold_email_body.length > 500 ? "..." : ""}
             </p>
           </div>
         </div>
@@ -296,41 +524,100 @@ function OverviewTab({ lead, audit, intel }: { lead: Lead | undefined; audit: Au
   );
 }
 
-/* ── Audit Tab ── */
+/* ═══════════════════════════════════════════
+   Audit Tab
+   ═══════════════════════════════════════════ */
+
 function AuditTab({ audit }: { audit: Audit | null | undefined }) {
-  if (!audit) return <p style={{ color: colors.textMuted, padding: "24px 0" }}>No audit data available. Trigger an audit first.</p>;
+  if (!audit) {
+    return (
+      <p className="text-sm text-text-muted py-6">
+        No audit data available. Trigger an audit first.
+      </p>
+    );
+  }
 
   const metrics = [
-    { label: "Performance", value: audit.performance_score, color: "#10b981" },
-    { label: "Accessibility", value: audit.accessibility_score, color: "#a855f7" },
-    { label: "Best Practices", value: audit.best_practices_score, color: "#f59e0b" },
-    { label: "SEO", value: audit.seo_score, color: "#3b82f6" },
+    { label: "Performance", value: audit.performance_score },
+    { label: "Accessibility", value: audit.accessibility_score },
+    { label: "Best Practices", value: audit.best_practices_score },
+    { label: "SEO", value: audit.seo_score },
   ];
 
   const vitals = [
-    { label: "FCP", value: audit.first_contentful_paint_ms, unit: "ms", good: 1800 },
-    { label: "LCP", value: audit.largest_contentful_paint_ms, unit: "ms", good: 2500 },
-    { label: "CLS", value: audit.cumulative_layout_shift, unit: "", good: 0.1 },
-    { label: "TBT", value: audit.total_blocking_time_ms, unit: "ms", good: 200 },
+    {
+      label: "FCP",
+      value: audit.first_contentful_paint_ms,
+      unit: "ms",
+      good: 1800,
+    },
+    {
+      label: "LCP",
+      value: audit.largest_contentful_paint_ms,
+      unit: "ms",
+      good: 2500,
+    },
+    {
+      label: "CLS",
+      value: audit.cumulative_layout_shift,
+      unit: "",
+      good: 0.1,
+    },
+    {
+      label: "TBT",
+      value: audit.total_blocking_time_ms,
+      unit: "ms",
+      good: 200,
+    },
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "16px" }}>
-        {metrics.map((m, i) => <ScoreCard key={i} label={m.label} value={m.value} max={100} color={m.color} />)}
+    <div className="flex flex-col gap-6">
+      {/* Lighthouse Scores */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {metrics.map((m, i) => (
+          <MetricCard
+            key={i}
+            label={m.label}
+            value={m.value ?? 0}
+            formattedValue={String(m.value ?? "—")}
+          />
+        ))}
       </div>
 
+      {/* Core Web Vitals */}
       <div>
-        <h3 style={sectionTitleStyle}>Core Web Vitals</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px" }}>
+        <h3 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
+          Core Web Vitals
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {vitals.map((v, i) => {
             const val = v.value ?? 0;
-            const isGood = v.unit === "" ? val <= v.good : val <= v.good;
+            const isGood =
+              v.unit === ""
+                ? val <= v.good
+                : val <= v.good;
             return (
-              <div key={i} style={{ padding: "12px", borderRadius: "8px", border: `1px solid ${isGood ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`, background: isGood ? "rgba(16, 185, 129, 0.05)" : "rgba(239, 68, 68, 0.05)" }}>
-                <div style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: colors.textMuted }}>{v.label}</div>
-                <div style={{ fontSize: "24px", fontFamily: "var(--font-mono)", marginTop: "4px", color: isGood ? "#10b981" : "#ef4444" }}>
-                  {v.value ?? "—"}{v.unit}
+              <div
+                key={i}
+                className={cn(
+                  "rounded-lg border p-3",
+                  isGood
+                    ? "border-success/30 bg-success/5"
+                    : "border-danger/30 bg-danger/5"
+                )}
+              >
+                <div className="text-xs font-mono text-text-muted">
+                  {v.label}
+                </div>
+                <div
+                  className={cn(
+                    "text-2xl font-mono font-bold mt-1",
+                    isGood ? "text-success" : "text-danger"
+                  )}
+                >
+                  {v.value ?? "—"}
+                  {v.unit}
                 </div>
               </div>
             );
@@ -338,11 +625,18 @@ function AuditTab({ audit }: { audit: Audit | null | undefined }) {
         </div>
       </div>
 
+      {/* Screenshot */}
       {audit.screenshot_path && (
         <div>
-          <h3 style={sectionTitleStyle}>Screenshot</h3>
-          <div style={{ borderRadius: "8px", border: `1px solid ${colors.border}`, overflow: "hidden", maxWidth: "600px" }}>
-            <img src={`/screenshots/${audit.screenshot_path.split("/").pop()}`} alt="Screenshot" style={{ width: "100%" }} />
+          <h3 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
+            Screenshot
+          </h3>
+          <div className="rounded-lg border border-border overflow-hidden max-w-[600px]">
+            <img
+              src={`/screenshots/${audit.screenshot_path.split("/").pop()}`}
+              alt="Audit screenshot"
+              className="w-full"
+            />
           </div>
         </div>
       )}
@@ -350,57 +644,125 @@ function AuditTab({ audit }: { audit: Audit | null | undefined }) {
   );
 }
 
-/* ── Reports Tab ── */
+/* ═══════════════════════════════════════════
+   Reports Tab
+   ═══════════════════════════════════════════ */
+
 function ReportsTab({
   reports,
   onGenerate,
   isGenerating,
 }: {
-  leadId?: string;
+  leadId: string;
   reports: ReportRead[];
   onGenerate: () => void;
   isGenerating: boolean;
 }) {
-  const downloadUrl = (id: string) => `/api/v1/reports/${id}/download`;
+  const columns = useMemo<ColumnDef<ReportRead, unknown>[]>(
+    () => [
+      {
+        id: "details",
+        header: "Report",
+        accessorFn: (row) => row.lead_domain ?? row.lead_id,
+        cell: ({ row }) => {
+          const r = row.original;
+          return (
+            <div className="flex items-center gap-2">
+              <FileText className="size-4 text-primary opacity-60 shrink-0" aria-hidden="true" />
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-text truncate">
+                  {r.lead_domain || r.lead_id.slice(0, 8)}
+                </div>
+                <div className="text-[11px] text-text-muted">
+                  {r.generated_at
+                    ? new Date(r.generated_at).toLocaleDateString()
+                    : ""}{" "}
+                  · {(r.file_size / 1024).toFixed(1)} KB
+                </div>
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "status",
+        header: "Status",
+        accessorFn: (row) => row.status,
+        cell: ({ getValue }) => {
+          const status = getValue() as string;
+          const variant =
+            status === "completed"
+              ? ("default" as const)
+              : status === "failed"
+                ? ("destructive" as const)
+                : ("secondary" as const);
+          return <Badge variant={variant}>{status}</Badge>;
+        },
+      },
+      {
+        id: "sent_count",
+        header: "Sent",
+        accessorFn: (row) => row.sent_count,
+        cell: ({ getValue }) => (
+          <span className="text-xs font-mono text-text-muted">
+            {String(getValue())}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => {
+          const r = row.original;
+          return (
+            <a
+              href={api.getReportDownloadUrl(r.id)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Download className="size-3.5" aria-hidden="true" />
+              </Button>
+            </a>
+          );
+        },
+      },
+    ],
+    []
+  );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h3 style={{ ...sectionTitleStyle, margin: 0 }}>Generated Reports</h3>
-        <Button onClick={onGenerate} loading={isGenerating}>
-          <FileText size={14} /> Generate Report
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider">
+          Generated Reports
+        </h3>
+        <Button size="sm" onClick={onGenerate} disabled={isGenerating}>
+          <FileText className="size-3.5 mr-1.5" aria-hidden="true" />
+          {isGenerating ? "Generating..." : "Generate Report"}
         </Button>
       </div>
 
       {reports.length === 0 ? (
-        <p style={{ color: colors.textMuted, padding: "32px 0", textAlign: "center" }}>No reports generated yet</p>
+        <p className="text-sm text-text-muted py-8 text-center">
+          No reports generated yet
+        </p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {reports.map((r) => (
-            <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <FileText size={20} style={{ color: colors.primary, opacity: 0.6 }} />
-                <div>
-                  <div style={{ fontSize: "13px", fontWeight: 600, color: colors.text }}>{r.lead_domain || r.lead_id}</div>
-                  <div style={{ fontSize: "11px", color: colors.textMuted }}>
-                    {r.generated_at ? new Date(r.generated_at).toLocaleDateString() : ""} · {(r.file_size / 1024).toFixed(1)} KB · {r.status}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <a href={downloadUrl(r.id)} target="_blank" rel="noreferrer">
-                  <Button size="sm" variant="secondary"><Download size={14} /></Button>
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
+        <DataTable<ReportRead>
+          data={reports}
+          columns={columns}
+          density="compact"
+          getRowId={(row) => row.id}
+        />
       )}
     </div>
   );
 }
 
-/* ── Outreach Tab ── */
+/* ═══════════════════════════════════════════
+   Outreach Tab
+   ═══════════════════════════════════════════ */
+
 function OutreachTab({
   lead,
   followUps,
@@ -418,7 +780,6 @@ function OutreachTab({
   isSending,
 }: {
   lead: Lead | undefined;
-  intel?: SalesIntelligence | undefined;
   followUps: FollowUpRead[];
   outreach: OutreachMessage[];
   reports: ReportRead[];
@@ -433,62 +794,107 @@ function OutreachTab({
   onCancelFollowUps: () => void;
   isSending: boolean;
 }) {
+  const pendingFollowUps = followUps.filter(
+    (f) => f.status === "pending"
+  );
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Status */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-        <div style={{ padding: "12px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px" }}>
-          <div style={{ fontSize: "11px", color: colors.textMuted, marginBottom: "4px" }}>STATUS</div>
-          <div style={{ fontSize: "16px", fontFamily: "var(--font-mono)", color: colors.text, textTransform: "capitalize" }}>{lead?.status}</div>
-        </div>
-        <div style={{ padding: "12px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px" }}>
-          <div style={{ fontSize: "11px", color: colors.textMuted, marginBottom: "4px" }}>FOLLOW-UP STATUS</div>
-          <div style={{ fontSize: "16px", fontFamily: "var(--font-mono)", color: followUps.some((f) => f.status === "pending") ? colors.warning : colors.textMuted }}>
-            {followUps.some((f) => f.status === "pending") ? `${followUps.filter((f) => f.status === "pending").length} pending` : "None active"}
-          </div>
-        </div>
+    <div className="flex flex-col gap-6">
+      {/* Status Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-[11px] text-text-muted font-mono uppercase tracking-wider mb-1">
+              STATUS
+            </div>
+            <div className="text-base font-mono text-text capitalize">
+              {lead?.status.replace(/_/g, " ")}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="text-[11px] text-text-muted font-mono uppercase tracking-wider mb-1">
+              FOLLOW-UP STATUS
+            </div>
+            <div
+              className={cn(
+                "text-base font-mono",
+                pendingFollowUps.length > 0
+                  ? "text-warning"
+                  : "text-text-muted"
+              )}
+            >
+              {pendingFollowUps.length > 0
+                ? `${pendingFollowUps.length} pending`
+                : "None active"}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Email Editor */}
-      <div>
-        <h3 style={sectionTitleStyle}>Compose Email</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <Input label="Subject" value={subject} onChange={(e) => onSubjectChange(e.target.value)} placeholder="Email subject" />
-          <div>
-            <label style={labelStyle}>Body</label>
-            <textarea
-              value={body}
-              onChange={(e) => onBodyChange(e.target.value)}
-              style={{
-                width: "100%",
-                minHeight: "180px",
-                resize: "vertical",
-                padding: "8px 12px",
-                background: colors.bg,
-                border: `1px solid ${colors.borderStrong}`,
-                borderRadius: "4px",
-                fontSize: "13px",
-                color: colors.text,
-                fontFamily: "var(--font-sans)",
-              }}
-              placeholder="Email body..."
+      <div className="space-y-3">
+        <h3 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider">
+          Compose Email
+        </h3>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-[11px] uppercase tracking-wider">
+              Subject
+            </Label>
+            <Input
+              value={subject}
+              onChange={(e) => onSubjectChange(e.target.value)}
+              placeholder="Email subject"
             />
           </div>
-          <Checkbox
-            label={`Attach latest PDF report${reports.length === 0 ? " (no reports available)" : ""}`}
-            checked={!!attachReportId}
-            onChange={(checked) => onAttachReportIdChange(checked ? reports[0]?.id : undefined)}
-            disabled={reports.length === 0}
-          />
-          <div style={{ display: "flex", gap: "8px" }}>
-            <Button onClick={onSend} loading={isSending} disabled={!subject || !body}>
-              <Send size={14} /> Send Email
+          <div className="space-y-1.5">
+            <Label className="text-[11px] uppercase tracking-wider">
+              Body
+            </Label>
+            <Textarea
+              rows={8}
+              value={body}
+              onChange={(e) => onBodyChange(e.target.value)}
+              placeholder="Write your email..."
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="outreach-attach"
+              checked={!!attachReportId}
+              onCheckedChange={(checked) =>
+                onAttachReportIdChange(
+                  checked ? reports[0]?.id : undefined
+                )
+              }
+              disabled={reports.length === 0}
+            />
+            <Label
+              htmlFor="outreach-attach"
+              className="text-xs cursor-pointer"
+            >
+              Attach latest PDF report
+              {reports.length === 0 && " (no reports available)"}
+            </Label>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              onClick={onSend}
+              disabled={!subject || !body || isSending}
+            >
+              <Send className="size-3.5 mr-1.5" aria-hidden="true" />
+              {isSending ? "Sending..." : "Send Email"}
             </Button>
-            <Button variant="secondary" onClick={onQuickFollowUp}>
-              <Clock size={14} /> Schedule Follow-up
+            <Button variant="outline" onClick={onQuickFollowUp}>
+              <Clock className="size-3.5 mr-1.5" aria-hidden="true" /> Schedule Follow-up
             </Button>
-            {followUps.some((f) => f.status === "pending") && (
-              <Button variant="danger" onClick={onCancelFollowUps}>
+            {pendingFollowUps.length > 0 && (
+              <Button
+                variant="destructive"
+                onClick={onCancelFollowUps}
+              >
                 Cancel Follow-ups
               </Button>
             )}
@@ -498,24 +904,40 @@ function OutreachTab({
 
       {/* Email History */}
       <div>
-        <h3 style={sectionTitleStyle}>
-          <Eye size={14} /> Email History
+        <h3 className="flex items-center gap-2 text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
+          <Mail className="size-3.5" aria-hidden="true" /> Email History
         </h3>
         {outreach.length === 0 ? (
-          <p style={{ color: colors.textMuted, fontSize: "13px" }}>No emails sent yet.</p>
+          <p className="text-sm text-text-muted">No emails sent yet.</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div className="space-y-2">
             {outreach.map((msg) => (
-              <div key={msg.id} style={{ padding: "10px 14px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: "13px", fontWeight: 600, color: colors.text }}>{msg.subject}</div>
-                  <div style={{ fontSize: "11px", color: colors.textMuted }}>
-                    To: {msg.recipient} · {msg.sent_at ? new Date(msg.sent_at).toLocaleDateString() : "Pending"}
-                    {msg.replied && <span style={{ marginLeft: "8px", color: colors.success }}>● Replied</span>}
+              <div
+                key={msg.id}
+                className="flex items-center justify-between rounded-lg bg-bg border border-border px-4 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-text truncate">
+                    {msg.subject}
+                  </div>
+                  <div className="text-[11px] text-text-muted mt-0.5">
+                    To: {msg.recipient} ·{" "}
+                    {msg.sent_at
+                      ? new Date(msg.sent_at).toLocaleDateString()
+                      : "Pending"}
+                    {msg.replied && (
+                      <span className="ml-2 text-success">
+                        ● Replied
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: colors.textMuted }}>
-                  {msg.opened_at ? <span>✓ Opened</span> : <span>— Unopened</span>}
+                <div className="flex items-center gap-3 text-[11px] text-text-muted shrink-0 ml-4">
+                  {msg.opened_at ? (
+                    <span>✓ Opened</span>
+                  ) : (
+                    <span>— Unopened</span>
+                  )}
                   {msg.has_attachment && <span>📎 PDF</span>}
                 </div>
               </div>
@@ -527,55 +949,30 @@ function OutreachTab({
       {/* Follow-up Schedule */}
       {followUps.length > 0 && (
         <div>
-          <h3 style={sectionTitleStyle}>
-            <Clock size={14} /> Scheduled Follow-ups
+          <h3 className="flex items-center gap-2 text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
+            <Clock className="size-3.5" aria-hidden="true" /> Scheduled Follow-ups
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div className="space-y-1.5">
             {followUps.map((fu) => (
-              <div key={fu.id} style={{ padding: "8px 14px", background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: "8px", display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: "13px", color: colors.text }}>{fu.subject}</span>
-                <Badge variant={fu.status === "sent" ? "success" : fu.status === "cancelled" ? "danger" : "warning"}>{fu.status}</Badge>
+              <div
+                key={fu.id}
+                className="flex items-center justify-between rounded-lg bg-bg border border-border px-4 py-2.5"
+              >
+                <span className="text-sm text-text">{fu.subject}</span>
+                <Badge
+                  variant={
+                    fu.status === "sent"
+                      ? "default"
+                      : fu.status === "cancelled"
+                        ? "destructive"
+                        : "secondary"
+                  }
+                >
+                  {fu.status}
+                </Badge>
               </div>
             ))}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ── Helpers ── */
-
-const labelStyle: React.CSSProperties = {
-  fontSize: "11px",
-  fontWeight: 600,
-  letterSpacing: "0.06em",
-  textTransform: "uppercase",
-  color: colors.textMuted,
-  fontFamily: "var(--font-sans)",
-  marginBottom: "6px",
-  display: "block",
-};
-
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: "12px",
-  fontFamily: "var(--font-mono)",
-  fontWeight: 600,
-  color: colors.textSecondary,
-  marginBottom: "12px",
-  textTransform: "uppercase",
-  letterSpacing: "0.04em",
-};
-
-function ScoreCard({ label, value, max = 100, color }: { label: string; value?: number | null; max?: number; color: string }) {
-  const pct = value != null ? Math.min(100, (value / max) * 100) : 0;
-  return (
-    <div style={{ padding: "16px", borderRadius: "8px", border: `1px solid ${colors.border}`, background: colors.bg }}>
-      <div style={{ fontSize: "11px", fontFamily: "var(--font-mono)", color: colors.textMuted, marginBottom: "8px" }}>{label}</div>
-      <div style={{ fontSize: "28px", fontFamily: "var(--font-mono)", fontWeight: 700, color }}>{value ?? "—"}</div>
-      {value != null && (
-        <div style={{ marginTop: "8px", height: "4px", borderRadius: "2px", background: colors.surfaceHigh }}>
-          <div style={{ width: `${pct}%`, height: "100%", borderRadius: "2px", background: color, transition: "width 300ms" }} />
         </div>
       )}
     </div>

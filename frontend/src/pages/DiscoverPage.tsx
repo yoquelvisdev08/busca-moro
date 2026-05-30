@@ -1,20 +1,21 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import {
-  Search,
-  Rocket,
-  TrendingUp,
-  Cpu,
-  Users,
-  ArrowRight,
-} from "lucide-react";
+import { Search, Rocket, TrendingUp, Cpu, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useLeads } from "@/lib/hooks";
-import { Card } from "@/design-system/components/Card";
-import { Badge } from "@/design-system/components/Badge";
-import { Button } from "@/design-system/components/Button";
-import { Input } from "@/design-system/components/Input";
-import { colors } from "@/design-system/tokens";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { MetricCard } from "@/components/charts/MetricCard";
 
 const INDUSTRIES = [
   "Software Development",
@@ -36,6 +37,7 @@ const LOCATIONS = [
 ];
 
 export function DiscoverPage() {
+  const navigate = useNavigate();
   const [industry, setIndustry] = useState("");
   const [location, setLocation] = useState("");
   const [maxResults, setMaxResults] = useState(2500);
@@ -51,8 +53,13 @@ export function DiscoverPage() {
     }
     setIsDiscovering(true);
     try {
-      const result = await api.startDiscovery({ industry, location: location || undefined });
-      toast.success(`${result.dorks_generated} dorks generated. Discovery started.`);
+      const result = await api.startDiscovery({
+        industry,
+        location: location || undefined,
+      });
+      toast.success(
+        `${result.dorks_generated} dorks generated. Discovery started.`
+      );
     } catch (e) {
       toast.error(`Discovery failed: ${(e as Error).message}`);
     } finally {
@@ -61,179 +68,197 @@ export function DiscoverPage() {
   };
 
   return (
-    <section style={{ maxWidth: "800px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div className="flex flex-col gap-6 max-w-3xl mx-auto p-4 md:p-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-headline font-semibold text-text">
+          Discover
+        </h1>
+        <p className="text-sm text-text-muted mt-1">
+          Search and discover new leads
+        </p>
+      </div>
+
       {/* Target Configuration */}
       <Card>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
-          <Search size={20} style={{ color: colors.primary }} />
-          <h2 style={{ fontSize: "18px", fontWeight: 600, color: colors.text, margin: 0 }}>Target Configuration</h2>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", alignItems: "end" }}>
-          <Input
-            label="Keywords"
-            placeholder="e.g., SaaS, Fintech"
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
-          />
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <label style={labelStyle}>Industry</label>
-            <select
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              style={selectStyle}
-            >
-              <option value="">Select industry...</option>
-              {INDUSTRIES.map((ind) => (
-                <option key={ind} value={ind}>{ind}</option>
-              ))}
-            </select>
+        <CardHeader>
+          <div className="flex items-center gap-2 text-primary">
+            <Search className="size-5" aria-hidden="true" />
+            <h2 className="text-lg font-headline font-semibold text-text">
+              Target Configuration
+            </h2>
           </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+            {/* Keywords */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] uppercase tracking-wider">
+                Keywords
+              </Label>
+              <Input
+                placeholder="e.g., SaaS, Fintech"
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+              />
+            </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <label style={labelStyle}>Geography</label>
-            <select
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              style={selectStyle}
-            >
-              <option value="">All locations</option>
-              {LOCATIONS.map((loc) => (
-                <option key={loc} value={loc}>{loc}</option>
-              ))}
-            </select>
+            {/* Industry Select */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] uppercase tracking-wider">
+                Industry
+              </Label>
+              <Select value={industry} onValueChange={(v) => setIndustry(v ?? "")}>
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="Select industry..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDUSTRIES.map((ind) => (
+                    <SelectItem key={ind} value={ind}>
+                      {ind}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Geography */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] uppercase tracking-wider">
+                Geography
+              </Label>
+              <Select
+                value={location || "__all__"}
+                onValueChange={(v) => setLocation(v === "__all__" || !v ? "" : v)}
+              >
+                <SelectTrigger className="text-xs">
+                  <SelectValue placeholder="All locations" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All locations</SelectItem>
+                  {LOCATIONS.map((loc) => (
+                    <SelectItem key={loc} value={loc}>
+                      {loc}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <Button
             onClick={handleStartDiscovery}
-            loading={isDiscovering}
-            size="lg"
+            disabled={isDiscovering}
+            className="w-full sm:w-auto"
           >
-            <Rocket size={16} /> Start Discovery
+            <Rocket className="size-4 mr-1.5" aria-hidden="true" />
+            {isDiscovering ? "Starting..." : "Start Discovery"}
+            {isDiscovering ? "Starting..." : "Start Discovery"}
           </Button>
-        </div>
 
-        {/* Max Results Slider */}
-        <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: `1px solid ${colors.border}` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-            <span style={labelStyle}>Max Results</span>
-            <span style={{ fontSize: "14px", fontWeight: 700, fontFamily: "var(--font-mono)", color: colors.primary }}>
-              {maxResults.toLocaleString()}
-            </span>
+          {/* Max Results Slider */}
+          <div className="pt-4 border-t border-border space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] uppercase tracking-wider">
+                Max Results
+              </Label>
+              <span className="text-sm font-mono font-bold text-primary">
+                {maxResults.toLocaleString()}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={100}
+              max={10000}
+              step={100}
+              value={maxResults}
+              onChange={(e) => setMaxResults(Number(e.target.value))}
+              className="w-full h-2 rounded-full bg-surface-high accent-primary-container cursor-pointer"
+              aria-label={`Maximum results: ${maxResults.toLocaleString()} leads`}
+            />
+            <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-text-muted">
+              <span>100 leads</span>
+              <span>10,000 leads</span>
+            </div>
           </div>
-          <input
-            type="range"
-            min={100}
-            max={10000}
-            step={100}
-            value={maxResults}
-            onChange={(e) => setMaxResults(Number(e.target.value))}
-            style={{
-              width: "100%",
-              height: "6px",
-              borderRadius: "3px",
-              background: colors.surfaceHigh,
-              accentColor: colors.primaryContainer,
-              cursor: "pointer",
-              appearance: "auto",
-            }}
-          />
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", color: colors.textMuted }}>
-            <span>100 leads</span>
-            <span>10,000 leads</span>
-          </div>
-        </div>
+        </CardContent>
       </Card>
 
-      {/* Recent Activity */}
+      {/* Recent Discoveries */}
       <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "16px", fontWeight: 600, color: colors.text, margin: 0 }}>Recent Discoveries</h2>
-          <span style={{ fontSize: "12px", color: colors.primary, cursor: "pointer" }}>
-            View All <ArrowRight size={14} style={{ verticalAlign: "middle" }} />
-          </span>
-        </div>
-
-        {recentLeads.length === 0 ? (
-          <p style={{ color: colors.textMuted, padding: "24px 0", textAlign: "center" }}>
-            No leads discovered yet. Start a discovery above.
-          </p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {recentLeads.map((lead) => (
-              <div
-                key={lead.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr auto auto",
-                  gap: "16px",
-                  alignItems: "center",
-                  padding: "10px 12px",
-                  borderRadius: "6px",
-                  transition: "background 100ms",
-                  borderBottom: `1px solid ${colors.borderSubtle}`,
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = colors.surfaceHigh)}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <span style={{ fontSize: "13px", fontFamily: "var(--font-mono)", color: colors.primary, fontWeight: 500 }}>
-                  {lead.normalized_domain}
-                </span>
-                <span style={{ fontSize: "13px", color: colors.text }}>
-                  {lead.company_name || "—"}
-                </span>
-                <Badge variant="success" dot>{lead.status}</Badge>
-                <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: colors.textMuted }}>
-                  {lead.discovered_at ? new Date(lead.discovered_at).toLocaleDateString() : "—"}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+        <CardHeader className="flex-row items-center justify-between">
+          <h2 className="text-base font-headline font-semibold text-text">
+            Recent Discoveries
+          </h2>
+          <Button
+            variant="link"
+            size="sm"
+            className="text-xs"
+            onClick={() => navigate("/leads")}
+          >
+            View All →
+          </Button>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {recentLeads.length === 0 ? (
+            <p className="text-sm text-text-muted py-8 text-center">
+              No leads discovered yet. Start a discovery above.
+            </p>
+          ) : (
+            <div className="space-y-1 min-w-[500px]">
+              {recentLeads.map((lead) => (
+                <div
+                  key={lead.id}
+                  className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 items-center px-3 py-2.5 rounded-md hover:bg-surface-high/60 transition-colors border-b border-border-subtle last:border-b-0"
+                >
+                  <span className="text-sm font-mono text-primary font-medium truncate">
+                    {lead.normalized_domain}
+                  </span>
+                  <span className="text-sm text-text truncate">
+                    {lead.company_name || "—"}
+                  </span>
+                  <span className="text-[10px] font-mono text-text-muted shrink-0">
+                    {lead.discovered_at
+                      ? new Date(lead.discovered_at).toLocaleDateString()
+                      : "—"}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => navigate(`/leads/${lead.id}`)}
+                  >
+                    View
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
-        <BentoCard label="Success Rate" value="94.2%" icon={<TrendingUp size={20} />} accent />
-        <BentoCard label="Active Crawlers" value="12" icon={<Cpu size={20} />} />
-        <BentoCard label="Leads Found (24h)" value="1.8k" icon={<Users size={20} />} />
-      </div>
-    </section>
-  );
-}
-
-const labelStyle: React.CSSProperties = {
-  fontSize: "11px",
-  fontWeight: 600,
-  letterSpacing: "0.06em",
-  textTransform: "uppercase",
-  color: colors.textMuted,
-  fontFamily: "var(--font-sans)",
-};
-
-const selectStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 12px",
-  background: colors.bg,
-  border: `1px solid ${colors.borderStrong}`,
-  borderRadius: "4px",
-  fontSize: "14px",
-  color: colors.text,
-  cursor: "pointer",
-  outline: "none",
-  appearance: "none",
-};
-
-function BentoCard({ label, value, icon, accent }: { label: string; value: string; icon: React.ReactNode; accent?: boolean }) {
-  return (
-    <div style={{ padding: "24px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", overflow: "hidden", background: colors.bgLower, border: `1px solid ${colors.border}`, borderRadius: "8px" }}>
-      <div style={{ zIndex: 1 }}>
-        <p style={{ fontSize: "12px", fontWeight: 500, color: colors.textMuted, margin: "0 0 4px" }}>{label}</p>
-        <h4 style={{ fontSize: "32px", fontWeight: 700, color: accent ? colors.primary : colors.text, margin: 0 }}>{value}</h4>
-      </div>
-      <div style={{ position: "absolute", right: "-12px", bottom: "0", color: accent ? "rgba(139, 92, 246, 0.1)" : "rgba(231, 224, 237, 0.05)", transform: "scale(3)", pointerEvents: "none" }}>
-        {icon}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <MetricCard
+          label="Success Rate"
+          value={94.2}
+          formattedValue="94.2%"
+          trend={{ direction: "up", value: 2.1 }}
+          icon={<TrendingUp className="size-4" aria-hidden="true" />}
+        />
+        <MetricCard
+          label="Active Crawlers"
+          value={12}
+          formattedValue="12"
+          icon={<Cpu className="size-4" aria-hidden="true" />}
+        />
+        <MetricCard
+          label="Leads Found (24h)"
+          value={1800}
+          formattedValue="1.8k"
+          trend={{ direction: "up", value: 12.5 }}
+          icon={<Users className="size-4" aria-hidden="true" />}
+        />
       </div>
     </div>
   );

@@ -6,13 +6,21 @@ import { Toaster } from "react-hot-toast";
 import { App } from "@/App";
 import { queryClient } from "@/lib/query";
 import "@/lib/version";
-import "@/styles/theme.css";
 import "@/styles/globals.css";
-import "@/styles/app.css";
+
+// Font face imports (self-hosted via @fontsource)
+import "@fontsource/geist/500.css";
+import "@fontsource/geist/600.css";
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
 
 const root = document.getElementById("root");
 if (!root) {
-  throw new Error("Root element no encontrado");
+  throw new Error("Root element not found");
 }
 
 ReactDOM.createRoot(root).render(
@@ -23,26 +31,26 @@ ReactDOM.createRoot(root).render(
         position="top-right"
         toastOptions={{
           style: {
-            background: "rgba(7, 9, 26, 0.95)",
-            color: "var(--void-text, #e2e8f0)",
-            border: "1px solid var(--void-border-strong, #334155)",
-            fontFamily: "monospace",
+            background: "var(--sx-surface-high)",
+            color: "var(--sx-text)",
+            border: "1px solid var(--sx-border-strong)",
+            fontFamily: "var(--font-mono)",
             fontSize: "12px",
           },
           success: {
             iconTheme: {
-              primary: "#22c55e",
-              secondary: "rgba(7, 9, 26, 0.95)",
+              primary: "var(--sx-success)",
+              secondary: "var(--sx-surface-high)",
             },
           },
           error: {
             iconTheme: {
-              primary: "#ef4444",
-              secondary: "rgba(7, 9, 26, 0.95)",
+              primary: "var(--sx-danger)",
+              secondary: "var(--sx-surface-high)",
             },
           },
         }}
       />
     </QueryClientProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 );
