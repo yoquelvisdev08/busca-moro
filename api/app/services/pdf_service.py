@@ -22,9 +22,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.models.audit import Audit
 from app.models.lead import Lead
-from app.models.report import Report, ReportStatus
+from app.models.report import Report, ReportStatus, report_status_value
 from app.models.sales_intelligence import SalesIntelligence
 from app.services.revenue_loss import calculate_revenue_loss, RevenueLossEstimate
+from app.services.sender_profile_service import SenderProfileService
+
+_MONTHS_ES = (
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+)
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates"
 _JINJA_ENV = Environment(
@@ -149,7 +165,7 @@ class PDFService:
                 "report_id": str(report.id),
                 "file_path": report.file_path,
                 "file_size": report.file_size,
-                "status": report.status.value,
+                "status": report_status_value(report.status),
                 "generated_at": report.generated_at.isoformat() if report.generated_at else None,
             }
 
@@ -211,13 +227,20 @@ class PDFService:
         # Pain points with $ estimates (combine audit + intel + revenue loss)
         pain_points = self._build_pain_points(lead, audit, intel, revenue_loss)
 
+        profile_service = SenderProfileService(self._session)
+        sender = await profile_service.get_active()
+        consultant, brand = self._build_report_identity(sender)
+
+        now = datetime.now(timezone.utc)
+        generated_at = f"{now.day} de {_MONTHS_ES[now.month - 1]} de {now.year}"
+
         # Build template context
         return {
             "lead": {
                 "domain": lead.normalized_domain or lead.url,
                 "url": lead.url,
                 "company_name": lead.company_name or lead.normalized_domain or lead.url,
-                "industry": lead.industry or "Unknown",
+                "industry": lead.industry or "No especificado",
                 "country": lead.country_code or "N/A",
                 "segment": lead.segment,
                 "score": lead.score,
@@ -240,16 +263,49 @@ class PDFService:
                 "annualized_loss": _format_currency(revenue_loss.monthly_revenue_lost * 12),
             },
             "pain_points": pain_points,
-            "generated_at": datetime.now(timezone.utc).strftime("%B %d, %Y"),
-            # Agency branding
-            "brand": {
-                "name": os.environ.get("AGENCY_NAME", "SIPHON-X"),
-                "website": "https://siphonx.dev",
-                "tagline": "Digital Performance Agency",
-                "primary_color": os.environ.get("AGENCY_PRIMARY_COLOR", "#6366f1"),
-                "accent_color": os.environ.get("AGENCY_ACCENT_COLOR", "#a5b4fc"),
-            },
+            "generated_at": generated_at,
+            "consultant": consultant,
+            "brand": brand,
         }
+
+    @staticmethod
+    def _build_report_identity(sender) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Perfil humano del consultor (tú) + marca en pie de página."""
+
+        agency_name = os.environ.get("AGENCY_NAME", "SIPHON-X")
+        agency_site = os.environ.get("AGENCY_WEBSITE", "https://siphonx.dev")
+        owner_name = os.environ.get("AGENCY_OWNER_NAME", "Tu consultor")
+
+        if sender is not None:
+            consultant_name = sender.name or owner_name
+            consultant_title = sender.title or "Consultor de rendimiento web"
+            consultant_company = sender.company or agency_name
+            consultant_website = sender.website or agency_site
+        else:
+            consultant_name = owner_name
+            consultant_title = "Consultor de rendimiento web"
+            consultant_company = agency_name
+            consultant_website = agency_site
+
+        consultant = {
+            "name": consultant_name,
+            "title": consultant_title,
+            "company": consultant_company,
+            "website": consultant_website,
+            "byline": (
+                f"{consultant_name}, {consultant_title}"
+                if consultant_title
+                else consultant_name
+            ),
+        }
+        brand = {
+            "name": consultant_company,
+            "website": consultant_website,
+            "tagline": "Optimización web y crecimiento digital",
+            "primary_color": os.environ.get("AGENCY_PRIMARY_COLOR", "#6366f1"),
+            "accent_color": os.environ.get("AGENCY_ACCENT_COLOR", "#a5b4fc"),
+        }
+        return consultant, brand
 
     # ------------------------------------------------------------------
     # Audit context builder

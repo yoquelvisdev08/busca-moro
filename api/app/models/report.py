@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,6 +19,17 @@ class ReportStatus(str, enum.Enum):
     generating = "generating"
     completed = "completed"
     failed = "failed"
+
+
+def report_status_value(status: ReportStatus | str) -> str:
+    """Normalize status from ORM (Enum member or plain str from VARCHAR)."""
+    if isinstance(status, ReportStatus):
+        return status.value
+    return str(status)
+
+
+def is_report_completed(status: ReportStatus | str) -> bool:
+    return report_status_value(status) == ReportStatus.completed.value
 
 
 class Report(Base):
@@ -44,7 +55,15 @@ class Report(Base):
     file_path: Mapped[str] = mapped_column(Text, nullable=False)
     file_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[ReportStatus] = mapped_column(
-        String(20), nullable=False, default=ReportStatus.pending, index=True
+        Enum(
+            ReportStatus,
+            name="report_status",
+            native_enum=False,
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+        ),
+        nullable=False,
+        default=ReportStatus.pending,
+        index=True,
     )
     generated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), index=True

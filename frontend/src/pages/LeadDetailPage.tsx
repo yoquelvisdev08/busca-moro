@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/notify";
 import {
   ArrowLeft,
   ExternalLink,
@@ -37,7 +37,7 @@ import type {
   OutreachMessage,
   FollowUpRead,
 } from "@/lib/api";
-import { api } from "@/lib/api";
+import { api, screenshotPublicUrl } from "@/lib/api";
 import { ColumnDef } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,7 @@ export function LeadDetailPage() {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [outreachSubject, setOutreachSubject] = useState("");
   const [outreachBody, setOutreachBody] = useState("");
+  const [outreachToEmail, setOutreachToEmail] = useState("");
   const [attachReportId, setAttachReportId] = useState<string | undefined>();
   const [sendModalOpen, setSendModalOpen] = useState(false);
 
@@ -90,12 +91,38 @@ export function LeadDetailPage() {
   const audit = data?.latest_audit as Audit | null | undefined;
   const intel = data?.sales_intelligence?.[0] as SalesIntelligence | undefined;
 
+  const suggestedEmails = useMemo(() => {
+    const emails: string[] = [];
+    const seen = new Set<string>();
+    const add = (value: string | null | undefined) => {
+      const v = value?.trim();
+      if (!v || seen.has(v.toLowerCase())) return;
+      seen.add(v.toLowerCase());
+      emails.push(v);
+    };
+    add(lead?.email);
+    lead?.secondary_emails?.forEach((e) => add(e));
+    const extracted = audit?.extracted_contacts?.emails as string[] | undefined;
+    extracted?.forEach((e) => add(e));
+    return emails;
+  }, [lead, audit]);
+
+  const hasValidOutreachEmail = useMemo(() => {
+    const v = outreachToEmail.trim();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  }, [outreachToEmail]);
+
   useEffect(() => {
     if (intel?.cold_email_subject && !outreachSubject)
       setOutreachSubject(intel.cold_email_subject);
     if (intel?.cold_email_body && !outreachBody)
       setOutreachBody(intel.cold_email_body);
   }, [intel]);
+
+  useEffect(() => {
+    if (outreachToEmail.trim()) return;
+    if (suggestedEmails[0]) setOutreachToEmail(suggestedEmails[0]);
+  }, [suggestedEmails, outreachToEmail]);
 
   if (isLoading) {
     return (
@@ -147,19 +174,26 @@ export function LeadDetailPage() {
   ];
 
   const handleSendOutreach = () => {
+    if (!hasValidOutreachEmail) {
+      notify.error(
+        "Indica un email de destino válido. Muchos sitios no publican correo en la web.",
+      );
+      return;
+    }
     sendOutreach.mutate(
       {
         leadId: id!,
         subject: outreachSubject,
         body: outreachBody,
         attachReportId,
+        toEmail: outreachToEmail.trim(),
       },
       {
         onSuccess: (result) => {
-          toast.success(`Email sent to ${result.recipient}`);
+          notify.success(`Email enviado a ${result.recipient}`);
           setSendModalOpen(false);
         },
-        onError: (e) => toast.error(`Failed: ${(e as Error).message}`),
+        onError: (e) => notify.error(`Error: ${(e as Error).message}`),
       }
     );
   };
@@ -195,8 +229,8 @@ export function LeadDetailPage() {
         ],
       },
       {
-        onSuccess: () => toast.success("Follow-up sequence scheduled"),
-        onError: (e) => toast.error(`Failed: ${(e as Error).message}`),
+        onSuccess: () => notify.success("Secuencia de follow-up programada"),
+        onError: (e) => notify.error(`Error: ${(e as Error).message}`),
       }
     );
   };
@@ -310,7 +344,16 @@ export function LeadDetailPage() {
               reports={reportsData?.items ?? []}
               onGenerate={() =>
                 generateReport.mutate(id!, {
-                  onSuccess: () => toast.success("Report generated"),
+                  onSuccess: () =>
+                    notify.success("Reporte generado", {
+                      href: id ? `/leads/${id}` : undefined,
+                    }),
+                  onError: (err) =>
+                    notify.error(
+                      err instanceof Error
+                        ? err.message
+                        : "No se pudo generar el reporte",
+                    ),
                 })
               }
               isGenerating={generateReport.isPending}
@@ -324,9 +367,13 @@ export function LeadDetailPage() {
               reports={reportsData?.items ?? []}
               subject={outreachSubject}
               body={outreachBody}
+              toEmail={outreachToEmail}
+              suggestedEmails={suggestedEmails}
+              hasValidEmail={hasValidOutreachEmail}
               attachReportId={attachReportId}
               onSubjectChange={setOutreachSubject}
               onBodyChange={setOutreachBody}
+              onToEmailChange={setOutreachToEmail}
               onAttachReportIdChange={setAttachReportId}
               onSend={() => setSendModalOpen(true)}
               onQuickFollowUp={handleQuickFollowUp}
@@ -347,6 +394,22 @@ export function LeadDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] uppercase tracking-wider">
+                Para (email)
+              </Label>
+              <Input
+                type="email"
+                value={outreachToEmail}
+                onChange={(e) => setOutreachToEmail(e.target.value)}
+                placeholder="contacto@empresa.com"
+              />
+              {suggestedEmails.length === 0 && !hasValidOutreachEmail && (
+                <p className="text-xs text-warning">
+                  No hay email detectado. Escríbelo manualmente o vuelve a auditar el sitio.
+                </p>
+              )}
+            </div>
             <div className="space-y-1.5">
               <Label className="text-[11px] uppercase tracking-wider">
                 Subject
@@ -400,6 +463,7 @@ export function LeadDetailPage() {
             <Button
               onClick={handleSendOutreach}
               disabled={
+                !hasValidOutreachEmail ||
                 !outreachSubject ||
                 !outreachBody ||
                 sendOutreach.isPending
@@ -548,28 +612,34 @@ function AuditTab({ audit }: { audit: Audit | null | undefined }) {
     {
       label: "FCP",
       value: audit.first_contentful_paint_ms,
-      unit: "ms",
+      format: (v: number) => `${Math.round(v)} ms`,
       good: 1800,
+      compare: (v: number) => v <= 1800,
     },
     {
       label: "LCP",
       value: audit.largest_contentful_paint_ms,
-      unit: "ms",
+      format: (v: number) => `${Math.round(v)} ms`,
       good: 2500,
+      compare: (v: number) => v <= 2500,
     },
     {
       label: "CLS",
       value: audit.cumulative_layout_shift,
-      unit: "",
+      format: (v: number) => v.toFixed(3),
       good: 0.1,
+      compare: (v: number) => v <= 0.1,
     },
     {
       label: "TBT",
       value: audit.total_blocking_time_ms,
-      unit: "ms",
+      format: (v: number) => `${Math.round(v)} ms`,
       good: 200,
+      compare: (v: number) => v <= 200,
     },
-  ];
+  ] as const;
+
+  const screenshotSrc = screenshotPublicUrl(audit.screenshot_path);
 
   return (
     <div className="flex flex-col gap-6">
@@ -592,19 +662,18 @@ function AuditTab({ audit }: { audit: Audit | null | undefined }) {
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {vitals.map((v, i) => {
-            const val = v.value ?? 0;
-            const isGood =
-              v.unit === ""
-                ? val <= v.good
-                : val <= v.good;
+            const hasValue = v.value != null;
+            const isGood = hasValue && v.compare(v.value as number);
             return (
               <div
                 key={i}
                 className={cn(
                   "rounded-lg border p-3",
-                  isGood
-                    ? "border-success/30 bg-success/5"
-                    : "border-danger/30 bg-danger/5"
+                  !hasValue && "border-border bg-surface-elevated/50",
+                  hasValue &&
+                    (isGood
+                      ? "border-success/30 bg-success/5"
+                      : "border-danger/30 bg-danger/5")
                 )}
               >
                 <div className="text-xs font-mono text-text-muted">
@@ -613,11 +682,11 @@ function AuditTab({ audit }: { audit: Audit | null | undefined }) {
                 <div
                   className={cn(
                     "text-2xl font-mono font-bold mt-1",
-                    isGood ? "text-success" : "text-danger"
+                    !hasValue && "text-text-muted",
+                    hasValue && (isGood ? "text-success" : "text-danger")
                   )}
                 >
-                  {v.value ?? "—"}
-                  {v.unit}
+                  {hasValue ? v.format(v.value as number) : "—"}
                 </div>
               </div>
             );
@@ -626,16 +695,17 @@ function AuditTab({ audit }: { audit: Audit | null | undefined }) {
       </div>
 
       {/* Screenshot */}
-      {audit.screenshot_path && (
+      {screenshotSrc && (
         <div>
           <h3 className="text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
             Screenshot
           </h3>
           <div className="rounded-lg border border-border overflow-hidden max-w-[600px]">
             <img
-              src={`/screenshots/${audit.screenshot_path.split("/").pop()}`}
+              src={screenshotSrc}
               alt="Audit screenshot"
               className="w-full"
+              loading="lazy"
             />
           </div>
         </div>
@@ -770,9 +840,13 @@ function OutreachTab({
   reports,
   subject,
   body,
+  toEmail,
+  suggestedEmails,
+  hasValidEmail,
   attachReportId,
   onSubjectChange,
   onBodyChange,
+  onToEmailChange,
   onAttachReportIdChange,
   onSend,
   onQuickFollowUp,
@@ -785,9 +859,13 @@ function OutreachTab({
   reports: ReportRead[];
   subject: string;
   body: string;
+  toEmail: string;
+  suggestedEmails: string[];
+  hasValidEmail: boolean;
   attachReportId: string | undefined;
   onSubjectChange: (v: string) => void;
   onBodyChange: (v: string) => void;
+  onToEmailChange: (v: string) => void;
   onAttachReportIdChange: (v: string | undefined) => void;
   onSend: () => void;
   onQuickFollowUp: () => void;
@@ -841,6 +919,36 @@ function OutreachTab({
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label className="text-[11px] uppercase tracking-wider">
+              Para (email)
+            </Label>
+            <Input
+              type="email"
+              value={toEmail}
+              onChange={(e) => onToEmailChange(e.target.value)}
+              placeholder="contacto@empresa.com"
+            />
+            {suggestedEmails.length > 1 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {suggestedEmails.map((email) => (
+                  <button
+                    key={email}
+                    type="button"
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-full border border-border text-primary hover:bg-primary/10"
+                    onClick={() => onToEmailChange(email)}
+                  >
+                    {email}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!hasValidEmail && (
+              <p className="text-xs text-warning">
+                Este lead no tiene email guardado. Introduce uno manualmente para enviar.
+              </p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[11px] uppercase tracking-wider">
               Subject
             </Label>
             <Input
@@ -882,7 +990,7 @@ function OutreachTab({
           <div className="flex gap-2 flex-wrap">
             <Button
               onClick={onSend}
-              disabled={!subject || !body || isSending}
+              disabled={!hasValidEmail || !subject || !body || isSending}
             >
               <Send className="size-3.5 mr-1.5" aria-hidden="true" />
               {isSending ? "Sending..." : "Send Email"}

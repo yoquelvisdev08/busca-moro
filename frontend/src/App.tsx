@@ -1,5 +1,5 @@
 import { useEffect, Suspense, lazy } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -7,7 +7,6 @@ import { Sidebar, Header } from "@/components/layout/index";
 import { useUIStore } from "@/stores/ui-store";
 import { cn } from "@/lib/utils";
 
-// Lazy-loaded pages for code splitting
 const DashboardPage = lazy(() =>
   import("@/pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
 );
@@ -47,118 +46,89 @@ function PageFallback() {
   );
 }
 
-export function App() {
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<DashboardPage />} />
+      <Route path="/discover" element={<DiscoverPage />} />
+      <Route path="/leads" element={<LeadsPage />} />
+      <Route path="/leads/:id" element={<LeadDetailPage />} />
+      <Route path="/campaigns" element={<CampaignsPage />} />
+      <Route path="/reports" element={<ReportsPage />} />
+      <Route path="/monitor" element={<MonitorPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function MobileSidebarOverlay() {
   const sidebarMobileOpen = useUIStore((s) => s.sidebarMobileOpen);
   const closeSidebarMobile = useUIStore((s) => s.closeSidebarMobile);
 
-  // Close mobile sidebar on route change
-  useEffect(() => {
-    const handleRouteChange = () => closeSidebarMobile();
-    window.addEventListener("popstate", handleRouteChange);
-    return () => window.removeEventListener("popstate", handleRouteChange);
-  }, [closeSidebarMobile]);
+  if (!sidebarMobileOpen) return null;
 
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/50 md:hidden"
+        aria-hidden="true"
+        onClick={closeSidebarMobile}
+      />
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-bg w-64 md:hidden",
+          "transition-transform duration-300 ease-in-out",
+          "animate-in slide-in-from-left",
+        )}
+        aria-label="Navigation sidebar"
+        role="navigation"
+      >
+        <Sidebar />
+      </aside>
+    </>
+  );
+}
+
+function RouteChangeCloser() {
+  const closeSidebarMobile = useUIStore((s) => s.closeSidebarMobile);
+  const location = useLocation();
+
+  useEffect(() => {
+    closeSidebarMobile();
+  }, [location.pathname, closeSidebarMobile]);
+
+  return null;
+}
+
+export function App() {
   return (
     <BrowserRouter>
       <TooltipProvider>
-        {/* Skip-to-content accessibility link */}
-        <a
-          href="#main-content"
-          className="skip-to-content sr-only"
-        >
+        <RouteChangeCloser />
+        <a href="#main-content" className="skip-to-content sr-only">
           Skip to content
         </a>
 
-        <div
-          className="grid h-screen"
-          style={{
-            gridTemplateColumns: "1fr",
-            gridTemplateRows: "56px 1fr",
-            gridTemplateAreas: '"header" "main"',
-          }}
-        >
-          {/* Header spans full width */}
-          <div style={{ gridArea: "header" }}>
-            <Header />
-          </div>
+        <div className="grid h-screen grid-rows-[56px_minmax(0,1fr)]">
+          <Header />
 
-          {/* Sidebar: desktop (inline) + mobile (overlay) */}
-          <div className="hidden md:block">
-            <div
-              className="grid h-full"
-              style={{
-                gridTemplateColumns: "auto 1fr",
-                gridTemplateRows: "1fr",
-              }}
-            >
+          <div className="relative flex min-h-0 overflow-hidden">
+            <div className="hidden md:block shrink-0 h-full">
               <Sidebar />
-              <main
-                id="main-content"
-                className="overflow-y-auto bg-bg"
-                tabIndex={-1}
-              >
-                <Suspense fallback={<PageFallback />}>
-                  <Routes>
-                    <Route path="/" element={<DashboardPage />} />
-                    <Route path="/discover" element={<DiscoverPage />} />
-                    <Route path="/leads" element={<LeadsPage />} />
-                    <Route path="/leads/:id" element={<LeadDetailPage />} />
-                    <Route path="/campaigns" element={<CampaignsPage />} />
-                    <Route path="/reports" element={<ReportsPage />} />
-                    <Route path="/monitor" element={<MonitorPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </Suspense>
-              </main>
             </div>
-          </div>
 
-          {/* Mobile: full-width main + overlay sidebar */}
-          <div className="md:hidden relative" style={{ gridArea: "main" }}>
             <main
               id="main-content"
-              className="h-full overflow-y-auto bg-bg"
+              className="flex-1 min-h-0 min-w-0 overflow-y-auto bg-bg"
               tabIndex={-1}
             >
               <Suspense fallback={<PageFallback />}>
-                <Routes>
-                  <Route path="/" element={<DashboardPage />} />
-                  <Route path="/discover" element={<DiscoverPage />} />
-                  <Route path="/leads" element={<LeadsPage />} />
-                  <Route path="/leads/:id" element={<LeadDetailPage />} />
-                  <Route path="/campaigns" element={<CampaignsPage />} />
-                  <Route path="/reports" element={<ReportsPage />} />
-                  <Route path="/monitor" element={<MonitorPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
+                <AppRoutes />
               </Suspense>
             </main>
 
-            {/* Mobile sidebar overlay */}
-            {sidebarMobileOpen && (
-              <>
-                {/* Backdrop */}
-                <div
-                  className="fixed inset-0 z-40 bg-black/50"
-                  aria-hidden="true"
-                  onClick={closeSidebarMobile}
-                />
-                {/* Sidebar overlay */}
-                <aside
-                  className={cn(
-                    "fixed inset-y-0 left-0 z-50 flex flex-col border-r border-border bg-bg w-64",
-                    "transition-transform duration-300 ease-in-out",
-                    "animate-in slide-in-from-left"
-                  )}
-                  aria-label="Navigation sidebar"
-                  role="navigation"
-                >
-                  <Sidebar />
-                </aside>
-              </>
-            )}
+            <MobileSidebarOverlay />
           </div>
         </div>
       </TooltipProvider>

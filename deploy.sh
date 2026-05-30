@@ -54,7 +54,10 @@ wait_for_healthy() {
 # 1. Verificar dependencias
 echo -e "${BLUE}[1/7] Verificando dependencias...${NC}"
 check_command docker
-check_command docker-compose
+if ! docker compose version &> /dev/null; then
+    echo -e "${RED}❌ Error: Docker Compose plugin no está disponible (docker compose)${NC}"
+    exit 1
+fi
 check_docker_daemon
 echo -e "${GREEN}✅ Dependencias OK${NC}"
 echo ""

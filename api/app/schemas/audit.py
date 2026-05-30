@@ -53,7 +53,11 @@ class AuditRead(BaseModel):
     mobile_friendly: Optional[bool]
     has_ssl: Optional[bool]
     load_time_ms: Optional[int]
+    first_contentful_paint_ms: Optional[int] = None
+    largest_contentful_paint_ms: Optional[int] = None
+    cumulative_layout_shift: Optional[float] = None
+    total_blocking_time_ms: Optional[int] = None
     detected_tech: dict[str, Any]
     extracted_contacts: dict[str, Any]
-    screenshot_path: Optional[str]
+    screenshot_path: Optional[str] = None
     created_at: datetime

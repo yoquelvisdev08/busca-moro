@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/notify";
 import { FileText, Download, Mail, Trash2 } from "lucide-react";
 import {
   useReports,
@@ -42,7 +42,7 @@ export function ReportsPage() {
   const pageCount = Math.ceil(total / pagination.pageSize);
 
   const handleResend = (reportId: string) => {
-    toast.promise(resendReport.mutateAsync(reportId), {
+    notify.promise(resendReport.mutateAsync(reportId), {
       loading: "Resending report...",
       success: "Report queued for resend",
       error: "Failed to resend report",
@@ -51,7 +51,7 @@ export function ReportsPage() {
 
   const handleDeleteConfirm = () => {
     if (!deleteTargetId) return;
-    toast.promise(deleteReport.mutateAsync(deleteTargetId), {
+    notify.promise(deleteReport.mutateAsync(deleteTargetId), {
       loading: "Deleting report...",
       success: "Report deleted",
       error: "Failed to delete report",

@@ -120,8 +120,26 @@ a { color: var(--brand-primary); text-decoration: none; }
 .cover-page .report-title {
   font-size: 14pt;
   color: var(--text-secondary);
-  margin-bottom: 24pt;
+  margin-bottom: 16pt;
   max-width: 80%;
+}
+
+.cover-page .cover-intro {
+  font-size: 11pt;
+  color: var(--text-secondary);
+  max-width: 140mm;
+  margin-bottom: 20pt;
+  line-height: 1.55;
+}
+
+.cover-page .cover-note {
+  margin-top: 20pt;
+  font-size: 9pt;
+  color: var(--text-muted);
+  max-width: 130mm;
+  line-height: 1.45;
+  border-left: 3pt solid var(--brand-accent);
+  padding-left: 10pt;
 }
 
 .cover-page .meta {

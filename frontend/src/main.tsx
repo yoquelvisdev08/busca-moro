@@ -29,21 +29,30 @@ ReactDOM.createRoot(root).render(
       <App />
       <Toaster
         position="top-right"
+        containerClassName="!z-[10000]"
+        containerStyle={{ top: 72 }}
+        gutter={12}
         toastOptions={{
+          className: "sx-toast",
+          duration: 3500,
           style: {
             background: "var(--sx-surface-high)",
             color: "var(--sx-text)",
             border: "1px solid var(--sx-border-strong)",
-            fontFamily: "var(--font-mono)",
+            boxShadow: "var(--sx-glow-primary)",
+            fontFamily: '"JetBrains Mono", monospace',
             fontSize: "12px",
+            maxWidth: 420,
           },
           success: {
+            duration: 3500,
             iconTheme: {
               primary: "var(--sx-success)",
               secondary: "var(--sx-surface-high)",
             },
           },
           error: {
+            duration: 5000,
             iconTheme: {
               primary: "var(--sx-danger)",
               secondary: "var(--sx-surface-high)",

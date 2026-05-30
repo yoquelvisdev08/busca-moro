@@ -59,6 +59,7 @@ class LeadRead(LeadBase):
 
     id: uuid.UUID
     normalized_domain: str
+    secondary_emails: list[str] = Field(default_factory=list)
     status: LeadStatus
     score: int
     commercial_score: int

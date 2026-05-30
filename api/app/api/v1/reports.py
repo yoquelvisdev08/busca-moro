@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings, Settings
 from app.core.database import get_session
 from app.models.lead import Lead
-from app.models.report import Report, ReportStatus
+from app.models.report import Report, ReportStatus, is_report_completed, report_status_value
 from app.schemas.report import ReportListResponse, ReportRead, ReportReadDetail, ReportStatusUpdate
 from app.services.pdf_service import PDFService
 
@@ -161,10 +161,10 @@ async def download_report(
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    if report.status != ReportStatus.completed:
+    if not is_report_completed(report.status):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Report is not ready. Current status: {report.status.value}",
+            detail=f"Report is not ready. Current status: {report_status_value(report.status)}",
         )
 
     if not os.path.isfile(report.file_path):
@@ -199,10 +199,10 @@ async def resend_report(
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    if report.status != ReportStatus.completed:
+    if not is_report_completed(report.status):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Report is not ready. Current status: {report.status.value}",
+            detail=f"Report is not ready. Current status: {report_status_value(report.status)}",
         )
 
     report.sent_count += 1

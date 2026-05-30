@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ brand.name }} &mdash; Website Performance Report</title>
+  <title>Informe de rendimiento web &mdash; {{ lead.company_name }}</title>
   <link rel="stylesheet" href="css/report.css">
   <style>
     /* Inline critical styles for WeasyPrint compatibility */
@@ -17,23 +17,39 @@
      ========================================================================== -->
 <section class="cover-page">
   <div class="brand-mark">
-    <span>{{ brand.name[:2] }}</span>
+    <span>{{ consultant.name[:2] | upper }}</span>
   </div>
-  <h1 class="agency-name">{{ brand.name }}</h1>
-  <p class="report-title">Website Performance &amp; Growth Analysis for<br>
+  <h1 class="agency-name">Informe de rendimiento web</h1>
+  <p class="report-title">Análisis y plan de mejora para<br>
     <strong>{{ lead.company_name }}</strong></p>
+
+  <p class="cover-intro">
+    Documento confidencial con los hallazgos de una auditoría técnica de
+    <strong>{{ lead.domain }}</strong> y las acciones que puedo implementar para
+    mejorar velocidad, experiencia móvil y conversiones.
+  </p>
 
   <div class="meta">
     <div class="meta-row">
-      <span class="label">Domain: </span>{{ lead.domain }}
+      <span class="label">Sitio: </span>{{ lead.domain }}
     </div>
     <div class="meta-row">
-      <span class="label">Generated: </span>{{ generated_at }}
+      <span class="label">Fecha: </span>{{ generated_at }}
     </div>
     <div class="meta-row">
-      <span class="label">Prepared by: </span>{{ brand.name }} &mdash; {{ brand.tagline }}
+      <span class="label">Preparado por: </span>{{ consultant.byline }}
     </div>
+    {% if consultant.company %}
+    <div class="meta-row">
+      <span class="label">Marca: </span>{{ consultant.company }}
+    </div>
+    {% endif %}
   </div>
+
+  <p class="cover-note">
+    SIPHON-X es mi herramienta interna de análisis; el trabajo y la propuesta
+    comercial son responsabilidad personal de {{ consultant.name }}.
+  </p>
 </section>
 
 <!-- ==========================================================================
@@ -43,63 +59,56 @@
 <section class="section">
   <div class="section-header">
     <div class="icon">1</div>
-    <h2>Executive Summary</h2>
+    <h2>Resumen ejecutivo</h2>
   </div>
 
   <div class="summary-box">
     <div class="stat-row">
       <div class="stat">
-        <div class="stat-value">{{ revenue_loss.monthly_revenue_lost_fmt }}/mo</div>
-        <div class="stat-label">Estimated Revenue Loss</div>
+        <div class="stat-value">{{ pain_points | length }}</div>
+        <div class="stat-label">Hallazgos prioritarios</div>
       </div>
       <div class="stat">
         <div class="stat-value">{{ revenue_loss.conversion_drop_pct }}%</div>
-        <div class="stat-label">Conversion Drop</div>
+        <div class="stat-label">Fricción estimada en conversión</div>
       </div>
       <div class="stat">
         <div class="stat-value">{{ lead.segment }}</div>
-        <div class="stat-label">Commercial Segment</div>
+        <div class="stat-label">Segmento comercial</div>
       </div>
     </div>
   </div>
 
   <p>
-    <strong>{{ lead.company_name }}</strong> ({{ lead.domain }}) is a
-    {% if lead.industry %}{{ lead.industry }} company{% else %}business{% endif %}
-    {% if lead.country != "N/A" %}based in {{ lead.country }}{% endif %}.
+    He revisado <strong>{{ lead.company_name }}</strong> ({{ lead.domain }}),
+    {% if lead.industry %}negocio del sector {{ lead.industry }}{% else %}su presencia online{% endif %}
+    {% if lead.country != "N/A" %} en {{ lead.country }}{% endif %}.
     {% if audit %}
-      Our technical audit reveals
-      <strong>{{ pain_points | length }} critical issues</strong> affecting
-      performance, user experience, and — most importantly — revenue generation.
+      La auditoría detectó
+      <strong>{{ pain_points | length }} problemas relevantes</strong> que afectan
+      rendimiento, experiencia de usuario y, sobre todo, la capacidad de convertir visitas en clientes.
     {% else %}
-      Our initial analysis reveals opportunities for significant performance and
-      revenue improvements.
+      El análisis inicial muestra oportunidades claras de mejora en rendimiento y visibilidad.
     {% endif %}
   </p>
 
   <p>
-    {% if revenue_loss.monthly_revenue_lost > 0 %}
-      <strong>Bottom line:</strong> {{ lead.company_name }} is losing an estimated
-      <strong>{{ revenue_loss.monthly_revenue_lost_fmt }}/month</strong>
-      ({{ revenue_loss.annualized_loss }}/year) to technical debt and missed
-      conversion opportunities.
-    {% else %}
-      While no significant revenue loss was detected, performance improvements
-      could still drive growth through better SEO rankings and user experience.
-    {% endif %}
+    <strong>En resumen:</strong> hay margen claro para mejorar rendimiento, confianza del visitante
+    y conversiones. Los detalles están en este informe; el alcance y prioridades los definimos
+    juntos en una primera conversación (sin compromiso).
   </p>
 
   {% if revenue_loss.confidence == "high" %}
-  <p><em>Confidence level: High — based on multiple verified technical signals.</em></p>
+  <p><em>Nivel de confianza: alto — varias señales técnicas coinciden.</em></p>
   {% elif revenue_loss.confidence == "medium" %}
-  <p><em>Confidence level: Medium — based on available technical data. A deeper audit may reveal additional issues.</em></p>
+  <p><em>Nivel de confianza: medio — conviene validar con analítica real del negocio.</em></p>
   {% else %}
-  <p><em>Confidence level: Low — limited data available. A full technical audit is recommended.</em></p>
+  <p><em>Nivel de confianza: bajo — recomiendo una auditoría más profunda antes de invertir.</em></p>
   {% endif %}
 
   {% if revenue_loss.primary_factors %}
   <p>
-    <strong>Primary factors: </strong>
+    <strong>Factores principales: </strong>
     {% for factor in revenue_loss.primary_factors %}
       <span class="signal-tag">{{ factor | replace("_", " ") | title }}</span>
     {% endfor %}
@@ -332,12 +341,12 @@
 </section>
 
 <!-- ==========================================================================
-     PAIN POINTS WITH $ ESTIMATES
+     PAIN POINTS
      ========================================================================== -->
 <section class="section">
   <div class="section-header">
     <div class="icon">4</div>
-    <h2>Pain Points &amp; Revenue Impact</h2>
+    <h2>Problemas detectados e impacto</h2>
   </div>
 
   {% if pain_points %}
@@ -349,28 +358,28 @@
       </div>
       <div class="pp-desc">{{ pp.description }}</div>
       <div class="pp-loss">
-        {% if pp.estimated_loss and pp.estimated_loss != "See revenue analysis" %}
-          Estimated loss: {{ pp.estimated_loss }}/month
+        {% if pp.severity == "critical" %}
+          Impacto: alto — conviene atenderlo pronto.
+        {% elif pp.severity == "high" %}
+          Impacto: relevante para conversión y confianza.
         {% else %}
-          See revenue analysis below
+          Impacto: mejora recomendable en una siguiente fase.
         {% endif %}
       </div>
       {% if pp.evidence %}
-      <div class="pp-evidence">Evidence: {{ pp.evidence }}</div>
+      <div class="pp-evidence">Evidencia: {{ pp.evidence }}</div>
       {% endif %}
     </div>
     {% endfor %}
   {% else %}
     <div class="card">
-      <p><em>No significant pain points detected. The site appears to be well-optimized or insufficient data is available for analysis.</em></p>
+      <p><em>No se detectaron problemas graves con los datos actuales. Aun así, una revisión en vivo puede revelar oportunidades.</em></p>
     </div>
   {% endif %}
 
   <div style="margin-top: 14pt; font-size: 8pt; color: var(--text-muted); font-style: italic;">
-    <strong>Disclaimer:</strong> Revenue loss estimates are based on industry averages and benchmarks
-    (Google Core Web Vitals, Akamai, ThinkWithGoogle, Baymard Institute). Actual results vary based on
-    traffic volume, conversion rates, and market conditions. These figures are provided for informational
-    purposes and should be validated with the client's own analytics data.
+    Las prioridades finales dependen del tráfico real, del modelo de negocio y de tus objetivos;
+    por eso el siguiente paso es hablarlo contigo, no cerrar cifras por correo.
   </div>
 </section>
 
@@ -380,15 +389,15 @@
 <section class="section">
   <div class="section-header">
     <div class="icon">5</div>
-    <h2>Recommendations &amp; ROI Estimates</h2>
+    <h2>Recomendaciones prioritarias</h2>
   </div>
 
   {% set recs = [
-    {"title": "Performance Optimization", "desc": "Reduce page load time from " ~ (format_load_time(audit.load_time_ms) if audit and audit.load_time_ms else "current levels") ~ " to under 2 seconds. Implement code splitting, image optimization, CDN, and caching. Expected 15-25% improvement in Core Web Vitals.", "roi": "Recover " ~ revenue_loss.monthly_revenue_lost_fmt ~ "/month in lost revenue"},
-    {"title": "Mobile Experience Overhaul", "desc": "Implement responsive design, optimize touch targets, and ensure all content is accessible on mobile. With 60%+ of traffic from mobile devices, this directly affects conversion rates.", "roi": "15% increase in mobile conversion rate"},
-    {"title": "SSL & Security Hardening", "desc": "Install SSL certificate and enable HTTPS across all pages. Implement security headers (HSTS, CSP) and ensure PCI compliance if processing payments.", "roi": "10% trust recovery + SEO ranking boost"},
-    {"title": "SEO & Content Strategy", "desc": "Optimize meta tags, heading structure, and content hierarchy. Improve Core Web Vitals for better Google ranking. Implement structured data (Schema.org) for rich snippets.", "roi": "20-50% increase in organic traffic over 6 months"},
-    {"title": "UX & Conversion Optimization", "desc": "Streamline user journeys, add clear CTAs, implement social proof sections, and optimize forms. A/B test landing pages for maximum conversion.", "roi": "2-5x ROI on optimization spend typically within 6 months"},
+    {"title": "Rendimiento y Core Web Vitals", "desc": "Reducir el tiempo de carga desde " ~ (format_load_time(audit.load_time_ms) if audit and audit.load_time_ms else "los niveles actuales") ~ " hacia menos de 2 s: imágenes, caché, CDN y código más liviano.", "impact": "Mejor experiencia y menos abandono en la primera visita."},
+    {"title": "Experiencia móvil", "desc": "Diseño responsive, objetivos táctiles claros y contenido legible en pantallas pequeñas.", "impact": "La mayoría del tráfico llega por móvil; ahí se gana o se pierde la conversión."},
+    {"title": "SSL y seguridad", "desc": "HTTPS en todo el sitio, cabeceras de seguridad y revisión si hay pagos o formularios sensibles.", "impact": "Más confianza del usuario y señal positiva para buscadores."},
+    {"title": "SEO y contenido", "desc": "Metadatos, jerarquía de títulos, velocidad y datos estructurados donde aplique.", "impact": "Más visibilidad orgánica a medio plazo."},
+    {"title": "UX y conversión", "desc": "Recorridos más claros, CTAs visibles, prueba social y formularios simples.", "impact": "Más consultas y ventas sin depender solo de anuncios."},
   ] %}
 
   {% for rec in recs %}
@@ -398,7 +407,7 @@
       <h4>{{ rec.title }}</h4>
       <p>{{ rec.desc }}</p>
       <p style="font-size: 8pt; color: var(--success); margin-top: 4pt;">
-        <strong>Estimated ROI:</strong> {{ rec.roi }}
+        <strong>Beneficio esperado:</strong> {{ rec.impact }}
       </p>
     </div>
   </div>
@@ -411,86 +420,61 @@
 <section class="section">
   <div class="section-header">
     <div class="icon">6</div>
-    <h2>Service Proposal</h2>
+    <h2>Propuesta de trabajo</h2>
   </div>
 
   <p style="margin-bottom: 12pt;">
-    {{ brand.name }} proposes a comprehensive digital performance engagement for
-    <strong>{{ lead.company_name }}</strong>. Our approach covers the full
-    spectrum: audit, fix, optimize, and grow.
+    Te propongo un acompañamiento práctico para <strong>{{ lead.company_name }}</strong>:
+    corregir lo urgente, optimizar lo que más impacta conversiones y dejar el sitio
+    listo para crecer. Yo mismo puedo ejecutar el trabajo (no es un software automático).
   </p>
 
   <div class="proposal-box">
-    <h2>What We Offer</h2>
+    <h2>Qué incluye mi propuesta</h2>
 
     <div class="package">
       <div class="check">&#10003;</div>
       <div class="detail">
-        <h4>Technical Performance Audit &amp; Fix</h4>
-        <p>Comprehensive Lighthouse-based audit with prioritized fixes. We identify root causes and implement solutions for load times, Core Web Vitals, and SEO.</p>
+        <h4>Auditoría técnica y correcciones prioritarias</h4>
+        <p>Revisión con Lighthouse, causas raíz y arreglos que más impactan velocidad y SEO.</p>
       </div>
     </div>
 
     <div class="package">
       <div class="check">&#10003;</div>
       <div class="detail">
-        <h4>Mobile-First Responsive Design</h4>
-        <p>Full mobile optimization ensuring your site works flawlessly on all devices — smartphones, tablets, and desktops.</p>
+        <h4>Experiencia móvil</h4>
+        <p>Que el sitio se vea y funcione bien en teléfono, tablet y escritorio.</p>
       </div>
     </div>
 
     <div class="package">
       <div class="check">&#10003;</div>
       <div class="detail">
-        <h4>SSL, Security &amp; Infrastructure</h4>
-        <p>Complete HTTPS migration, security hardening, and hosting optimization for speed and reliability.</p>
+        <h4>Seguridad e infraestructura</h4>
+        <p>HTTPS, endurecimiento básico y hosting alineado con rendimiento.</p>
       </div>
     </div>
 
     <div class="package">
       <div class="check">&#10003;</div>
       <div class="detail">
-        <h4>Ongoing Monitoring &amp; Support</h4>
-        <p>Continuous performance monitoring with real-time alerts. Monthly reports and quarterly strategy reviews to keep your site at peak performance.</p>
+        <h4>Seguimiento (opcional)</h4>
+        <p>Monitoreo y revisiones periódicas si quieres mantener el sitio en buen estado.</p>
       </div>
     </div>
 
-    <div style="margin-top: 14pt; padding-top: 10pt; border-top: 1pt solid var(--border);">
-      <table>
-        <thead>
-          <tr>
-            <th>Package</th>
-            <th>Scope</th>
-            <th>Timeline</th>
-            <th>Investment</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Starter</strong></td>
-            <td>Performance audit + critical fixes</td>
-            <td>2-4 weeks</td>
-            <td>Contact us</td>
-          </tr>
-          <tr>
-            <td><strong>Growth</strong></td>
-            <td>Full optimization + mobile + SEO</td>
-            <td>4-8 weeks</td>
-            <td>Contact us</td>
-          </tr>
-          <tr>
-            <td><strong>Enterprise</strong></td>
-            <td>Everything + ongoing support + monitoring</td>
-            <td>8-12 weeks</td>
-            <td>Contact us</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="cta">
-      <p>Ready to stop losing <strong>{{ revenue_loss.monthly_revenue_lost_fmt }}/month</strong>?</p>
-      <p>Contact us at <strong>hello@siphonx.dev</strong> to schedule a free consultation.</p>
+    <div class="cta" style="margin-top: 16pt;">
+      <p><strong>Siguiente paso: primer contacto</strong></p>
+      <p>
+        No incluyo precios ni paquetes cerrados en este PDF. Prefiero una llamada o mensaje corto
+        para entender tu negocio, priorizar y proponerte un plan a medida.
+      </p>
+      <p>
+        Escríbeme a <strong>{{ consultant.website }}</strong>, responde a este correo
+        o dime cuándo te va bien para 15–20 minutos.
+      </p>
+      <p style="margin-top: 6pt; font-size: 9pt;">— {{ consultant.name }}{% if consultant.title %}, {{ consultant.title }}{% endif %}</p>
     </div>
   </div>
 </section>
@@ -500,8 +484,8 @@
      ========================================================================== -->
 <div class="footer">
   <p>{{ brand.name }} &mdash; {{ brand.tagline }} | {{ brand.website }}</p>
-  <p>Report generated on {{ generated_at }}. All data based on automated analysis. Verify with live testing.</p>
-  <p>Confidential &mdash; prepared exclusively for {{ lead.company_name }}</p>
+  <p>Informe generado el {{ generated_at }}. Datos obtenidos con auditoría automatizada; conviene validar en entorno real.</p>
+  <p>Confidencial &mdash; preparado exclusivamente para {{ lead.company_name }} por {{ consultant.name }}</p>
 </div>
 
 </body>

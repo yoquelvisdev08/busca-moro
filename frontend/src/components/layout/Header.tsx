@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
-import { Bell, Menu, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
+import { NotificationsMenu } from "@/components/layout/NotificationsMenu";
 import { cn } from "@/lib/utils";
 import { useUIStore } from "@/stores/ui-store";
 
@@ -10,7 +11,7 @@ function getPageTitle(pathname: string): { title: string; subtitle?: string } {
     "/leads": { title: "Leads", subtitle: "Manage and qualify prospects" },
     "/campaigns": { title: "Campaigns", subtitle: "Outreach and email management" },
     "/monitor": { title: "Monitor", subtitle: "System health and uptime" },
-    "/settings": { title: "Settings", subtitle: "System configuration" },
+    "/settings": { title: "Configuración", subtitle: "Perfil, email y plantillas" },
     "/reports": { title: "Reports", subtitle: "Generated reports and exports" },
   };
   return pages[pathname] ?? { title: "SIPHON-X" };
@@ -25,8 +26,8 @@ export function Header() {
   return (
     <header
       className={cn(
-        "h-14 border-b border-border bg-bg flex items-center justify-between px-4 md:px-6",
-        "transition-all duration-300"
+        "relative z-40 h-14 border-b border-border bg-bg flex items-center justify-between px-4 md:px-6",
+        "transition-all duration-300",
       )}
     >
       {/* Left: Mobile hamburger + Page context */}
@@ -74,14 +75,7 @@ export function Header() {
           <Search className="w-5 h-5" />
         </button>
 
-        {/* Notifications */}
-        <button
-          className="p-2 rounded text-text-muted hover:text-primary hover:bg-surface transition-colors relative"
-          aria-label="Notifications"
-        >
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary-container" />
-        </button>
+        <NotificationsMenu />
       </div>
     </header>
   );

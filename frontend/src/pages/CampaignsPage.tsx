@@ -1,5 +1,5 @@
 import { useState } from "react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/notify";
 import { Plus, BarChart3 } from "lucide-react";
 import {
   useCampaigns,
@@ -53,12 +53,12 @@ export function CampaignsPage() {
       },
       {
         onSuccess: () => {
-          toast.success("Campaign created");
+          notify.success("Campaña creada");
           setCreateDialogOpen(false);
           setNewName("");
           setNewSegment("");
         },
-        onError: (e) => toast.error(`Failed: ${(e as Error).message}`),
+        onError: (e) => notify.error(`Error: ${(e as Error).message}`),
       }
     );
   };
@@ -67,8 +67,8 @@ export function CampaignsPage() {
     updateCampaign.mutate(
       { id: campaign.id, data: { status: "paused" } },
       {
-        onSuccess: () => toast.success("Campaign paused"),
-        onError: (e) => toast.error(`Failed: ${(e as Error).message}`),
+        onSuccess: () => notify.success("Campaña pausada"),
+        onError: (e) => notify.error(`Error: ${(e as Error).message}`),
       }
     );
   };
@@ -77,8 +77,8 @@ export function CampaignsPage() {
     updateCampaign.mutate(
       { id: campaign.id, data: { status: "active" } },
       {
-        onSuccess: () => toast.success("Campaign resumed"),
-        onError: (e) => toast.error(`Failed: ${(e as Error).message}`),
+        onSuccess: () => notify.success("Campaña reanudada"),
+        onError: (e) => notify.error(`Error: ${(e as Error).message}`),
       }
     );
   };

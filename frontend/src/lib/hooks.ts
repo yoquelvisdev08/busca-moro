@@ -157,12 +157,14 @@ export function useSendOutreachMutation() {
       subject,
       body,
       attachReportId,
+      toEmail,
     }: {
       leadId: string;
       subject?: string;
       body?: string;
       attachReportId?: string;
-    }) => api.sendOutreachEmail(leadId, subject, body, attachReportId),
+      toEmail?: string;
+    }) => api.sendOutreachEmail(leadId, subject, body, attachReportId, toEmail),
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["leads", "detail", variables.leadId] });
       qc.invalidateQueries({ queryKey: ["outreach"] });

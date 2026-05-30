@@ -1,6 +1,16 @@
 const RAW_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 const API_BASE = RAW_BASE.replace(/\/$/, "");
 
+/** URL pública del screenshot vía proxy nginx (/api → API). */
+export function screenshotPublicUrl(
+  screenshotPath: string | null | undefined,
+): string | null {
+  if (!screenshotPath) return null;
+  const filename = screenshotPath.split("/").pop();
+  if (!filename) return null;
+  return `${API_BASE}/screenshots/${filename}`;
+}
+
 export type LeadStatus =
   | "new"
   | "queued"
@@ -30,6 +40,7 @@ export interface Lead {
   has_ssl: boolean | null;
   load_time_ms: number | null;
   email: string | null;
+  secondary_emails?: string[];
   phone: string | null;
   discovered_at: string;
   audited_at: string | null;
@@ -140,6 +151,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const text = await response.text();
+    try {
+      const parsed = JSON.parse(text) as { detail?: string | { msg?: string }[] };
+      if (typeof parsed.detail === "string") {
+        throw new Error(parsed.detail);
+      }
+      if (Array.isArray(parsed.detail) && parsed.detail[0]?.msg) {
+        throw new Error(parsed.detail[0].msg);
+      }
+    } catch (err) {
+      if (err instanceof Error && !err.message.startsWith("API ")) {
+        throw err;
+      }
+    }
     throw new Error(`API ${response.status}: ${text}`);
   }
   return response.json() as Promise<T>;
@@ -293,12 +317,19 @@ export const api = {
   getLeadDetail(id: string) {
     return request<LeadDetailResponse>(`/v1/leads/${id}/detail`);
   },
-  sendOutreachEmail(leadId: string, subject?: string, body?: string, attachReportId?: string) {
+  sendOutreachEmail(
+    leadId: string,
+    subject?: string,
+    body?: string,
+    attachReportId?: string,
+    toEmail?: string,
+  ) {
     const params = new URLSearchParams();
     params.set("lead_id", leadId);
     if (subject) params.set("subject", subject);
     if (body) params.set("body", body);
     if (attachReportId) params.set("attach_report_id", attachReportId);
+    if (toEmail?.trim()) params.set("to_email", toEmail.trim());
     return request<{ status: string; message_id: string; outreach_id: string; recipient: string; has_attachment: boolean }>(
       `/v1/outreach/send?${params.toString()}`,
       { method: "POST" }

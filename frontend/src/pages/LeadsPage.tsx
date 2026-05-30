@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, FileText, Users } from "lucide-react";
-import toast from "react-hot-toast";
+import { notify } from "@/lib/notify";
 import { useLeads, useTriggerAuditMutation } from "@/lib/hooks";
 import type { Lead, LeadStatus } from "@/lib/api";
 import { DataTable, type BulkAction, type FilterConfig } from "@/components/tables/DataTable";
@@ -70,13 +70,13 @@ export function LeadsPage() {
       icon: <FileText className="size-3" />,
       action: (rows) => {
         const ids = rows.map((r) => r.id);
-        toast.promise(
+        notify.promise(
           Promise.all(ids.map((id) => triggerAudit.mutateAsync(id))),
           {
-            loading: `Auditing ${ids.length} leads...`,
-            success: `${ids.length} leads queued for audit`,
-            error: "Failed to audit some leads",
-          }
+            loading: `Auditando ${ids.length} leads...`,
+            success: `${ids.length} leads en cola de auditoría`,
+            error: "Error al auditar algunos leads",
+          },
         );
       },
       variant: "default",
