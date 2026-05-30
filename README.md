@@ -90,6 +90,91 @@ cp .env.example .env
 - **API Docs**: http://localhost:8000/docs
 - **Nginx Admin**: http://localhost:81
 
+## 🎨 Frontend
+
+### Stack Tecnológico
+- **React 18** + **TypeScript** - UI framework
+- **Vite** - Build tool
+- **Tailwind CSS** - Utility-first CSS
+- **shadcn/ui** - Component primitives
+- **TanStack Query** - Server state management
+- **React Router v6** - Routing
+- **Recharts** - Charts (lazy loaded)
+- **Zustand** - UI state management
+
+### Estructura de Carpetas
+```
+frontend/src/
+├── components/
+│   ├── ui/              # shadcn/ui primitives (Button, Input, Card, etc.)
+│   ├── charts/          # AreaChart, MetricCard, Sparkline, TrendIndicator
+│   ├── tables/          # DataTable con sorting/filtering/pagination
+│   ├── domain/          # StatusLED, Chip, LeadCard, CampaignCard, TabGroup
+│   └── layout/          # Sidebar, Header, PageContainer
+├── pages/               # 8 páginas (Dashboard, Leads, LeadDetail, etc.)
+├── lib/                 # Utils, API client
+├── stores/              # Zustand stores (UI state)
+└── styles/              # Tailwind + design tokens (Kinetic Ledger)
+```
+
+### Cómo Correr (Desarrollo)
+```bash
+cd frontend
+npm install
+npm run dev          # Dev server en http://localhost:5173
+npm run build        # Build de producción
+npm test             # Tests con Vitest
+```
+
+### Cómo Agregar Páginas
+1. Crear archivo en `src/pages/MiPagina.tsx`
+2. Agregar ruta en `src/App.tsx` con React.lazy:
+```tsx
+const MiPagina = lazy(() => import('./pages/MiPagina'))
+```
+3. Agregar link en Sidebar (`src/components/layout/Sidebar.tsx`)
+
+### Cómo Agregar Componentes
+1. Crear archivo en `src/components/[categoria]/MiComponente.tsx`
+2. Exportar desde `src/components/[categoria]/index.ts`
+3. Importar en páginas: `import { MiComponente } from '@/components/[categoria]'`
+
+Ver documentación completa de componentes en [docs/components.md](docs/components.md)
+
+### Design System: "Kinetic Ledger"
+- **Modo**: Dark mode only
+- **Colores primarios**: Indigo (#6366f1), Purple (#a855f7)
+- **Fondos**: Slate oscuro (#0b1326, #1a2539, #243047)
+- **Tipografía**: Geist (headlines), Inter (body), JetBrains Mono (code)
+- **Spacing**: 4px base unit
+- **Border radius**: 4px (sm), 8px (md), 12px (lg)
+- **Elevation**: Glow effects en lugar de shadows
+
+Ver todos los tokens en `frontend/src/styles/design-tokens.ts`
+
+### Testing
+```bash
+npm test                    # Correr todos los tests
+npm test -- --watch         # Watch mode
+npm test -- --coverage      # Con coverage
+```
+
+Stack: Vitest + Testing Library + MSW (API mocking)
+
+### Deployment
+El frontend se sirve como static files desde Docker:
+```bash
+cd frontend
+npm run build
+docker build -t siphon-frontend .
+docker run -p 3000:80 siphon-frontend
+```
+
+O deploy a Vercel/Netlify:
+```bash
+vercel --prod
+```
+
 ## 📊 Fases Implementadas
 
 ### ✅ Fase 1: Revenue Loss Calculations
