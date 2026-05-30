@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useCallback } from "react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -179,6 +180,38 @@ function DataTable<T>({
     getRowId: getRowId as ((originalRow: T, index: number, parent?: unknown) => string) | undefined,
   })
 
+  const [focusedRowIndex, setFocusedRowIndex] = React.useState(-1)
+
+  // Keyboard navigation: arrow keys for row focus
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const rows = table.getRowModel().rows
+      if (rows.length === 0) return
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setFocusedRowIndex((prev) => Math.min(prev + 1, rows.length - 1))
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setFocusedRowIndex((prev) => Math.max(prev - 1, 0))
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault()
+        if (focusedRowIndex >= 0 && onRowSelectionChange) {
+          const row = rows[focusedRowIndex]
+          const rowId = row.id
+          const currentSelection = { ...table.getState().rowSelection }
+          if (currentSelection[rowId]) {
+            delete currentSelection[rowId]
+          } else {
+            currentSelection[rowId] = true
+          }
+          onRowSelectionChange(currentSelection)
+        }
+      }
+    },
+    [table, focusedRowIndex, onRowSelectionChange]
+  )
+
   const selectedCount = Object.keys(table.getState().rowSelection).length
   const totalRows = pageCount ? pageCount * (pagination?.pageSize ?? 25) : data.length
   const pageIndex = table.getState().pagination.pageIndex
@@ -200,6 +233,7 @@ function DataTable<T>({
               value={search.value}
               onChange={(e) => search.onChange(e.target.value)}
               className="h-8 w-[240px] text-xs"
+              aria-label={search.placeholder ?? "Search table"}
             />
           )}
           {filters?.map((f) => {
@@ -211,13 +245,14 @@ function DataTable<T>({
                   value={f.value}
                   onChange={(e) => f.onChange(e.target.value)}
                   className="h-8 w-[180px] text-xs"
+                  aria-label={`Filter by ${f.label}`}
                 />
               )
             }
             if ((f.type === "select" || f.type === "date-range") && f.options) {
               return (
                 <Select key={f.id} value={f.value} onValueChange={(value) => f.onChange(value ?? "")}>
-                  <SelectTrigger className="h-8 w-[160px] text-xs">
+                  <SelectTrigger className="h-8 w-[160px] text-xs" aria-label={`Filter by ${f.label}`}>
                     <SelectValue placeholder={f.label} />
                   </SelectTrigger>
                   <SelectContent>
@@ -266,6 +301,8 @@ function DataTable<T>({
         role="grid"
         aria-label={loading ? "Loading data..." : "Data table"}
         aria-rowcount={totalRows}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
       >
         <Table>
           <TableHeader>
@@ -323,25 +360,30 @@ function DataTable<T>({
                 <TableRow>
                   <TableCell
                     colSpan={columns.length}
+                    role="gridcell"
                     className="h-24 text-center text-text-muted"
                   >
                     No results found.
                   </TableCell>
                 </TableRow>
               ) : (
-                table.getRowModel().rows.map((row) => (
+                table.getRowModel().rows.map((row, rowIdx) => (
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
                     aria-selected={row.getIsSelected()}
+                    role="row"
+                    tabIndex={rowIdx === focusedRowIndex ? 0 : -1}
                     className={cn(
                       densityRowClass[density],
-                      "hover:bg-surface-high/60 transition-colors"
+                      "hover:bg-surface-high/60 transition-colors",
+                      rowIdx === focusedRowIndex && "ring-1 ring-inset ring-primary-container"
                     )}
                   >
                     {row.getVisibleCells().map((cell, colIdx) => (
                       <TableCell
                         key={cell.id}
+                        role="gridcell"
                         className={cn(
                           stickyFirstColumn && colIdx === 0 && "sticky left-0 z-[5] bg-surface"
                         )}
