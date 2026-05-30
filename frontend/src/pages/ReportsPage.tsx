@@ -1,36 +1,37 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import toast from "react-hot-toast";
-import {
-  FileText,
-  Download,
-  Mail,
-  Trash2,
-  Search,
-} from "lucide-react";
+import { FileText, Download, Mail, Trash2 } from "lucide-react";
 import {
   useReports,
   useResendReportMutation,
   useDeleteReportMutation,
 } from "@/lib/hooks";
-import { Card } from "@/design-system/components/Card";
-import { Badge } from "@/design-system/components/Badge";
-import { Button } from "@/design-system/components/Button";
-import { Modal } from "@/design-system/components/Modal";
-import { Spinner } from "@/design-system/components/Spinner";
-import { EmptyState } from "@/design-system/components/EmptyState";
-import { colors } from "@/design-system/tokens";
+import { api, type ReportRead } from "@/lib/api";
+import { DataTable } from "@/components/tables/DataTable";
+import type { ColumnDef, PaginationState } from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export function ReportsPage() {
-  const [leadIdFilter, setLeadIdFilter] = useState("");
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 25,
+  });
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
-  const [pageSize] = useState(50);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data, isLoading, error } = useReports({
-    limit: pageSize,
-    offset: page * pageSize,
-    ...(leadIdFilter ? { lead_id: leadIdFilter } : {}),
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
   });
 
   const resendReport = useResendReportMutation();
@@ -38,6 +39,7 @@ export function ReportsPage() {
 
   const reports = data?.items ?? [];
   const total = data?.total ?? 0;
+  const pageCount = Math.ceil(total / pagination.pageSize);
 
   const handleResend = (reportId: string) => {
     toast.promise(resendReport.mutateAsync(reportId), {
@@ -47,177 +49,207 @@ export function ReportsPage() {
     });
   };
 
-  const handleDelete = () => {
+  const handleDeleteConfirm = () => {
     if (!deleteTargetId) return;
     toast.promise(deleteReport.mutateAsync(deleteTargetId), {
       loading: "Deleting report...",
       success: "Report deleted",
       error: "Failed to delete report",
     });
-    setDeleteModalOpen(false);
+    setDeleteDialogOpen(false);
     setDeleteTargetId(null);
   };
 
-  const downloadUrl = (id: string) => `/api/v1/reports/${id}/download`;
+  const downloadUrl = (id: string) => api.getReportDownloadUrl(id);
+
+  const columns = useMemo<ColumnDef<ReportRead, unknown>[]>(
+    () => [
+      {
+        id: "lead",
+        header: "Lead",
+        accessorFn: (row) => row.lead_domain ?? row.lead_id,
+        cell: ({ row }) => {
+          const report = row.original;
+          return (
+            <div className="flex items-center gap-2">
+                <FileText className="size-4 text-primary opacity-60 shrink-0" aria-hidden="true" />
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-text truncate">
+                  {report.lead_domain || report.lead_id.slice(0, 8)}
+                </div>
+                {report.lead_company_name && (
+                  <div className="text-[11px] text-text-muted truncate">
+                    {report.lead_company_name}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "generated_at",
+        header: "Generated",
+        accessorFn: (row) => row.generated_at ?? "",
+        cell: ({ getValue }) => {
+          const val = getValue() as string;
+          return (
+            <span className="text-xs font-mono text-text-muted">
+              {val ? new Date(val).toLocaleDateString() : "—"}
+            </span>
+          );
+        },
+      },
+      {
+        id: "file_size",
+        header: "Size",
+        accessorFn: (row) => row.file_size,
+        cell: ({ getValue }) => {
+          const size = getValue() as number;
+          return (
+            <span className="text-xs font-mono text-text-muted">
+              {(size / 1024).toFixed(0)} KB
+            </span>
+          );
+        },
+      },
+      {
+        id: "status",
+        header: "Status",
+        accessorFn: (row) => row.status,
+        cell: ({ getValue }) => {
+          const status = getValue() as string;
+          const variant =
+            status === "completed"
+              ? ("default" as const)
+              : status === "failed"
+                ? ("destructive" as const)
+                : ("secondary" as const);
+          return <Badge variant={variant}>{status}</Badge>;
+        },
+      },
+      {
+        id: "sent_count",
+        header: "Sent",
+        accessorFn: (row) => row.sent_count,
+        cell: ({ getValue }) => (
+          <span className="text-xs font-mono text-text-muted text-center block">
+            {String(getValue())}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const report = row.original;
+          return (
+            <div className="flex items-center justify-center gap-1">
+              <a
+                href={downloadUrl(report.id)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex"
+              >
+                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Download report">
+                  <Download className="size-3.5" aria-hidden="true" />
+                </Button>
+              </a>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => handleResend(report.id)}
+                disabled={resendReport.isPending}
+                aria-label="Resend report"
+              >
+                  <Mail className="size-3.5" aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 hover:text-danger"
+                aria-label="Delete report"
+                onClick={() => {
+                  setDeleteTargetId(report.id);
+                  setDeleteDialogOpen(true);
+                }}
+              >
+                <Trash2 className="size-3.5" aria-hidden="true" />
+              </Button>
+            </div>
+          );
+        },
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resendReport.isPending]
+  );
 
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div className="flex flex-col gap-4 p-6">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", flexWrap: "wrap" }}>
+      <div className="flex items-center justify-between">
         <div>
-          <h1 style={{ fontSize: "20px", fontWeight: 600, color: colors.text, margin: "0 0 4px" }}>Reports</h1>
-          <p style={{ fontSize: "13px", color: colors.textMuted }}>Generated PDF reports and delivery management</p>
+          <h1 className="text-xl font-headline font-semibold text-text">
+            Reports
+          </h1>
+          <p className="text-sm text-text-muted mt-1">
+            Generated PDF reports and delivery management
+          </p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-        <div style={{ flex: 1, minWidth: "250px", position: "relative" }}>
-          <Search
-            size={16}
-            style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: colors.textMuted, pointerEvents: "none" }}
-          />
-          <input
-            type="text"
-            placeholder="Filter by lead ID..."
-            value={leadIdFilter}
-            onChange={(e) => { setLeadIdFilter(e.target.value); setPage(0); }}
-            style={{
-              width: "100%",
-              padding: "10px 14px 10px 38px",
-              background: colors.surface,
-              border: `1px solid ${colors.borderStrong}`,
-              borderRadius: "8px",
-              fontSize: "13px",
-              color: colors.text,
-              outline: "none",
-            }}
-          />
-        </div>
-      </div>
+      <DataTable<ReportRead>
+        data={reports}
+        columns={columns}
+        loading={isLoading}
+        pageCount={pageCount}
+        pagination={pagination}
+        onPaginationChange={setPagination}
+        search={{
+          value: searchValue,
+          onChange: setSearchValue,
+          placeholder: "Filter reports...",
+        }}
+        density="compact"
+        getRowId={(row) => row.id}
+      />
 
-      {/* Reports List */}
-      {isLoading ? (
-        <Spinner style={{ padding: "60px" }} />
-      ) : error ? (
-        <div style={{ padding: "32px", color: colors.danger, textAlign: "center" }}>
+      {/* Error Banner */}
+      {error && (
+        <div className="rounded-lg bg-danger/10 border border-danger/20 p-3 text-sm text-danger">
           Error loading reports: {(error as Error).message}
         </div>
-      ) : reports.length === 0 ? (
-        <EmptyState
-          title="No reports found"
-          description={leadIdFilter ? "Try a different lead ID filter" : "Generate reports from lead detail pages"}
-          icon={<FileText size={48} />}
-        />
-      ) : (
-        <Card padding="0" style={{ overflow: "hidden" }}>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "700px" }}>
-              <thead>
-                <tr style={{ background: colors.bg }}>
-                  {["Lead", "Generated", "Size", "Status", "Sent", "Actions"].map((h) => (
-                    <th key={h} style={{ padding: "12px 16px", textAlign: "left", borderBottom: `1px solid ${colors.border}`, fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: colors.textMuted }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((report) => (
-                  <tr
-                    key={report.id}
-                    style={{ borderBottom: `1px solid ${colors.border}` }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = colors.surfaceHigh)}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <td style={tdStyle}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <FileText size={16} style={{ color: colors.primary, opacity: 0.6 }} />
-                        <div>
-                          <div style={{ fontSize: "13px", fontWeight: 600, color: colors.text }}>
-                            {report.lead_domain || report.lead_id.slice(0, 8)}
-                          </div>
-                          {report.lead_company_name && (
-                            <div style={{ fontSize: "11px", color: colors.textMuted }}>{report.lead_company_name}</div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ ...tdStyle, fontSize: "12px", fontFamily: "var(--font-mono)", color: colors.textMuted }}>
-                      {report.generated_at ? new Date(report.generated_at).toLocaleDateString() : "—"}
-                    </td>
-                    <td style={{ ...tdStyle, fontSize: "12px", fontFamily: "var(--font-mono)", color: colors.textMuted }}>
-                      {(report.file_size / 1024).toFixed(0)} KB
-                    </td>
-                    <td style={tdStyle}>
-                      <Badge variant={report.status === "completed" ? "success" : report.status === "failed" ? "danger" : "warning"} dot>
-                        {report.status}
-                      </Badge>
-                    </td>
-                    <td style={{ ...tdStyle, fontSize: "12px", fontFamily: "var(--font-mono)", color: colors.textMuted, textAlign: "center" }}>
-                      {report.sent_count}
-                    </td>
-                    <td style={{ ...tdStyle, textAlign: "center" }}>
-                      <div style={{ display: "flex", justifyContent: "center", gap: "4px" }}>
-                        <a href={downloadUrl(report.id)} target="_blank" rel="noreferrer">
-                          <Button size="sm" variant="secondary" title="Download PDF"><Download size={14} /></Button>
-                        </a>
-                        <Button size="sm" variant="secondary" onClick={() => handleResend(report.id)} title="Resend email" disabled={resendReport.isPending}>
-                          <Mail size={14} />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => { setDeleteTargetId(report.id); setDeleteModalOpen(true); }}
-                          title="Delete report"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", padding: "12px", borderTop: `1px solid ${colors.border}`, background: colors.bg }}>
-            <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-              Previous
-            </Button>
-            <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: colors.primaryContainer }}>
-              Page {page + 1} of {Math.max(1, Math.ceil(total / pageSize))}
-            </span>
-            <Button size="sm" variant="ghost" disabled={(page + 1) * pageSize >= total} onClick={() => setPage((p) => p + 1)}>
-              Next
-            </Button>
-          </div>
-        </Card>
       )}
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        open={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        title="Delete Report"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setDeleteModalOpen(false)}>Cancel</Button>
-            <Button variant="danger" onClick={handleDelete}>Delete</Button>
-          </>
-        }
-      >
-        <p style={{ color: colors.text, margin: 0 }}>
-          This will permanently delete the report and its PDF file. This action cannot be undone.
-        </p>
-      </Modal>
-    </section>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Report</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the report and its PDF file. This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleteReport.isPending}
+            >
+              <Trash2 className="size-3.5 mr-1.5" aria-hidden="true" /> Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
-
-const tdStyle: React.CSSProperties = {
-  padding: "12px 16px",
-  fontSize: "13px",
-  color: colors.text,
-};
