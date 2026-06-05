@@ -23,7 +23,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith("/leads")) return "Leads";
   if (pathname.startsWith("/monitor")) return "Monitor";
   if (pathname.startsWith("/settings")) return "Settings";
-  return "SIPHON-X";
+  return "Orion";
 }
 
 export function Layout() {
@@ -124,7 +124,7 @@ export function Layout() {
             className="text-xl font-bold tracking-tighter"
             style={{ color: "var(--sx-primary)" }}
           >
-            SIPHON-X
+            Orion
           </h1>
           <p
             className="text-[10px] uppercase tracking-widest mt-1"
@@ -180,17 +180,17 @@ export function Layout() {
               color: "var(--sx-primary)",
             }}
           >
-            JD
+            BR
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-bold" style={{ color: "var(--sx-text)" }}>
-              John Doe
+              Broz
             </span>
             <span
               className="text-[10px] uppercase tracking-widest"
               style={{ color: "var(--sx-text-muted)" }}
             >
-              Admin Privilege
+              Agencia
             </span>
           </div>
         </div>

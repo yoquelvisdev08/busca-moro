@@ -9,9 +9,17 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║     SIPHON-X Agency Platform - Deploy Script              ║${NC}"
+echo -e "${BLUE}║     Orion Agency Platform - Deploy Script              ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
+
+# Parsear argumentos
+RESET=false
+if [ "$1" = "--reset" ] || [ "$1" = "-r" ]; then
+    RESET=true
+    echo -e "${YELLOW}🔄 Modo RESET activado — se borrarán todos los datos${NC}"
+    echo ""
+fi
 
 # Función para verificar comando
 check_command() {
@@ -74,7 +82,13 @@ echo ""
 
 # 3. Limpiar contenedores anteriores
 echo -e "${BLUE}[3/7] Limpiando contenedores anteriores...${NC}"
-docker compose down --remove-orphans 2>/dev/null || true
+if [ "$RESET" = true ]; then
+    echo -e "${YELLOW}⚠️  Borrando contenedores, imágenes y volúmenes...${NC}"
+    docker compose down --volumes --remove-orphans --rmi local 2>/dev/null || true
+    echo -e "${YELLOW}⚠️  Datos de base de datos eliminados${NC}"
+else
+    docker compose down --remove-orphans 2>/dev/null || true
+fi
 echo -e "${GREEN}✅ Limpieza completada${NC}"
 echo ""
 
@@ -93,8 +107,19 @@ echo ""
 
 # 6. Ejecutar migraciones de base de datos
 echo -e "${BLUE}[6/7] Ejecutando migraciones de base de datos...${NC}"
-docker compose run --rm api alembic upgrade head
-echo -e "${GREEN}✅ Migraciones ejecutadas${NC}"
+if docker compose run --rm api alembic upgrade head 2>/dev/null; then
+    echo -e "${GREEN}✅ Migraciones ejecutadas (Alembic)${NC}"
+else
+    echo -e "${YELLOW}⚠️  Alembic no disponible, usando schema directo${NC}"
+    # El schema.sql se carga automáticamente via docker-entrypoint-initdb.d
+    # Solo necesitamos que la DB exista — los modelos de SQLAlchemy crean tablas faltantes
+    docker compose run --rm api python -c "
+from app.core.database import engine
+from app.models import Base
+Base.metadata.create_all(bind=engine)
+print('✅ Tablas sincronizadas via SQLAlchemy')
+" 2>/dev/null || echo -e "${YELLOW}⚠️  Usando schema.sql inicial (ya cargado en postgres)${NC}"
+fi
 echo ""
 
 # 7. Levantar todos los servicios
@@ -102,9 +127,19 @@ echo -e "${BLUE}[7/7] Levantando todos los servicios...${NC}"
 docker compose up -d
 echo ""
 
-# Esperar a que todos los servicios estén healthy
+# Esperar a que todos los servicios estén listos
 echo -e "${YELLOW}⏳ Esperando a que todos los servicios estén listos...${NC}"
-sleep 10
+sleep 15
+
+# Verificar servicios críticos
+echo -e "${BLUE}Verificando servicios críticos...${NC}"
+for svc in api scout searxng frontend; do
+    if docker compose ps $svc --format json 2>/dev/null | grep -q '"State":"running"'; then
+        echo -e "${GREEN}  ✅ $svc corriendo${NC}"
+    else
+        echo -e "${RED}  ❌ $svc NO está corriendo${NC}"
+    fi
+done
 
 # Verificar estado final
 echo ""
@@ -133,6 +168,7 @@ echo -e "   • Ver logs:        ${BLUE}docker compose logs -f [servicio]${NC}"
 echo -e "   • Detener:         ${BLUE}docker compose down${NC}"
 echo -e "   • Reiniciar:       ${BLUE}docker compose restart [servicio]${NC}"
 echo -e "   • Shell API:       ${BLUE}docker compose exec api bash${NC}"
+echo -e "   • Reset total:     ${BLUE}./deploy.sh --reset${NC}  (borra DB y todo)"
 echo ""
-echo -e "${GREEN}✅ SIPHON-X Agency Platform está listo para generar ingresos!${NC}"
+echo -e "${GREEN}✅ Orion Agency Platform está listo para generar ingresos!${NC}"
 echo ""

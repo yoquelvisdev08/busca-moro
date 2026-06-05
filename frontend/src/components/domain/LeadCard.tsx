@@ -68,18 +68,18 @@ function LeadCard({ lead, onView, onEdit, onDelete, className }: LeadCardProps) 
           <h3 className="text-sm font-headline font-medium text-text truncate">
             {displayName}
           </h3>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 min-w-0">
             <StatusLED
               variant={statusToLED[lead.status] ?? "neutral"}
               size="sm"
               label={statusText}
               pulse={lead.status === "auditing"}
             />
-            <span className="text-xs text-text-dim truncate">
+            <span className="text-xs text-text-dim truncate inline-block min-w-0">
               {lead.normalized_domain && (
                 <span className="inline-flex items-center gap-1">
-                  <Globe className="size-3" aria-hidden="true" />
-                  {lead.normalized_domain}
+                  <Globe className="size-3 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{lead.normalized_domain}</span>
                 </span>
               )}
             </span>

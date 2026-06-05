@@ -1,11 +1,21 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mail, FileText, Users, Trash2, Send, Inbox } from "lucide-react";
+import {
+  Mail,
+  FileText,
+  Users,
+  Trash2,
+  Send,
+  Inbox,
+  AlertTriangle,
+  MailX,
+} from "lucide-react";
 import { notify } from "@/lib/notify";
+import { api, type BulkSendResponse } from "@/lib/api";
 import { useLeads, useTriggerAuditMutation, useDeleteLeadMutation } from "@/lib/hooks";
 import type { Lead, LeadStatus } from "@/lib/api";
 import { DataTable, type BulkAction, type FilterConfig } from "@/components/tables/DataTable";
-import type { ColumnDef, PaginationState } from "@tanstack/react-table";
+import type { ColumnDef, PaginationState, RowSelectionState } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +41,8 @@ import {
 } from "@/lib/delete-lead-reasons";
 import { StatusLED, type StatusLEDVariant } from "@/components/domain/StatusLED";
 import { Chip, type ChipColor } from "@/components/domain/Chip";
+import { LeadsPipelineTabs } from "@/components/domain/LeadsPipelineTabs";
+import { leadHasEmail, leadPrimaryEmail } from "@/lib/lead-email";
 import { cn } from "@/lib/utils";
 
 const statusToLED: Record<string, StatusLEDVariant> = {
@@ -64,20 +76,122 @@ function formatScore(score: number | null): string {
   return String(Math.round(score));
 }
 
-export function LeadsPage() {
+const STATUS_LABELS: Record<string, string> = {
+  new: "Nuevo",
+  queued: "En cola",
+  auditing: "Auditando",
+  audited: "Auditado",
+  enriched: "Enriquecido",
+  contacted: "Contactado",
+  interested: "Interesado",
+  negotiation: "Negociación",
+  closed_won: "Ganado",
+  closed_lost: "Perdido",
+  replied: "Respondió",
+  won: "Ganado",
+  rejected: "Rechazado",
+  error: "Error",
+};
+
+type MetricTone = "success" | "warning" | "danger" | "neutral";
+
+const metricToneClass: Record<MetricTone, string> = {
+  success: "border-success/30 bg-success/10 text-success",
+  warning: "border-warning/30 bg-warning/10 text-warning",
+  danger: "border-danger/30 bg-danger/10 text-danger",
+  neutral: "border-border/50 bg-surface-high/50 text-text-muted",
+};
+
+function MetricPill({
+  children,
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  tone?: MetricTone;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex min-w-[2.75rem] justify-center rounded-md border px-2 py-0.5 text-xs font-mono tabular-nums",
+        metricToneClass[tone],
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+function CellBadge({
+  children,
+  tone = "neutral",
+  className,
+}: {
+  children: ReactNode;
+  tone?: MetricTone;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium",
+        metricToneClass[tone],
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+export type LeadsPipeline = "new" | "reviewed";
+
+const PIPELINE_COPY: Record<
+  LeadsPipeline,
+  { title: string; subtitle: string; searchPlaceholder: string }
+> = {
+  new: {
+    title: "Leads nuevos",
+    subtitle: "Aún no has enviado mensaje a estos leads",
+    searchPlaceholder: "Buscar dominios sin contactar...",
+  },
+  reviewed: {
+    title: "Leads revisados",
+    subtitle: "Ya recibieron al menos un mensaje tuyo",
+    searchPlaceholder: "Buscar en leads contactados...",
+  },
+};
+
+export function LeadsPage({ pipeline = "new" }: { pipeline?: LeadsPipeline }) {
   const navigate = useNavigate();
+  const copy = PIPELINE_COPY[pipeline];
   const [searchValue, setSearchValue] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [segmentFilter, setSegmentFilter] = useState<string>("");
+  const [emailFilter, setEmailFilter] = useState<string>("");
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 25,
   });
 
+  useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [pipeline, statusFilter, segmentFilter, emailFilter]);
+
+  useEffect(() => {
+    setRowSelection({});
+  }, [pipeline, pagination.pageIndex, pagination.pageSize]);
+
   const { data, isLoading, error } = useLeads({
+    pipeline,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     ...(statusFilter ? { status: statusFilter as LeadStatus } : {}),
+    ...(emailFilter === "yes"
+      ? { has_email: true }
+      : emailFilter === "no"
+        ? { has_email: false }
+        : {}),
   });
 
   const triggerAudit = useTriggerAuditMutation();
@@ -90,6 +204,10 @@ export function LeadsPage() {
   const leads = data?.items ?? [];
   const total = data?.total ?? 0;
   const pageCount = Math.ceil(total / pagination.pageSize);
+
+  useEffect(() => {
+    setRowSelection({});
+  }, [total, leads.length]);
 
   const openDeleteDialog = (target: Lead | Lead[]) => {
     setDeleteTarget(target);
@@ -136,6 +254,7 @@ export function LeadsPage() {
     setDeleteTarget(null);
     setDeleteReason("");
     setDeleteDetail("");
+    setRowSelection({});
   };
 
   const deleteDialogLabel = (() => {
@@ -148,7 +267,7 @@ export function LeadsPage() {
 
   const bulkActions: BulkAction<Lead>[] = [
     {
-      label: "Trigger Audit",
+      label: "Auditar",
       icon: <FileText className="size-3" />,
       action: (rows) => {
         const ids = rows.map((r) => r.id);
@@ -163,10 +282,41 @@ export function LeadsPage() {
       },
       variant: "default",
     },
+    ...(pipeline === "new"
+      ? [
+          {
+            label: "Generar reporte y enviar",
+            icon: <Send className="size-3" />,
+            action: (rows: Lead[]) => {
+              const ids = rows.map((r) => r.id);
+              if (
+                !window.confirm(
+                  `¿Generar y enviar reporte a ${ids.length} lead(s)?`,
+                )
+              )
+                return;
+
+              notify.promise(
+                api.bulkReportSend(ids),
+                {
+                  loading: `Generando y enviando reportes a ${ids.length} leads...`,
+                  success: ((res: BulkSendResponse) =>
+                    `${res.sent} enviados, ${res.skipped.length} omitidos, ${res.failed.length} fallidos`) as unknown as string,
+                  error: "Error al enviar reportes",
+                },
+              );
+            },
+            variant: "default" as const,
+          } satisfies BulkAction<Lead>,
+        ]
+      : []),
     {
-      label: "Eliminar",
+      label: "Eliminar seleccionados",
       icon: <Trash2 className="size-3" />,
-      action: (rows) => openDeleteDialog(rows),
+      action: (rows) => {
+        if (rows.length === 0) return;
+        openDeleteDialog(rows);
+      },
       variant: "destructive",
     },
   ];
@@ -174,33 +324,43 @@ export function LeadsPage() {
   const filterConfigs: FilterConfig[] = [
     {
       id: "status",
-      label: "Status",
+      label: "Estado",
       type: "select",
-      value: statusFilter,
+      value: statusFilter || "all",
       onChange: (v) => setStatusFilter(v === "all" ? "" : v),
       options: [
-        { value: "all", label: "All Statuses" },
-        { value: "new", label: "New" },
-        { value: "queued", label: "Queued" },
-        { value: "auditing", label: "Auditing" },
-        { value: "audited", label: "Audited" },
-        { value: "contacted", label: "Contacted" },
-        { value: "replied", label: "Replied" },
+        { value: "new", label: "Nuevo" },
+        { value: "queued", label: "En cola" },
+        { value: "auditing", label: "Auditando" },
+        { value: "audited", label: "Auditado" },
+        { value: "contacted", label: "Contactado" },
+        { value: "replied", label: "Respondió" },
         { value: "error", label: "Error" },
       ],
     },
     {
       id: "segment",
-      label: "Segment",
+      label: "Segmento",
       type: "select",
-      value: segmentFilter,
+      value: segmentFilter || "all",
       onChange: (v) => setSegmentFilter(v === "all" ? "" : v),
       options: [
-        { value: "all", label: "All Segments" },
-        { value: "A", label: "Segment A" },
-        { value: "B", label: "Segment B" },
-        { value: "C", label: "Segment C" },
-        { value: "D", label: "Segment D" },
+        { value: "A", label: "Segmento A" },
+        { value: "B", label: "Segmento B" },
+        { value: "C", label: "Segmento C" },
+        { value: "D", label: "Segmento D" },
+      ],
+    },
+    {
+      id: "email_filter",
+      label: "Email",
+      type: "select",
+      value: emailFilter || "all",
+      onChange: (v) => setEmailFilter(v === "all" ? "" : v),
+      options: [
+        { value: "all", label: "Todos" },
+        { value: "yes", label: "Con email" },
+        { value: "no", label: "Sin email" },
       ],
     },
   ];
@@ -209,21 +369,21 @@ export function LeadsPage() {
     () => [
       {
         id: "domain",
-        header: "Domain",
+        header: "Dominio",
         accessorFn: (row) => row.normalized_domain,
         cell: ({ row }) => {
           const lead = row.original;
           return (
             <button
               type="button"
-              className="text-left cursor-pointer hover:text-primary transition-colors"
+              className="group/domain max-w-[220px] overflow-hidden text-left cursor-pointer rounded-md px-1 py-0.5 -mx-1 transition-colors hover:bg-surface-high/60"
               onClick={() => navigate(`/leads/${lead.id}`)}
             >
-              <span className="text-sm font-mono text-primary font-medium">
+              <span className="truncate block text-sm font-mono font-medium text-text-secondary group-hover/domain:text-primary">
                 {lead.normalized_domain}
               </span>
               {lead.company_name && (
-                <span className="block text-[11px] text-text-muted">
+                <span className="mt-0.5 block truncate text-[11px] text-text-muted">
                   {lead.company_name}
                 </span>
               )}
@@ -232,8 +392,44 @@ export function LeadsPage() {
         },
       },
       {
+        id: "email",
+        header: "Correo",
+        accessorFn: (row) => (leadHasEmail(row) ? "yes" : "no"),
+        cell: ({ row }) => {
+          const lead = row.original;
+          const has = lead.has_email ?? leadHasEmail(lead);
+          const primary = leadPrimaryEmail(lead);
+          if (!has) {
+            return (
+              <CellBadge tone="danger">
+                <MailX className="size-3 shrink-0" aria-hidden />
+                Sin email
+              </CellBadge>
+            );
+          }
+          return (
+            <span
+              className="block max-w-[200px] truncate"
+              title={primary ?? undefined}
+            >
+              <span className="inline-flex flex-col gap-0.5">
+                <CellBadge tone="success" className="w-fit">
+                  <Mail className="size-3 shrink-0" aria-hidden />
+                  Con email
+                </CellBadge>
+                {primary && (
+                  <span className="truncate block pl-0.5 font-mono text-[10px] text-text-muted">
+                    {primary}
+                  </span>
+                )}
+              </span>
+            </span>
+          );
+        },
+      },
+      {
         id: "segment",
-        header: "Segment",
+        header: "Seg.",
         accessorFn: (row) => row.segment ?? "",
         filterFn: (row, id, filterValue: string) => {
           if (!filterValue) return true;
@@ -245,7 +441,8 @@ export function LeadsPage() {
           return (
             <Chip
               color={segmentToChipColor[seg] ?? "primary"}
-              variant="default"
+              variant="solid"
+              className="min-w-[1.75rem] justify-center font-semibold"
             >
               {seg}
             </Chip>
@@ -254,7 +451,7 @@ export function LeadsPage() {
       },
       {
         id: "status",
-        header: "Status",
+        header: "Estado",
         accessorFn: (row) => row.status,
         cell: ({ getValue }) => {
           const status = getValue() as string;
@@ -262,10 +459,40 @@ export function LeadsPage() {
             <StatusLED
               variant={statusToLED[status] ?? "neutral"}
               size="sm"
-              label={status.replace(/_/g, " ")}
+              label={STATUS_LABELS[status] ?? status.replace(/_/g, " ")}
               pulse={status === "auditing"}
             />
           );
+        },
+      },
+      {
+        id: "cierre",
+        header: "Cierre",
+        accessorFn: (row) => (row.needs_next_step ? "pending" : row.next_step_type ?? ""),
+        cell: ({ row }) => {
+          const lead = row.original;
+          if (lead.needs_next_step) {
+            return (
+              <CellBadge tone="warning">
+                <AlertTriangle className="size-3 shrink-0" aria-hidden />
+                Sin paso
+              </CellBadge>
+            );
+          }
+          if (lead.next_step_type === "call") {
+            return <CellBadge tone="success">Llamada</CellBadge>;
+          }
+          if (lead.next_step_type === "proposal") {
+            return (
+              <CellBadge tone="neutral" className="border-primary/30 bg-primary-soft text-primary">
+                Propuesta
+              </CellBadge>
+            );
+          }
+          if (lead.next_step_type === "discard") {
+            return <CellBadge tone="neutral">Descartado</CellBadge>;
+          }
+          return <span className="text-xs text-text-dim">—</span>;
         },
       },
       {
@@ -279,26 +506,26 @@ export function LeadsPage() {
           const replied = o?.has_reply_received ?? false;
           if (!sent) {
             return (
-              <span className="inline-flex items-center gap-1 text-[11px] text-text-muted">
-                <Mail className="size-3 opacity-60" aria-hidden />
+              <CellBadge tone="neutral">
+                <Mail className="size-3 opacity-70" aria-hidden />
                 Sin enviar
-              </span>
+              </CellBadge>
             );
           }
           return (
-            <div className="flex flex-col gap-0.5">
-              <span className="inline-flex items-center gap-1 text-[11px] text-primary font-medium">
-                <Send className="size-3" aria-hidden />
+            <div className="flex flex-col gap-1">
+              <CellBadge tone="neutral" className="border-primary/30 bg-primary-soft text-primary">
+                <Send className="size-3 shrink-0" aria-hidden />
                 Enviado
                 {o && o.messages_sent_count > 1
-                  ? ` (${o.messages_sent_count})`
+                  ? ` · ${o.messages_sent_count}`
                   : ""}
-              </span>
+              </CellBadge>
               {replied && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-success">
-                  <Inbox className="size-3" aria-hidden />
+                <CellBadge tone="success" className="w-fit py-0.5 text-[10px]">
+                  <Inbox className="size-3 shrink-0" aria-hidden />
                   Respondió
-                </span>
+                </CellBadge>
               )}
             </div>
           );
@@ -310,51 +537,35 @@ export function LeadsPage() {
         accessorFn: (row) => row.score,
         cell: ({ getValue }) => {
           const score = getValue() as number | null;
-          return (
-            <span className="text-xs font-mono tabular-nums text-text">
-              {formatScore(score)}
-            </span>
-          );
+          const label = formatScore(score);
+          if (label === "—") {
+            return <span className="text-xs text-text-dim">—</span>;
+          }
+          return <MetricPill tone="neutral">{label}</MetricPill>;
         },
       },
       {
         id: "lighthouse_score",
-        header: "Lighthouse",
+        header: "LH",
         accessorFn: (row) => row.lighthouse_score ?? 0,
         cell: ({ getValue }) => {
           const score = getValue() as number;
-          const scoreClass =
-            score >= 90
-              ? "text-success"
-              : score >= 50
-                ? "text-warning"
-                : "text-danger";
-          return (
-            <span className={cn("text-xs font-mono tabular-nums", scoreClass)}>
-              {score || "—"}
-            </span>
-          );
+          if (!score) return <span className="text-xs text-text-dim">—</span>;
+          const tone: MetricTone =
+            score >= 90 ? "success" : score >= 50 ? "warning" : "danger";
+          return <MetricPill tone={tone}>{score}</MetricPill>;
         },
       },
       {
         id: "load_time_ms",
-        header: "Load Time",
+        header: "Carga",
         accessorFn: (row) => row.load_time_ms ?? 0,
         cell: ({ getValue }) => {
           const ms = getValue() as number;
-          const timeClass =
-            ms === 0
-              ? "text-text-dim"
-              : ms < 2000
-                ? "text-success"
-                : ms < 4000
-                  ? "text-warning"
-                  : "text-danger";
-          return (
-            <span className={cn("text-xs font-mono tabular-nums", timeClass)}>
-              {ms ? `${ms}ms` : "—"}
-            </span>
-          );
+          if (!ms) return <span className="text-xs text-text-dim">—</span>;
+          const tone: MetricTone =
+            ms < 2000 ? "success" : ms < 4000 ? "warning" : "danger";
+          return <MetricPill tone={tone}>{ms}ms</MetricPill>;
         },
       },
       {
@@ -363,11 +574,11 @@ export function LeadsPage() {
         cell: ({ row }) => {
           const lead = row.original;
           return (
-            <div className="flex items-center gap-1 justify-end">
+            <div className="flex items-center justify-end gap-0.5 opacity-80 transition-opacity group-hover:opacity-100">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="size-8 text-text-muted hover:bg-primary-soft hover:text-primary"
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/leads/${lead.id}`);
@@ -379,7 +590,7 @@ export function LeadsPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-danger hover:text-danger hover:bg-danger/10"
+                className="size-8 text-text-muted hover:bg-danger/15 hover:text-danger"
                 onClick={(e) => {
                   e.stopPropagation();
                   openDeleteDialog(lead);
@@ -397,41 +608,57 @@ export function LeadsPage() {
   );
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-headline font-semibold text-text">
-            Leads
-          </h1>
-          <p className="text-sm text-text-muted mt-1">
-            {total.toLocaleString()} total leads
-          </p>
+    <div className="flex flex-col gap-5 p-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-headline text-2xl font-semibold tracking-tight text-text">
+              {copy.title}
+            </h1>
+            <p className="mt-1.5 max-w-xl text-sm text-text-muted">
+              {copy.subtitle}
+            </p>
+          </div>
+          {!isLoading && (
+            <div className="flex items-center gap-2 rounded-full border border-border/80 bg-surface-high/80 px-3.5 py-1.5 text-xs font-medium text-text-secondary tabular-nums">
+              <Users className="size-3.5 shrink-0 opacity-80" aria-hidden />
+              {total.toLocaleString()} en esta lista
+            </div>
+          )}
         </div>
+        <LeadsPipelineTabs />
       </div>
 
-      <DataTable<Lead>
-        data={leads}
-        columns={columns}
-        loading={isLoading}
-        pageCount={pageCount}
-        pagination={pagination}
-        onPaginationChange={setPagination}
-        search={{
-          value: searchValue,
-          onChange: setSearchValue,
-          placeholder: "Search domains...",
-        }}
-        filters={filterConfigs}
-        bulkActions={bulkActions}
-        density="compact"
-        getRowId={(row) => row.id}
-      />
+      <section className="rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
+        <DataTable<Lead>
+          data={leads}
+          columns={columns}
+          loading={isLoading}
+          pageCount={pageCount}
+          pagination={pagination}
+          onPaginationChange={setPagination}
+          search={{
+            value: searchValue,
+            onChange: setSearchValue,
+            placeholder: copy.searchPlaceholder,
+          }}
+          filters={filterConfigs}
+          bulkActions={bulkActions}
+          rowSelection={rowSelection}
+          onRowSelectionChange={setRowSelection}
+          density="normal"
+          getRowId={(row) => row.id}
+        />
+      </section>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Eliminar lead</DialogTitle>
+            <DialogTitle>
+              {Array.isArray(deleteTarget) && deleteTarget.length > 1
+                ? `Eliminar ${deleteTarget.length} leads`
+                : "Eliminar lead"}
+            </DialogTitle>
             <DialogDescription>
               {Array.isArray(deleteTarget) && deleteTarget.length > 1 ? (
                 <>
@@ -531,17 +758,25 @@ export function LeadsPage() {
           <Users className="size-12 text-text-dim" aria-hidden="true" />
           <div>
             <h3 className="text-base font-headline font-medium text-text">
-              No leads found
+              {pipeline === "reviewed"
+                ? "No hay leads revisados"
+                : "No hay leads nuevos"}
             </h3>
             <p className="text-sm text-text-muted mt-1">
-              {searchValue || statusFilter || segmentFilter
-                ? "Try adjusting your filters"
-                : "Start by discovering new leads from the Discover page"}
+              {searchValue || statusFilter || segmentFilter || emailFilter
+                ? "Prueba ajustando los filtros"
+                : pipeline === "reviewed"
+                  ? "Cuando envíes un mensaje, el lead aparecerá aquí"
+                  : "Descubre leads en Discover o revisa la pestaña de revisados"}
             </p>
           </div>
-          {!searchValue && !statusFilter && !segmentFilter && (
+          {!searchValue &&
+            !statusFilter &&
+            !segmentFilter &&
+            !emailFilter &&
+            pipeline === "new" && (
             <Button onClick={() => navigate("/discover")}>
-              Discover Leads
+              Ir a Discover
             </Button>
           )}
         </div>

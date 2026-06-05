@@ -21,14 +21,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.redis_client import get_redis
 from app.models.follow_up import FollowUpSequence, FollowUpStatus
+from app.schemas.outreach import OutreachCreate
 from app.services.email_service import EmailConfig, EmailService
+from app.services.outreach_service import OutreachService
 
 logger = logging.getLogger(__name__)
 
 # Redis key for the follow-up sorted set
-_FOLLOW_UP_QUEUE_KEY = "siphon:queue:follow-up"
+_FOLLOW_UP_QUEUE_KEY = "orion:queue:follow-up"
 # Redis lock key to prevent concurrent pollers
-_FOLLOW_UP_LOCK_KEY = "siphon:follow-up:lock"
+_FOLLOW_UP_LOCK_KEY = "orion:follow-up:lock"
 # Maximum retry attempts
 _MAX_RETRIES = 3
 
@@ -60,6 +62,14 @@ class FollowUpService:
 
         Returns the list of created FollowUpSequence records.
         """
+        from app.services.lead_closure import lead_blocks_follow_ups
+
+        blocked, reason = await lead_blocks_follow_ups(self._session, lead_id)
+        if blocked:
+            raise ValueError(
+                reason or "No se pueden programar follow-ups: el lead ya respondió"
+            )
+
         now = datetime.now(timezone.utc)
         created: list[FollowUpSequence] = []
 
@@ -150,19 +160,18 @@ class FollowUpService:
         if fu.status != FollowUpStatus.pending:
             return {"follow_up_id": str(fu_id), "status": "skipped", "error": f"Status is {fu.status.value}"}
 
-        # Check if the lead has replied or unsubscribed
-        from app.models.outreach import OutreachMessage
-        result = await self._session.execute(
-            select(OutreachMessage)
-            .where(OutreachMessage.lead_id == fu.lead_id)
-            .where(OutreachMessage.replied == True)  # noqa: E712
-            .limit(1)
-        )
-        if result.scalar_one_or_none() is not None:
-            # Lead replied — cancel this sequence
+        from app.services.lead_closure import lead_blocks_follow_ups
+
+        blocked, reason = await lead_blocks_follow_ups(self._session, fu.lead_id)
+        if blocked:
             fu.status = FollowUpStatus.cancelled
             await self._session.commit()
-            return {"follow_up_id": str(fu_id), "status": "cancelled", "error": "Lead replied"}
+            await self.cancel_sequence(fu.lead_id)
+            return {
+                "follow_up_id": str(fu_id),
+                "status": "cancelled",
+                "error": reason or "Follow-ups detenidos",
+            }
 
         # Retrieve lead email
         from app.models.lead import Lead
@@ -201,6 +210,25 @@ class FollowUpService:
             fu.status = FollowUpStatus.sent
             fu.sent_at = datetime.now(timezone.utc)
             await self._session.commit()
+
+            # Log the follow-up as an outreach message
+            outreach_service = OutreachService(self._session)
+            msg_create = OutreachCreate(
+                lead_id=str(fu.lead_id),
+                channel="email",
+                direction="outbound",
+                recipient=lead.email,
+                subject=fu.subject,
+                body=fu.body,
+                provider_message_id=result.message_id,
+            )
+            await outreach_service.create(
+                msg_create,
+                has_attachment=(attachments is not None),
+                report_id=None,
+                mark_sent=True,
+            )
+
             logger.info(
                 "follow_up_sent",
                 extra={"follow_up_id": str(fu_id), "step": fu.step_number},

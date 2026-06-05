@@ -1,13 +1,13 @@
-# SIPHON-X :: Inteligencia de Negocios
+# Orion :: Inteligencia de Negocios
 ## Monetizacion, Automatizacion Comercial y Estrategia de Escalado
 
 ---
 
 ## Vision Ejecutiva
 
-SIPHON-X no es una herramienta de scraping. Es una **maquina de adquisicion de clientes B2B automatizada**. El activo mas valioso no es el codigo: es el **pipeline de datos** que convierte URLs anonimas en prospectos calificados con inteligencia de ventas lista para ejecutar.
+Orion no es una herramienta de scraping. Es una **maquina de adquisicion de clientes B2B automatizada**. El activo mas valioso no es el codigo: es el **pipeline de datos** que convierte URLs anonimas en prospectos calificados con inteligencia de ventas lista para ejecutar.
 
-Este documento describe como transformar SIPHON-X de proyecto interno en **producto rentable**, ya sea como agencia propia, SaaS, o licencia white-label.
+Este documento describe como transformar Orion de proyecto interno en **producto rentable**, ya sea como agencia propia, SaaS, o licencia white-label.
 
 ---
 
@@ -15,7 +15,7 @@ Este documento describe como transformar SIPHON-X de proyecto interno en **produ
 
 ### 1.1. Modelo A: Agencia Propia (El Camino Rapido al Cashflow)
 
-**Que es:** Vos usas SIPHON-X para capturar leads y los vendes como servicio de redisenio/desarrollo web.
+**Que es:** Vos usas Orion para capturar leads y los vendes como servicio de redisenio/desarrollo web.
 
 **Ventaja:** Cashflow inmediato. No necesitas vender el software.
 
@@ -31,7 +31,7 @@ Este documento describe como transformar SIPHON-X de proyecto interno en **produ
 
 **Matematica de la Agencia:**
 
-Si SIPHON-X descubre **100 leads/semana** y el scoring dual califica a **20 como viables** (score >= 40), y logras contactar a **10**, y cierras **2**:
+Si Orion descubre **100 leads/semana** y el scoring dual califica a **20 como viables** (score >= 40), y logras contactar a **10**, y cierras **2**:
 
 - 2 contratos x $2,500 promedio = **$5,000/semana**
 - = **$20,000/mes** en nuevos proyectos
@@ -45,7 +45,7 @@ Si SIPHON-X descubre **100 leads/semana** y el scoring dual califica a **20 como
 
 ### 1.2. Modelo B: SaaS para Otras Agencias (El Camino al Multiplicador)
 
-**Que es:** Vendes acceso a SIPHON-X como plataforma SaaS a otras agencias de desarrollo web/digital marketing.
+**Que es:** Vendes acceso a Orion como plataforma SaaS a otras agencias de desarrollo web/digital marketing.
 
 **Ventaja:** Escalable. Un cliente paga lo mismo si genera 10 o 1,000 leads.
 
@@ -75,7 +75,7 @@ Si SIPHON-X descubre **100 leads/semana** y el scoring dual califica a **20 como
 **Que es:** No vendes software. Vendes **leads calificados** a otras agencias.
 
 **Estructura:**
-- Vos capturas y enriqueces leads con SIPHON-X.
+- Vos capturas y enriqueces leads con Orion.
 - Vendes packs de leads listos para contactar.
 
 **Pricing:**
@@ -94,7 +94,7 @@ Si SIPHON-X descubre **100 leads/semana** y el scoring dual califica a **20 como
 
 ### 1.4. Modelo D: Revenue Share con Agencias (Hibrido)
 
-**Que es:** SIPHON-X es gratis. Vos capturas leads y los compartis con agencias aliadas. Cobras un % del proyecto cerrado.
+**Que es:** Orion es gratis. Vos capturas leads y los compartis con agencias aliadas. Cobras un % del proyecto cerrado.
 
 **Estructura:**
 - Agencia se registra gratis.
@@ -113,7 +113,7 @@ Si SIPHON-X descubre **100 leads/semana** y el scoring dual califica a **20 como
 
 ## 2. AUTOMATIZACION DEL FLUJO COMERCIAL COMPLETO
 
-### 2.1. El Problema: Hoy SIPHON-X es un Pipeline de Datos, no un Pipeline de Ventas
+### 2.1. El Problema: Hoy Orion es un Pipeline de Datos, no un Pipeline de Ventas
 
 El flujo actual termina en "generar un cold email". Pero una venta real necesita:
 1. Contacto inicial (email/LinkedIn/telefono)
@@ -124,7 +124,7 @@ El flujo actual termina en "generar un cold email". Pero una venta real necesita
 6. Cierre
 7. Onboarding
 
-**SIPHON-X deberia automatizar todo eso.**
+**Orion deberia automatizar todo eso.**
 
 ### 2.2. Arquitectura de Automatizacion Comercial
 
@@ -253,13 +253,13 @@ Un **growth loop** es circular: cada cliente genera mas clientes.
 
 **Loop 1: El Sello de Calidad (Case Studies)**
 ```
-Lead cierra con SIPHON-X → Proyecto exitoso → Case study publicado
+Lead cierra con Orion → Proyecto exitoso → Case study publicado
     → Case study atrae a nuevos leads → Mas proyectos exitosos → Mas case studies
 ```
 
 **Implementacion:**
 - Cada proyecto cerrado pide testimonio al cliente (automatizado, email post-entrega).
-- Los case studies se publican en el sitio de SIPHON-X (si es SaaS) o en el portfolio de la agencia.
+- Los case studies se publican en el sitio de Orion (si es SaaS) o en el portfolio de la agencia.
 - El Closer puede mencionar casos de estudio relevantes en sus emails.
 
 **Loop 2: El Referral Automatizado**
@@ -275,7 +275,7 @@ Cliente satisfecho → Email automatico a los 30 dias pidiendo referral
 
 **Loop 3: El Contenido Generado por Datos**
 ```
-SIPHON-X escanea miles de sitios → Genera reportes de industria (ej: "Estado del e-commerce en Argentina 2024")
+Orion escanea miles de sitios → Genera reportes de industria (ej: "Estado del e-commerce en Argentina 2024")
     → Reporte atrae trafico organico → Nuevos usuarios/leads → Mas datos → Mejores reportes
 ```
 
@@ -284,15 +284,15 @@ SIPHON-X escanea miles de sitios → Genera reportes de industria (ej: "Estado d
 - Publicar en blog/LinkedIn/Reddit.
 - Gatear el reporte completo (lead magnet: dejan email para descargar).
 
-### 3.2. Canales de Adquisicion de Clientes para SIPHON-X (como SaaS)
+### 3.2. Canales de Adquisicion de Clientes para Orion (como SaaS)
 
-Si vendes SIPHON-X como SaaS a otras agencias, estos son los canales:
+Si vendes Orion como SaaS a otras agencias, estos son los canales:
 
 | Canal | Tactica | Costo | Tiempo a Resultado |
 |-------|---------|-------|-------------------|
-| **SEO/Content** | Blog sobre prospeccion B2B, case studies de agencias que usaron SIPHON-X | Bajo | 3-6 meses |
+| **SEO/Content** | Blog sobre prospeccion B2B, case studies de agencias que usaron Orion | Bajo | 3-6 meses |
 | **Product Hunt** | Lanzamiento con video demo + oferta especial para early adopters | Bajo | Inmediato (spike) |
-| **LinkedIn Outreach** | Usar SIPHON-X para encontrar agencias con sitios malos y contactarlas ("practica lo que predicas") | Bajo | 2-4 semanas |
+| **LinkedIn Outreach** | Usar Orion para encontrar agencias con sitios malos y contactarlas ("practica lo que predicas") | Bajo | 2-4 semanas |
 | **Partnerships** | Integracion con herramientas que usan agencias (Webflow, Framer, Figma plugins) | Medio | 2-3 meses |
 | **Cold Email a Agencias** | Lista de 1,000 agencias, email personalizado con screenshot de sus propios problemas | Bajo | 1-2 meses |
 | **YouTube/TikTok** | Screen recordings de "como encontramos $50,000 en proyectos en 1 semana" | Bajo | 3-6 meses |
@@ -307,12 +307,12 @@ Si vendes SIPHON-X como SaaS a otras agencias, estos son los canales:
 
 ### 3.3. El "Dogfooding" como Estrategia Principal
 
-**La mejor demo de SIPHON-X es usarlo para vender SIPHON-X.**
+**La mejor demo de Orion es usarlo para vender Orion.**
 
 **Como:**
-- Ejecuta SIPHON-X contra 500 agencias de desarrollo web en tu pais/region.
+- Ejecuta Orion contra 500 agencias de desarrollo web en tu pais/region.
 - Detecta cuales tienen sitios lentos, sin SSL, mal en mobile.
-- El Closer genera un email que dice: "Encontramos que tu propia agencia tiene un Lighthouse score de 38. Te mostramos como lo arreglamos en 48h... y eso es solo una fraccion de lo que SIPHON-X hace para tus clientes."
+- El Closer genera un email que dice: "Encontramos que tu propia agencia tiene un Lighthouse score de 38. Te mostramos como lo arreglamos en 48h... y eso es solo una fraccion de lo que Orion hace para tus clientes."
 - Adjuntas el screenshot de su propio sitio.
 
 **Resultado:** La agencia entiende inmediatamente el valor porque **siente el dolor en su propia piel**.
@@ -323,22 +323,22 @@ Si vendes SIPHON-X como SaaS a otras agencias, estos son los canales:
 
 ### 5.1. Competidores Directos e Indirectos
 
-| Competidor | Tipo | Precio | Debilidad de SIPHON-X | Oportunidad |
+| Competidor | Tipo | Precio | Debilidad de Orion | Oportunidad |
 |------------|------|--------|----------------------|-------------|
-| **Apollo.io** | LG + Outreach | $59-149/mes | Apollo no audita sitios web ni genera inteligencia tecnica | SIPHON-X es "Apollo para agencias web" |
-| **Hunter.io + Neverbounce** | Email finder | $49-349/mes | Solo encuentra emails, no enriquece con datos tecnicos | SIPHON-X encuentra + audita + pitch |
-| **SEMrush/Ahrefs** | SEO/Competencia | $119-449/mes | No genera leads de prospeccion directa | SIPHON-X usa SEMrush datos + accion directa |
-| **BuiltWith** | Tech stack | $295-995/mes | Solo muestra datos, no automatiza outreach | SIPHON-X automatiza todo el pipeline |
-| **Dux-Soup/Phantombuster** | LinkedIn automation | $15-55/mes | No tiene auditoria web ni scoring de calidad | SIPHON-X es mas completo |
-| **Agencias de lead gen tradicionales** | Servicio manual | $2,000-5,000/mes | Caro, lento, no escalable | SIPHON-X es 10x mas barato y rapido |
+| **Apollo.io** | LG + Outreach | $59-149/mes | Apollo no audita sitios web ni genera inteligencia tecnica | Orion es "Apollo para agencias web" |
+| **Hunter.io + Neverbounce** | Email finder | $49-349/mes | Solo encuentra emails, no enriquece con datos tecnicos | Orion encuentra + audita + pitch |
+| **SEMrush/Ahrefs** | SEO/Competencia | $119-449/mes | No genera leads de prospeccion directa | Orion usa SEMrush datos + accion directa |
+| **BuiltWith** | Tech stack | $295-995/mes | Solo muestra datos, no automatiza outreach | Orion automatiza todo el pipeline |
+| **Dux-Soup/Phantombuster** | LinkedIn automation | $15-55/mes | No tiene auditoria web ni scoring de calidad | Orion es mas completo |
+| **Agencias de lead gen tradicionales** | Servicio manual | $2,000-5,000/mes | Caro, lento, no escalable | Orion es 10x mas barato y rapido |
 
 ### 5.2. Propuesta de Valor Unica (UVP)
 
 **Para agencias web:**
-> "SIPHON-X no te da una lista de sitios rotos. Te da clientes listos para contratar, con un cold email personalizado que ya explica por que necesitan tu servicio y cuanto les cuesta no hacerlo."
+> "Orion no te da una lista de sitios rotos. Te da clientes listos para contratar, con un cold email personalizado que ya explica por que necesitan tu servicio y cuanto les cuesta no hacerlo."
 
 **Para freelancers:**
-> "Descubre a tus proximos 10 clientes mientras dormis. SIPHON-X escanea la web, audita sitios deficientes, genera el pitch de ventas y te deja solo con cerrar el trato."
+> "Descubre a tus proximos 10 clientes mientras dormis. Orion escanea la web, audita sitios deficientes, genera el pitch de ventas y te deja solo con cerrar el trato."
 
 **Para SaaS:**
 > "La unica plataforma que convierte una URL en un prospecto calificado con inteligencia de ventas lista para ejecutar. Todo automatizado."
@@ -379,7 +379,7 @@ Si descubris 1,000 leads/mes a $50 RPLD = **$50,000/mes**.
 
 ```
 +----------------------------------------------------------+
-|  SIPHON-X BUSINESS DASHBOARD                           |
+|  Orion BUSINESS DASHBOARD                           |
 |                                                          |
 |  INGRESOS HOY: $X,XXX    INGRESOS ESTE MES: $XX,XXX    |
 |  MRR (SaaS): $X,XXX    NUEVOS PROYECTOS: XX            |
@@ -476,7 +476,7 @@ Si descubris 1,000 leads/mes a $50 RPLD = **$50,000/mes**.
 
 ## 9. LA MENTALIDAD CORRECTA
 
-> **SIPHON-X no es un proyecto de codigo. Es un activo de adquisicion de clientes.**
+> **Orion no es un proyecto de codigo. Es un activo de adquisicion de clientes.**
 
 Cada hora invertida en mejorar el algoritmo de scoring, en automatizar un follow-up, o en hacer que el Closer genere mejores emails, tiene un **ROI medible en dolares**.
 
@@ -492,9 +492,9 @@ Cada hora invertida en mejorar el algoritmo de scoring, en automatizar un follow
 
 **Mide cada etapa. Mejora el bottleneck. Repite.**
 
-Eso es inteligencia de negocios aplicada a SIPHON-X.
+Eso es inteligencia de negocios aplicada a Orion.
 
 ---
 
-*Documento generado para SIPHON-X el 2026-05-16.*
+*Documento generado para Orion el 2026-05-16.*
 *Enfoque: monetizacion, automatizacion comercial, estrategia de crecimiento y escalado.*

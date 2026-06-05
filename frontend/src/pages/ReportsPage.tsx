@@ -74,7 +74,7 @@ export function ReportsPage() {
         cell: ({ row }) => {
           const report = row.original;
           return (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-w-[240px]">
                 <FileText className="size-4 text-primary opacity-60 shrink-0" aria-hidden="true" />
               <div className="min-w-0">
                 <div className="text-sm font-medium text-text truncate">

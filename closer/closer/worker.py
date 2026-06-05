@@ -124,7 +124,19 @@ class CloserWorker:
                 audit = {}
 
             # Fetch active sender profile
-            sender_profile = await self._api.get_sender_profile()
+            try:
+                sender_profile = await self._api.get_sender_profile()
+            except Exception as e:
+                log.warning(f"sender_profile_fetch_failed: {e}, using defaults")
+                sender_profile = {
+                    "name": "Yoquelvis",
+                    "website": "yoquelvis.dev",
+                    "title": "Desarrollador Web Full-Stack",
+                    "bio": "",
+                    "services": [],
+                    "tech_stack": [],
+                    "email_signature": "",
+                }
 
             intel = await self._engine.generate(
                 lead=lead, audit=audit, sender_profile=sender_profile

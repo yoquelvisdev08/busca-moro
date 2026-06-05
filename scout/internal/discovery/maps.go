@@ -55,7 +55,7 @@ func (m *MapsScraper) SearchBusinesses(ctx context.Context, query string, limit 
 				continue
 			}
 			host := strings.ToLower(u.Host)
-			if host == "" || strings.Contains(host, "google.") || strings.Contains(host, "bing.") {
+			if host == "" || host == "google.com" || strings.HasSuffix(host, ".google.com") || host == "bing.com" || strings.HasSuffix(host, ".bing.com") {
 				continue
 			}
 			if _, dup := seen[host]; dup {

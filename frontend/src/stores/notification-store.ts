@@ -70,7 +70,7 @@ export const useNotificationStore = create<NotificationState>()(
       unreadCount: () => get().items.filter((n) => !n.read).length,
     }),
     {
-      name: "siphon-notifications",
+      name: "orion-notifications",
       partialize: (state) => ({ items: state.items }),
     },
   ),

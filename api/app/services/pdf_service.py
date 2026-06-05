@@ -299,8 +299,8 @@ class PDFService:
     def _build_report_identity(sender) -> tuple[dict[str, Any], dict[str, Any]]:
         """Perfil humano del consultor (tú) + marca en pie de página."""
 
-        agency_name = os.environ.get("AGENCY_NAME", "SIPHON-X")
-        agency_site = os.environ.get("AGENCY_WEBSITE", "https://siphonx.dev")
+        agency_name = os.environ.get("AGENCY_NAME", "Orion")
+        agency_site = os.environ.get("AGENCY_WEBSITE", "https://orion.dev")
         owner_name = os.environ.get("AGENCY_OWNER_NAME", "Tu consultor")
 
         if sender is not None:

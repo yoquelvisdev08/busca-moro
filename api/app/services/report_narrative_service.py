@@ -17,7 +17,7 @@ Reglas:
 - Analiza el dominio y las métricas: infiere qué tipo de negocio parece ser el sitio.
 - Si el dominio es de marca global o subdominio regional (ej. pt.venngage.com),
   habla del sitio concreto auditado, no inventes que es un negocio local pequeño.
-- NO menciones herramientas internas (SIPHON-X, Redis, Docker).
+- NO menciones herramientas internas (Orion, Redis, Docker).
 - NO pongas precios ni paquetes cerrados.
 - NO uses frases vacías sin datos.
 - Evita títulos genéricos; el report_title debe nombrar el sitio o la marca auditada.

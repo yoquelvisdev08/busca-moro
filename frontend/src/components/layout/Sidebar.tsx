@@ -4,6 +4,7 @@ import {
   Compass,
   Users,
   MessagesSquare,
+  ClipboardCheck,
   Activity,
   Settings,
   PanelLeftClose,
@@ -13,13 +14,20 @@ import {
 import { useUIStore } from "@/stores/ui-store";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/discover", label: "Discover", icon: Compass },
-  { to: "/leads", label: "Leads", icon: Users },
-  { to: "/mensajeria", label: "Mensajería", icon: MessagesSquare },
-  { to: "/monitor", label: "Monitor", icon: Activity },
-  { to: "/settings", label: "Settings", icon: Settings },
+const NAV_ITEMS: {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  /** Coincidencia exacta de ruta (evita que /leads active en /leads/revisados). */
+  end?: boolean;
+}[] = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/discover", label: "Discover", icon: Compass, end: true },
+  { to: "/leads", label: "Leads nuevos", icon: Users, end: true },
+  { to: "/leads/revisados", label: "Leads revisados", icon: ClipboardCheck, end: true },
+  { to: "/mensajeria", label: "Mensajería", icon: MessagesSquare, end: true },
+  { to: "/monitor", label: "Monitor", icon: Activity, end: true },
+  { to: "/settings", label: "Settings", icon: Settings, end: true },
 ];
 
 export function Sidebar() {
@@ -48,7 +56,7 @@ export function Sidebar() {
         {sidebarOpen && (
           <div>
             <h1 className="text-lg font-headline font-semibold tracking-tighter text-primary">
-              SIPHON-X
+              Orion
             </h1>
             <p className="text-[10px] uppercase tracking-widest text-text-muted mt-0.5">
               Precision Leads
@@ -98,7 +106,7 @@ export function Sidebar() {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === "/"}
+              end={item.end ?? item.to === "/"}
               onClick={handleNavClick}
               className={({ isActive }) =>
                 cn(
@@ -123,12 +131,12 @@ export function Sidebar() {
         <div className="mt-auto p-4 border-t border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full border border-border bg-surface-high flex items-center justify-center text-sm font-bold text-primary">
-              JD
+              BR
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-text">John Doe</span>
+              <span className="text-sm font-bold text-text">Broz</span>
               <span className="text-[10px] uppercase tracking-widest text-text-muted">
-                Admin
+                Agencia
               </span>
             </div>
           </div>
@@ -137,7 +145,7 @@ export function Sidebar() {
       {!sidebarOpen && (
         <div className="mt-auto p-2 border-t border-border flex justify-center">
           <div className="w-8 h-8 rounded-full border border-border bg-surface-high flex items-center justify-center text-xs font-bold text-primary">
-            JD
+            BR
           </div>
         </div>
       )}

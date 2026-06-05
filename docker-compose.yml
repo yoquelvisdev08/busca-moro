@@ -1,4 +1,4 @@
-name: siphon-x
+name: orion
 
 x-logging: &default-logging
   driver: json-file
@@ -7,46 +7,46 @@ x-logging: &default-logging
     max-file: "5"
 
 networks:
-  siphon-core:
+  orion-core:
     driver: bridge
-    name: siphon-core
-  siphon-edge:
+    name: orion-core
+  orion-edge:
     driver: bridge
-    name: siphon-edge
+    name: orion-edge
 
 volumes:
   pg_data:
-    name: siphon-pg-data
+    name: orion-pg-data
   redis_data:
-    name: siphon-redis-data
+    name: orion-redis-data
   ollama_data:
-    name: siphon-ollama-data
+    name: orion-ollama-data
   npm_data:
-    name: siphon-npm-data
+    name: orion-npm-data
   npm_letsencrypt:
-    name: siphon-npm-letsencrypt
+    name: orion-npm-letsencrypt
   screenshots:
-    name: siphon-screenshots
+    name: orion-screenshots
   reports:
-    name: siphon-reports
+    name: orion-reports
 
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: siphon-postgres
+    container_name: orion-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-siphon}
-      POSTGRES_USER: ${POSTGRES_USER:-siphon}
+      POSTGRES_DB: ${POSTGRES_DB:-orion}
+      POSTGRES_USER: ${POSTGRES_USER:-orion}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_env}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     networks:
-      - siphon-core
+      - orion-core
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-siphon} -d ${POSTGRES_DB:-siphon}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orion} -d ${POSTGRES_DB:-orion}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -54,7 +54,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: siphon-redis
+    container_name: orion-redis
     restart: unless-stopped
     command:
       - redis-server
@@ -65,7 +65,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - siphon-core
+      - orion-core
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-change_me_in_env}", "ping"]
       interval: 10s
@@ -78,7 +78,7 @@ services:
   #   docker compose --profile llm-local up -d ollama
   ollama:
     image: ollama/ollama:latest
-    container_name: siphon-ollama
+    container_name: orion-ollama
     restart: unless-stopped
     profiles: ["llm-local"]
     environment:
@@ -87,7 +87,7 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     networks:
-      - siphon-core
+      - orion-core
     healthcheck:
       test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
       interval: 30s
@@ -99,7 +99,7 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
-    container_name: siphon-api
+    container_name: orion-api
     restart: unless-stopped
     env_file: ./.env
     environment:
@@ -113,8 +113,8 @@ services:
       - screenshots:/app/storage/screenshots
       - reports:/app/storage/reports
     networks:
-      - siphon-core
-      - siphon-edge
+      - orion-core
+      - orion-edge
     ports:
       - "8000:8000"
     expose:
@@ -130,7 +130,7 @@ services:
   # DuckDuckGo, etc.) sin API key ni límites. El Scout lo usa para discovery.
   searxng:
     image: searxng/searxng:latest
-    container_name: siphon-searxng
+    container_name: orion-searxng
     restart: unless-stopped
     environment:
       SEARXNG_BASE_URL: "http://localhost:8080/"
@@ -138,32 +138,40 @@ services:
     volumes:
       - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
     networks:
-      - siphon-core
+      - orion-core
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     logging: *default-logging
 
   scout:
     build:
       context: ./scout
       dockerfile: Dockerfile
-    container_name: siphon-scout
+    container_name: orion-scout
     restart: unless-stopped
     env_file: ./.env
     environment:
       SERVICE_NAME: scout
+      SCOUT_ANALYZE_HTTP_PORT: "8082"
     depends_on:
       redis:
         condition: service_healthy
       api:
         condition: service_started
+      searxng:
+        condition: service_healthy
     networks:
-      - siphon-core
+      - orion-core
     logging: *default-logging
 
   auditor:
     build:
       context: ./auditor
       dockerfile: Dockerfile
-    container_name: siphon-auditor
+    container_name: orion-auditor
     restart: unless-stopped
     env_file: ./.env
     environment:
@@ -176,7 +184,7 @@ services:
     volumes:
       - screenshots:/app/storage/screenshots
     networks:
-      - siphon-core
+      - orion-core
     shm_size: "2gb"
     logging: *default-logging
 
@@ -184,7 +192,7 @@ services:
     build:
       context: ./closer
       dockerfile: Dockerfile
-    container_name: siphon-closer
+    container_name: orion-closer
     restart: unless-stopped
     env_file: ./.env
     environment:
@@ -195,14 +203,14 @@ services:
       api:
         condition: service_started
     networks:
-      - siphon-core
+      - orion-core
     logging: *default-logging
 
   sniper:
     build:
       context: ./sniper
       dockerfile: Dockerfile
-    container_name: siphon-sniper
+    container_name: orion-sniper
     restart: unless-stopped
     env_file: ./.env
     environment:
@@ -213,20 +221,22 @@ services:
       api:
         condition: service_started
     networks:
-      - siphon-core
+      - orion-core
     logging: *default-logging
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: siphon-frontend
+    container_name: orion-frontend
     restart: unless-stopped
     env_file: ./.env
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
-      - siphon-edge
+      - orion-core
+      - orion-edge
     ports:
       - "3000:80"
     expose:
@@ -235,7 +245,7 @@ services:
 
   nginx-proxy-manager:
     image: jc21/nginx-proxy-manager:latest
-    container_name: siphon-npm
+    container_name: orion-npm
     restart: unless-stopped
     ports:
       - "80:80"
@@ -247,5 +257,5 @@ services:
       - npm_data:/data
       - npm_letsencrypt:/etc/letsencrypt
     networks:
-      - siphon-edge
+      - orion-edge
     logging: *default-logging

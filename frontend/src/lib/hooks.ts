@@ -20,8 +20,15 @@ import {
 export const queryKeys = {
   leads: {
     all: ["leads"] as const,
-    list: (params: { limit?: number; offset?: number; status?: LeadStatus }) =>
-      ["leads", "list", params] as const,
+    list: (
+      params: {
+        limit?: number;
+        offset?: number;
+        status?: LeadStatus;
+        pipeline?: string;
+        message_sent?: boolean;
+      } = {},
+    ) => ["leads", "list", params] as const,
     detail: (id: string) => ["leads", "detail", id] as const,
   },
   reports: {
@@ -47,10 +54,32 @@ export const queryKeys = {
    Leads
    ═══════════════════════════════════════════════════════ */
 
-export function useLeads(params: { limit?: number; offset?: number; status?: LeadStatus } = {}) {
+export function useLeads(
+  params: {
+    limit?: number;
+    offset?: number;
+    status?: LeadStatus;
+    needs_next_step?: boolean;
+    message_sent?: boolean;
+    has_email?: boolean;
+    pipeline?: "new" | "reviewed";
+    discovered_since?: string;
+    created_since?: string;
+  } = {},
+  options?: { refetchInterval?: number | false; enabled?: boolean },
+) {
+  const { pipeline, ...apiParams } = params;
+  const resolved =
+    pipeline === "new"
+      ? { ...apiParams, message_sent: false as const }
+      : pipeline === "reviewed"
+        ? { ...apiParams, message_sent: true as const }
+        : apiParams;
   return useQuery<LeadListResponse>({
-    queryKey: queryKeys.leads.list(params),
-    queryFn: () => api.listLeads(params),
+    queryKey: queryKeys.leads.list({ ...params, pipeline }),
+    queryFn: () => api.listLeads(resolved),
+    refetchInterval: options?.refetchInterval ?? false,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -83,6 +112,35 @@ export function useDeleteLeadMutation() {
       detail?: string;
     }) => api.deleteLead(id, { reason, detail }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["leads"] }),
+  });
+}
+
+export function useSetLeadNextStepMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      step,
+      scheduled_at,
+      notes,
+      close_as_lost,
+    }: {
+      id: string;
+      step: "call" | "proposal" | "discard";
+      scheduled_at?: string;
+      notes?: string;
+      close_as_lost?: boolean;
+    }) =>
+      api.setLeadNextStep(id, {
+        step,
+        scheduled_at,
+        notes,
+        close_as_lost,
+      }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "detail", variables.id] });
+    },
   });
 }
 

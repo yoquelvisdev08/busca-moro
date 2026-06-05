@@ -103,7 +103,7 @@ export function DashboardPage() {
         header: "Domain",
         accessorFn: (row) => row.domain,
         cell: ({ row }) => (
-          <span className="text-xs font-mono text-text">{row.original.domain}</span>
+          <span className="truncate block max-w-[200px] text-xs font-mono text-text">{row.original.domain}</span>
         ),
       },
       {

@@ -14,7 +14,7 @@ import {
   type PaginationState,
   type FilterFn,
 } from "@tanstack/react-table"
-import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react"
+import { ChevronUp, ChevronDown, ChevronsUpDown, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Table,
@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export type TableDensity = "compact" | "normal" | "comfortable"
 
@@ -42,6 +43,10 @@ const densityRowClass: Record<TableDensity, string> = {
   normal: "h-10 [&>td]:py-2 [&>th]:py-2",
   comfortable: "h-12 [&>td]:py-3 [&>th]:py-3",
 }
+
+/** Sin relleno sólido: solo borde y marca (tabla de leads). */
+const tableSelectCheckboxClass =
+  "border-border/70 bg-transparent text-primary data-checked:border-primary data-checked:bg-transparent data-checked:text-primary data-indeterminate:border-primary data-indeterminate:bg-transparent data-indeterminate:text-primary"
 
 export interface FilterConfig {
   id: string
@@ -123,14 +128,55 @@ function DataTable<T>({
   filters,
   bulkActions,
   density = "normal",
-  rowSelection,
-  onRowSelectionChange,
+  rowSelection: rowSelectionProp,
+  onRowSelectionChange: onRowSelectionChangeProp,
   stickyFirstColumn = true,
   getRowId,
   className,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+  const [internalRowSelection, setInternalRowSelection] =
+    React.useState<RowSelectionState>({})
+
+  const selectionEnabled = Boolean(bulkActions && bulkActions.length > 0)
+  const rowSelection = rowSelectionProp ?? internalRowSelection
+  const onRowSelectionChange =
+    onRowSelectionChangeProp ?? (selectionEnabled ? setInternalRowSelection : undefined)
+
+  const tableColumns = React.useMemo((): ColumnDef<T, unknown>[] => {
+    if (!selectionEnabled) return columns
+
+    const selectColumn: ColumnDef<T, unknown> = {
+      id: "_select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          indeterminate={
+            table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()
+          }
+          onCheckedChange={(checked) =>
+            table.toggleAllPageRowsSelected(checked === true)
+          }
+          aria-label="Seleccionar todos en esta página"
+          onClick={(e) => e.stopPropagation()}
+          className={tableSelectCheckboxClass}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(checked) => row.toggleSelected(checked === true)}
+          aria-label="Seleccionar fila"
+          onClick={(e) => e.stopPropagation()}
+          className={tableSelectCheckboxClass}
+        />
+      ),
+      enableSorting: false,
+      size: 44,
+    }
+    return [selectColumn, ...columns]
+  }, [columns, selectionEnabled])
 
   const filterFns = React.useMemo(() => {
     if (!filters) return {}
@@ -143,7 +189,8 @@ function DataTable<T>({
 
   const table = useReactTable({
     data,
-    columns,
+    columns: tableColumns,
+    enableRowSelection: selectionEnabled,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -177,6 +224,7 @@ function DataTable<T>({
       pagination: pagination ?? { pageIndex: 0, pageSize: 25 },
     },
     manualPagination: !!onPaginationChange,
+    pageCount,
     getRowId: getRowId as ((originalRow: T, index: number, parent?: unknown) => string) | undefined,
   })
 
@@ -226,15 +274,21 @@ function DataTable<T>({
     >
       {/* Toolbar: search + filters */}
       {(search || (filters && filters.length > 0)) && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           {search && (
-            <Input
-              placeholder={search.placeholder ?? "Search..."}
-              value={search.value}
-              onChange={(e) => search.onChange(e.target.value)}
-              className="h-8 w-[240px] text-xs"
-              aria-label={search.placeholder ?? "Search table"}
-            />
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-text-dim"
+                aria-hidden
+              />
+              <Input
+                placeholder={search.placeholder ?? "Buscar..."}
+                value={search.value}
+                onChange={(e) => search.onChange(e.target.value)}
+                className="h-9 w-[min(100%,280px)] pl-8 text-xs bg-surface-high/40 border-border/80"
+                aria-label={search.placeholder ?? "Buscar en la tabla"}
+              />
+            </div>
           )}
           {filters?.map((f) => {
             if (f.type === "text") {
@@ -252,11 +306,11 @@ function DataTable<T>({
             if ((f.type === "select" || f.type === "date-range") && f.options) {
               return (
                 <Select key={f.id} value={f.value} onValueChange={(value) => f.onChange(value ?? "")}>
-                  <SelectTrigger className="h-8 w-[160px] text-xs" aria-label={`Filter by ${f.label}`}>
+                  <SelectTrigger className="h-9 w-[160px] text-xs bg-surface-high/40 border-border/80" aria-label={`Filtrar por ${f.label}`}>
                     <SelectValue placeholder={f.label} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">{f.label}: All</SelectItem>
+                    <SelectItem value="all">Todos · {f.label}</SelectItem>
                     {f.options.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
@@ -272,9 +326,11 @@ function DataTable<T>({
       )}
 
       {/* Bulk actions bar */}
-      {bulkActions && selectedCount > 0 && (
-        <div className="flex items-center gap-2 rounded-lg bg-primary-container/10 px-3 py-2">
-          <Badge variant="default">{selectedCount} selected</Badge>
+      {selectionEnabled && selectedCount > 0 && bulkActions && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-primary-container/10 px-3 py-2">
+          <Badge variant="default">
+            {selectedCount} seleccionado{selectedCount === 1 ? "" : "s"}
+          </Badge>
           {bulkActions.map((action, i) => (
             <Button
               key={i}
@@ -297,20 +353,23 @@ function DataTable<T>({
 
       {/* Table */}
       <div
-        className="relative overflow-x-auto rounded-lg border border-border"
+        className="relative overflow-x-auto rounded-lg border border-border/80 bg-surface/30 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0"
         role="grid"
         aria-label={loading ? "Loading data..." : "Data table"}
         aria-rowcount={totalRows}
-        tabIndex={0}
+        tabIndex={-1}
         onKeyDown={handleKeyDown}
       >
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="bg-surface-high hover:bg-surface-high">
+              <TableRow key={headerGroup.id} className="border-b border-border/60 bg-surface-high/80 hover:bg-surface-high/80">
                 {headerGroup.headers.map((header, colIdx) => {
                   const isSorted = header.column.getIsSorted()
                   const canSort = header.column.getCanSort()
+                  const isSelectCol = header.column.id === "_select"
+                  const stickyThisCol =
+                    stickyFirstColumn && colIdx === 0 && !isSelectCol
 
                   return (
                     <TableHead
@@ -325,10 +384,12 @@ function DataTable<T>({
                       }
                       className={cn(
                         densityRowClass[density],
-                        stickyFirstColumn && colIdx === 0 && "sticky left-0 z-10 bg-surface-high"
+                        "text-[11px] uppercase tracking-wider text-text-muted font-semibold",
+                        isSelectCol && "w-11 max-w-11 px-2",
+                        stickyThisCol && "sticky left-0 z-10 bg-surface-high/80",
                       )}
                       style={
-                        stickyFirstColumn && colIdx === 0
+                        stickyThisCol
                           ? { boxShadow: "2px 0 4px -2px rgba(0,0,0,0.3)" }
                           : undefined
                       }
@@ -353,17 +414,17 @@ function DataTable<T>({
             ))}
           </TableHeader>
           {loading ? (
-            <DataTableSkeleton columns={columns.length} />
+            <DataTableSkeleton columns={tableColumns.length} />
           ) : (
             <TableBody>
               {table.getRowModel().rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={columns.length}
+                    colSpan={tableColumns.length}
                     role="gridcell"
                     className="h-24 text-center text-text-muted"
                   >
-                    No results found.
+                    Sin resultados.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -376,26 +437,35 @@ function DataTable<T>({
                     tabIndex={rowIdx === focusedRowIndex ? 0 : -1}
                     className={cn(
                       densityRowClass[density],
-                      "hover:bg-surface-high/60 transition-colors",
-                      rowIdx === focusedRowIndex && "ring-1 ring-inset ring-primary-container"
+                      "group border-b border-border/40 transition-colors",
+                      "hover:bg-surface-high/50",
+                      "data-[state=selected]:bg-surface-high/70 data-[state=selected]:border-l-2 data-[state=selected]:border-l-primary/60",
+                      rowIdx === focusedRowIndex &&
+                        "ring-1 ring-inset ring-border/80 bg-surface-high/40"
                     )}
                   >
-                    {row.getVisibleCells().map((cell, colIdx) => (
+                    {row.getVisibleCells().map((cell, colIdx) => {
+                      const isSelectCol = cell.column.id === "_select"
+                      const stickyThisCol =
+                        stickyFirstColumn && colIdx === 0 && !isSelectCol
+
+                      return (
                       <TableCell
                         key={cell.id}
                         role="gridcell"
                         className={cn(
-                          stickyFirstColumn && colIdx === 0 && "sticky left-0 z-[5] bg-surface"
+                          isSelectCol && "w-11 max-w-11 px-2",
+                          stickyThisCol && "sticky left-0 z-[5] bg-surface",
                         )}
                         style={
-                          stickyFirstColumn && colIdx === 0
+                          stickyThisCol
                             ? { boxShadow: "2px 0 4px -2px rgba(0,0,0,0.2)" }
                             : undefined
                         }
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
-                    ))}
+                    )})}
                   </TableRow>
                 ))
               )}
@@ -408,7 +478,7 @@ function DataTable<T>({
       {totalRows > 0 && (
         <div className="flex items-center justify-between text-xs text-text-muted">
           <span className="tabular-nums">
-            Showing {showingFrom}–{showingTo} of {totalRows.toLocaleString()}
+            {showingFrom}–{showingTo} de {totalRows.toLocaleString()}
           </span>
           <div className="flex items-center gap-1">
             <Button
@@ -418,7 +488,7 @@ function DataTable<T>({
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
             >
-              Previous
+              Anterior
             </Button>
             <span className="px-2 tabular-nums">
               {pageIndex + 1} / {Math.max(1, table.getPageCount())}
@@ -430,7 +500,7 @@ function DataTable<T>({
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
             >
-              Next
+              Siguiente
             </Button>
           </div>
         </div>

@@ -4,6 +4,7 @@ package fingerprint
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -73,7 +74,13 @@ func Inspect(ctx context.Context, client HTTPDoer, rawURL string) (*Result, erro
 
 	loadMs := time.Since(start).Milliseconds()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read body: %w", err)
+	}
+	if len(bodyBytes) == 0 {
+		return nil, fmt.Errorf("empty body from %s", rawURL)
+	}
 	res := &Result{
 		URL:        rawURL,
 		FinalURL:   resp.Request.URL.String(),

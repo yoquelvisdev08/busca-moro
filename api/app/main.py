@@ -1,4 +1,4 @@
-"""SIPHON-X :: punto de entrada de la API orquestadora."""
+"""Orion :: punto de entrada de la API orquestadora."""
 
 from __future__ import annotations
 
@@ -90,7 +90,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="SIPHON-X API",
+        title="Orion API",
         version=__version__,
         default_response_class=ORJSONResponse,
         lifespan=lifespan,
@@ -110,7 +110,7 @@ def create_app() -> FastAPI:
 
     @app.get("/", tags=["meta"])
     async def root() -> dict[str, str]:
-        return {"name": "SIPHON-X", "docs": "/docs", "version": __version__}
+        return {"name": "Orion", "docs": "/docs", "version": __version__}
 
     app.include_router(v1_router)
 

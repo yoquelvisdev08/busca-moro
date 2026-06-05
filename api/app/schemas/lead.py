@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import AnyHttpUrl, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -90,6 +90,26 @@ class LeadRead(LeadBase):
     audited_at: Optional[datetime] = None
     contacted_at: Optional[datetime] = None
     outreach: LeadOutreachSummary = Field(default_factory=LeadOutreachSummary)
+    next_step_type: Optional[str] = None
+    next_step_at: Optional[datetime] = None
+    next_step_notes: Optional[str] = None
+    needs_next_step: bool = False
+    has_email: bool = False
+
+
+class LeadNextStepSet(BaseModel):
+    """Siguiente paso comercial tras contactar al lead."""
+
+    step: Literal["call", "proposal", "discard"]
+    scheduled_at: Optional[datetime] = Field(
+        default=None,
+        description="Fecha prevista de llamada o envío de propuesta",
+    )
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    close_as_lost: bool = Field(
+        default=True,
+        description="Si step=discard, marcar lead como closed_lost",
+    )
 
 
 class LeadDeleteRequest(BaseModel):

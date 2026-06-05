@@ -55,34 +55,43 @@ def build_dork_prompts(
     system_prompt = f"""Eres un experto en prospección B2B para un consultor senior de desarrollo web,
 rendimiento, SEO técnico y conversión.
 
-OBJETIVO: generar Google dorks que encuentren negocios REALES (no blogs personales ni directorios)
-de {industry}{location_clause} que:
+OBJETIVO: generar simples consultas de búsqueda por palabras clave que encuentren negocios REALES
+(no blogs personales ni directorios) de {industry}{location_clause} que:
 - Vendan servicios o productos y dependan de su web para captar clientes
 - Tengan presupuesto (clínicas, bufetes, inmobiliarias, hoteles, academias, e-commerce pequeño/mediano)
 - Probablemente tengan web lenta, antigua, WordPress desactualizado, sin HTTPS o mala experiencia móvil
 - NECESITEN contratar a un profesional (no equipos enterprise con web perfecta)
 
-EVITAR en los resultados (reflejar en los dorks con exclusiones -site:):
-- Portfolios de estudiantes, blogs personales, foros, Wikipedia, redes sociales
-- Marketplaces gigantes (amazon, mercadolibre como dominio principal)
-- Gobierno (.gov), universidades (.edu) salvo clínicas universitarias privadas
-- Agencias de desarrollo web competidoras (ya tienen equipo técnico)
+REGLAS CRÍTICAS (LEER Y OBEDECER):
+1. Genera EXACTAMENTE {num_dorks} consultas, una por línea
+2. NO uses operadores de búsqueda avanzada: PROHIBIDO site:, inurl:, intitle:, intext:, -site:, *, OR, |
+3. Usa SOLO lenguaje natural con palabras clave simples
+4. Cada consulta debe tener entre 3 y 6 palabras
+5. Incluye la ubicación "{location}" de forma natural en las consultas (nombre de ciudad, país)
+6. Mezcla diferentes combinaciones de:
+   - Palabras del nicho (ej: "clínica dental", "dentista", "odontología")
+   - Señales de negocio real (ej: contacto, servicios, precios, cita, horarios, tratamientos)
+   - Nombres de ciudades/ubicaciones relevantes de {location}
 
-TÉCNICAS DE DORK (mezclar):
-- inurl:contacto OR inurl:contact OR inurl:cita OR inurl:reservar
-- intext:"reservar cita" OR intext:"solicitar presupuesto" OR intitle:servicios
-- WordPress/Joomla antiguos: inurl:wp-content inurl:wp-includes
-- Señales de negocio local: intext:"horario" intext:"teléfono"
-- Si hay país: incluir términos locales del país en al menos 5 dorks
+EJEMPLOS DE CONSULTAS CORRECTAS (SearXNG-compatible):
+- "clínica dental Santo Domingo"
+- "dentista República Dominicana contacto"
+- "odontología Punta Cana servicios"
+- "consultorio dental Santiago de los Caballeros"
+- "dentista La Romana precios"
 
-REGLAS:
-- Genera EXACTAMENTE {num_dorks} dorks, uno por línea
+EJEMPLOS DE CONSULTAS PROHIBIDAS (NO generar):
+- "site:*.com.do intext:\"tratamiento dental\" intext:\"precio\""
+- "site:do \"dentista\" (inurl:contacto | inurl:cita)"
+- "inurl:contacto OR inurl:cita intitle:dentista"
+
+FORMATO:
 - Sin numeración, sin explicación, sin markdown
 - Idioma de las consultas: {lang_note}
-- Cada dork debe ser una búsqueda ejecutable en Google/SearXNG"""
+- Cada consulta debe ser una búsqueda ejecutable en cualquier motor de búsqueda (Google, Bing, DuckDuckGo, SearXNG)"""
 
     user_prompt = (
-        f"Genera {num_dorks} dorks para prospectar {industry}{location_clause}. "
+        f"Genera {num_dorks} consultas de búsqueda simples para prospectar {industry}{location_clause}. "
         "Prioriza negocios que pagarían entre 800 y 8000 USD por mejorar su web."
     )
     return system_prompt, user_prompt
@@ -118,7 +127,7 @@ class ScoutService:
         num_dorks: int = 15,
         language: Optional[str] = None,
     ) -> list[str]:
-        """Genera Google dorks usando LLM para encontrar sitios del target."""
+        """Genera consultas de búsqueda por palabras clave usando LLM para encontrar sitios del target."""
         lang = language or language_for_location(location)
         system_prompt, user_prompt = build_dork_prompts(
             industry, location, num_dorks, lang
@@ -178,9 +187,12 @@ class ScoutService:
 
         try:
             r = redis.from_url(self._redis_url, decode_responses=True)
-            queue_key = "siphon:queue:discovery"
+            queue_key = "orion:queue:discovery"
 
             r.delete(queue_key)
+
+            context = json.dumps({"location": location, "industry": industry})
+            r.set("orion:discovery:context", context, ex=7200)
 
             for dork in dorks:
                 message = json.dumps(
@@ -194,7 +206,7 @@ class ScoutService:
                 )
                 r.lpush(queue_key, message)
 
-            r.set("siphon:signal:start", "1", ex=60)
+            r.set("orion:signal:start", "1", ex=60)
 
             dorks_count = len(dorks)
             loc_suffix = f" ({location})" if location else ""

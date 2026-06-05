@@ -1,6 +1,6 @@
 # Component Library
 
-SIPHON-X frontend component library built with React, TypeScript, and Tailwind CSS.
+Orion frontend component library built with React, TypeScript, and Tailwind CSS.
 
 ## UI Components (shadcn/ui)
 

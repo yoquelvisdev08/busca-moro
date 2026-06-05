@@ -87,3 +87,6 @@ class Lead(Base):
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     deleted_reason: Mapped[Optional[str]] = mapped_column(Text)
+    next_step_type: Mapped[Optional[str]] = mapped_column(String(32))
+    next_step_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    next_step_notes: Mapped[Optional[str]] = mapped_column(Text)

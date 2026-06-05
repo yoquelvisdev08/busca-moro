@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     service_name: str = Field(default="sniper", alias="SERVICE_NAME")
     redis_url: str = Field(..., alias="REDIS_URL")
-    queue_sniper_alerts: str = Field(default="siphon:queue:sniper", alias="QUEUE_SNIPER_ALERTS")
+    queue_sniper_alerts: str = Field(default="orion:queue:sniper", alias="QUEUE_SNIPER_ALERTS")
 
     api_base_url: str = Field(default="http://api:8000", alias="API_BASE_URL")
 

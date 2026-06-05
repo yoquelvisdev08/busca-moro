@@ -72,3 +72,29 @@ class OutreachListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+# ── Bulk Send ──────────────────────────────────────────────────────────
+
+
+class BulkSendDetail(BaseModel):
+    """Per-lead result for bulk-send."""
+
+    lead_id: str
+    status: Literal["sent", "skipped", "failed"]
+    detail: str  # recipient email for sent, reason for skipped/failed
+
+
+class BulkSendRequest(BaseModel):
+    """Bulk report generation and email sending request."""
+
+    lead_ids: list[str] = Field(..., min_length=1, max_length=20)
+    attach_report: bool = True
+
+
+class BulkSendResponse(BaseModel):
+    """Bulk-send endpoint response with summary counts and per-lead details."""
+
+    sent: int
+    skipped: list[BulkSendDetail]
+    failed: list[BulkSendDetail]

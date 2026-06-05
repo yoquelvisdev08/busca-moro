@@ -58,12 +58,24 @@ async def schedule_follow_up(
         for s in payload.steps
     ]
 
+    from app.services.lead_closure import lead_blocks_follow_ups
+
+    blocked, reason = await lead_blocks_follow_ups(session, lead_id)
+    if blocked:
+        raise HTTPException(
+            status_code=400,
+            detail=reason or "El lead respondió: los follow-ups están detenidos",
+        )
+
     service = FollowUpService(session)
-    created = await service.schedule_sequence(
-        lead_id=lead_id,
-        sequence_name=payload.sequence_name,
-        steps=steps,
-    )
+    try:
+        created = await service.schedule_sequence(
+            lead_id=lead_id,
+            sequence_name=payload.sequence_name,
+            steps=steps,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     next_scheduled = (
         min(fu.scheduled_at for fu in created) if created else None

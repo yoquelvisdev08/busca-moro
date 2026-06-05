@@ -51,7 +51,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<DashboardPage />} />
       <Route path="/discover" element={<DiscoverPage />} />
-      <Route path="/leads" element={<LeadsPage />} />
+      <Route path="/leads/revisados" element={<LeadsPage pipeline="reviewed" />} />
+      <Route path="/leads" element={<LeadsPage pipeline="new" />} />
       <Route path="/leads/:id" element={<LeadDetailPage />} />
       <Route path="/reports" element={<ReportsPage />} />
       <Route path="/mensajeria" element={<MensajeriaPage />} />

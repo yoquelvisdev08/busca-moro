@@ -61,6 +61,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 import { TabGroup, type Tab } from "@/components/domain/TabGroup";
 import { ReportPdfPreviewDialog } from "@/components/domain/ReportPdfPreviewDialog";
+import { LeadClosurePanel } from "@/components/domain/LeadClosurePanel";
 import { StatusLED, type StatusLEDVariant } from "@/components/domain/StatusLED";
 import { MetricCard } from "@/components/charts/MetricCard";
 import { DataTable } from "@/components/tables/DataTable";
@@ -223,6 +224,11 @@ export function LeadDetailPage() {
       {
         onSuccess: (result) => {
           notify.success(`Email enviado a ${result.recipient}`);
+          if (result.needs_next_step) {
+            notify.info(
+              "Define el siguiente paso: llamada, propuesta o descarte.",
+            );
+          }
           setSendModalOpen(false);
         },
         onError: (e) => notify.error(`Error: ${(e as Error).message}`),
@@ -230,7 +236,19 @@ export function LeadDetailPage() {
     );
   };
 
+  const followUpsBlocked =
+    Boolean(lead?.outreach?.has_reply_received) ||
+    lead?.status === "replied" ||
+    lead?.status === "closed_won" ||
+    lead?.status === "closed_lost";
+
   const handleQuickFollowUp = () => {
+    if (followUpsBlocked) {
+      notify.warning(
+        "Follow-ups detenidos: el lead ya respondió. Registra el siguiente paso comercial arriba.",
+      );
+      return;
+    }
     scheduleFollowUp.mutate(
       {
         leadId: id!,
@@ -372,6 +390,8 @@ export function LeadDetailPage() {
         </div>
       </div>
 
+      {lead && <LeadClosurePanel lead={lead} />}
+
       {/* Tabs */}
       <Card className="overflow-hidden">
         <CardHeader className="pb-0">
@@ -432,6 +452,7 @@ export function LeadDetailPage() {
               onSend={() => setSendModalOpen(true)}
               onQuickFollowUp={handleQuickFollowUp}
               onCancelFollowUps={() => cancelFollowUps.mutate(id!)}
+              followUpsBlocked={followUpsBlocked}
               isSending={sendOutreach.isPending}
               intel={intel}
               emailVariant={emailVariant}
@@ -635,6 +656,70 @@ function OverviewTab({
           ))}
         </div>
       </div>
+
+      <div className="rounded-lg border border-dashed border-primary/30 bg-primary-soft/20 p-3">
+        <p className="text-xs text-text-muted">
+          El PDF del cliente solo incluye diagnóstico y oportunidad (sin precios).
+          Precio, plazos y CTA de llamada van aquí, en la app.
+        </p>
+      </div>
+
+      {intel?.extras?.commercial_playbook && (
+        <div>
+          <h3 className="flex items-center gap-2 text-xs font-mono font-semibold text-text-secondary uppercase tracking-wider mb-3">
+            <Sparkles className="size-4 text-primary" aria-hidden="true" />
+            Cierre comercial (solo para ti)
+          </h3>
+          <div className="rounded-lg bg-bg border border-border p-4 space-y-3 text-sm">
+            {intel.extras.commercial_playbook.price_range && (
+              <div>
+                <span className="text-text-muted text-xs uppercase tracking-wider block mb-0.5">
+                  Precio orientativo
+                </span>
+                <p className="text-text">{intel.extras.commercial_playbook.price_range}</p>
+              </div>
+            )}
+            {intel.extras.commercial_playbook.delivery_timeline && (
+              <div>
+                <span className="text-text-muted text-xs uppercase tracking-wider block mb-0.5">
+                  Plazos
+                </span>
+                <p className="text-text">
+                  {intel.extras.commercial_playbook.delivery_timeline}
+                </p>
+              </div>
+            )}
+            {intel.extras.commercial_playbook.call_cta && (
+              <div>
+                <span className="text-text-muted text-xs uppercase tracking-wider block mb-0.5">
+                  CTA llamada
+                </span>
+                <p className="text-text font-medium">
+                  {intel.extras.commercial_playbook.call_cta}
+                </p>
+              </div>
+            )}
+            {intel.extras.commercial_playbook.scope_summary && (
+              <div>
+                <span className="text-text-muted text-xs uppercase tracking-wider block mb-0.5">
+                  Alcance
+                </span>
+                {Array.isArray(intel.extras.commercial_playbook.scope_summary) ? (
+                  <ul className="list-disc pl-4 text-text-secondary space-y-1">
+                    {intel.extras.commercial_playbook.scope_summary.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-text-secondary whitespace-pre-wrap">
+                    {intel.extras.commercial_playbook.scope_summary}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {intel?.extras?.sales_brief && (
         <div>
@@ -982,7 +1067,8 @@ function MessageHistorySection({
       }),
       {
         loading: "Registrando respuesta...",
-        success: "Respuesta registrada",
+        success:
+          "Respuesta registrada. Follow-ups cancelados. Define el siguiente paso arriba.",
         error: (err) =>
           err instanceof Error ? err.message : "No se pudo registrar",
       },
@@ -1052,7 +1138,8 @@ function MessageHistorySection({
           <DialogHeader>
             <DialogTitle>Registrar mensaje recibido</DialogTitle>
             <DialogDescription>
-              Guarda una respuesta del lead para verla en Mensajería y marcar el lead como respondido.
+              Guarda la respuesta en Mensajería, detiene los follow-ups automáticos y exige definir
+              el siguiente paso (llamada, propuesta o descarte).
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">
@@ -1126,6 +1213,7 @@ function OutreachTab({
   onSend,
   onQuickFollowUp,
   onCancelFollowUps,
+  followUpsBlocked,
   isSending,
   intel,
   emailVariant,
@@ -1148,6 +1236,7 @@ function OutreachTab({
   onSend: () => void;
   onQuickFollowUp: () => void;
   onCancelFollowUps: () => void;
+  followUpsBlocked: boolean;
   isSending: boolean;
   intel: SalesIntelligence | undefined;
   emailVariant: "a" | "b";
@@ -1180,14 +1269,18 @@ function OutreachTab({
             <div
               className={cn(
                 "text-base font-mono",
-                pendingFollowUps.length > 0
-                  ? "text-warning"
-                  : "text-text-muted"
+                followUpsBlocked
+                  ? "text-success"
+                  : pendingFollowUps.length > 0
+                    ? "text-warning"
+                    : "text-text-muted"
               )}
             >
-              {pendingFollowUps.length > 0
-                ? `${pendingFollowUps.length} pending`
-                : "None active"}
+              {followUpsBlocked
+                ? "Detenidos (respondió)"
+                : pendingFollowUps.length > 0
+                  ? `${pendingFollowUps.length} pendientes`
+                  : "Sin secuencia activa"}
             </div>
           </CardContent>
         </Card>
@@ -1306,8 +1399,17 @@ function OutreachTab({
               <Send className="size-3.5 mr-1.5" aria-hidden="true" />
               {isSending ? "Sending..." : "Send Email"}
             </Button>
-            <Button variant="outline" onClick={onQuickFollowUp}>
-              <Clock className="size-3.5 mr-1.5" aria-hidden="true" /> Schedule Follow-up
+            <Button
+              variant="outline"
+              onClick={onQuickFollowUp}
+              disabled={followUpsBlocked}
+              title={
+                followUpsBlocked
+                  ? "El lead respondió; no se programan más follow-ups"
+                  : undefined
+              }
+            >
+              <Clock className="size-3.5 mr-1.5" aria-hidden="true" /> Programar follow-up
             </Button>
             {pendingFollowUps.length > 0 && (
               <Button

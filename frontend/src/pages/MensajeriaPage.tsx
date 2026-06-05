@@ -110,10 +110,10 @@ export function MensajeriaPage() {
           return (
             <button
               type="button"
-              className="text-left hover:text-primary transition-colors"
+              className="max-w-[220px] overflow-hidden text-left hover:text-primary transition-colors"
               onClick={() => navigate(`/leads/${m.lead_id}`)}
             >
-              <span className="text-sm font-mono text-primary block">
+              <span className="truncate text-sm font-mono text-primary block">
                 {m.lead_domain ?? m.lead_id.slice(0, 8)}
               </span>
               {m.lead_company_name && (

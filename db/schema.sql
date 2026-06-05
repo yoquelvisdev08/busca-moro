@@ -1,5 +1,5 @@
 -- ============================================================================
--- SIPHON-X :: Esquema de base de datos (PostgreSQL >= 14)
+-- Orion :: Esquema de base de datos (PostgreSQL >= 14)
 -- ----------------------------------------------------------------------------
 -- Convenciones:
 --   * Identificadores en snake_case.
@@ -62,7 +62,7 @@ END$$;
 -- ----------------------------------------------------------------------------
 -- Helper: trigger genérico para mantener updated_at
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION siphon_touch_updated_at()
+CREATE OR REPLACE FUNCTION orion_touch_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at := NOW();
@@ -118,6 +118,10 @@ CREATE TABLE IF NOT EXISTS leads (
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     deleted_at          TIMESTAMPTZ,
+    deleted_reason      TEXT,
+    next_step_type      VARCHAR(32),
+    next_step_at        TIMESTAMPTZ,
+    next_step_notes     TEXT,
 
     CONSTRAINT leads_url_unique UNIQUE (normalized_domain)
 );
@@ -132,7 +136,7 @@ CREATE INDEX IF NOT EXISTS idx_leads_tech_stack_gin      ON leads USING gin (tec
 DROP TRIGGER IF EXISTS trg_leads_updated_at ON leads;
 CREATE TRIGGER trg_leads_updated_at
     BEFORE UPDATE ON leads
-    FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
+    FOR EACH ROW EXECUTE FUNCTION orion_touch_updated_at();
 
 -- ============================================================================
 -- TABLA: lead_enrichment
@@ -194,7 +198,7 @@ CREATE INDEX IF NOT EXISTS idx_audits_raw_gin           ON audits USING gin (raw
 DROP TRIGGER IF EXISTS trg_audits_updated_at ON audits;
 CREATE TRIGGER trg_audits_updated_at
     BEFORE UPDATE ON audits
-    FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
+    FOR EACH ROW EXECUTE FUNCTION orion_touch_updated_at();
 
 -- ============================================================================
 -- TABLA: sales_intelligence
@@ -215,6 +219,7 @@ CREATE TABLE IF NOT EXISTS sales_intelligence (
     prompt_hash         TEXT,
     tokens_input        INTEGER,
     tokens_output       INTEGER,
+    extras              JSONB           NOT NULL DEFAULT '{}'::jsonb,
     generated_at        TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
@@ -227,7 +232,7 @@ CREATE INDEX IF NOT EXISTS idx_sales_intel_pain_gin     ON sales_intelligence US
 DROP TRIGGER IF EXISTS trg_sales_intel_updated_at ON sales_intelligence;
 CREATE TRIGGER trg_sales_intel_updated_at
     BEFORE UPDATE ON sales_intelligence
-    FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
+    FOR EACH ROW EXECUTE FUNCTION orion_touch_updated_at();
 
 -- ============================================================================
 -- TABLA: outreach_messages
@@ -250,6 +255,8 @@ CREATE TABLE IF NOT EXISTS outreach_messages (
     opened              BOOLEAN,
     clicked             BOOLEAN,
     replied             BOOLEAN,
+    has_attachment      BOOLEAN         NOT NULL DEFAULT FALSE,
+    report_id           UUID            REFERENCES reports(id) ON DELETE SET NULL,
     sent_at             TIMESTAMPTZ,
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
@@ -262,7 +269,32 @@ CREATE INDEX IF NOT EXISTS idx_outreach_sent_at         ON outreach_messages (se
 DROP TRIGGER IF EXISTS trg_outreach_updated_at ON outreach_messages;
 CREATE TRIGGER trg_outreach_updated_at
     BEFORE UPDATE ON outreach_messages
-    FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
+    FOR EACH ROW EXECUTE FUNCTION orion_touch_updated_at();
+
+-- ============================================================================
+-- TABLA: follow_up_sequences
+-- ----------------------------------------------------------------------------
+-- Secuencias de follow-up programadas tras el primer contacto.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS follow_up_sequences (
+    id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    lead_id             UUID            NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+    sequence_name       VARCHAR(100)    NOT NULL,
+    step_number         INTEGER         NOT NULL,
+    scheduled_at        TIMESTAMPTZ     NOT NULL,
+    sent_at             TIMESTAMPTZ,
+    status              VARCHAR(20)     NOT NULL DEFAULT 'pending',
+    subject             TEXT            NOT NULL,
+    body                TEXT            NOT NULL,
+    include_pdf         BOOLEAN         NOT NULL DEFAULT FALSE,
+    retry_count         INTEGER         NOT NULL DEFAULT 0,
+    last_error          TEXT,
+    created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ix_follow_up_sequences_lead_id ON follow_up_sequences (lead_id);
+CREATE INDEX IF NOT EXISTS ix_follow_up_sequences_scheduled_at ON follow_up_sequences (scheduled_at);
+CREATE INDEX IF NOT EXISTS ix_follow_up_sequences_status ON follow_up_sequences (status);
 
 -- ============================================================================
 -- TABLA: sniper_targets
@@ -291,7 +323,7 @@ CREATE INDEX IF NOT EXISTS idx_sniper_last_checked      ON sniper_targets (last_
 DROP TRIGGER IF EXISTS trg_sniper_targets_updated_at ON sniper_targets;
 CREATE TRIGGER trg_sniper_targets_updated_at
     BEFORE UPDATE ON sniper_targets
-    FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
+    FOR EACH ROW EXECUTE FUNCTION orion_touch_updated_at();
 
 -- ============================================================================
 -- TABLA: sniper_alerts
@@ -346,7 +378,7 @@ CREATE INDEX IF NOT EXISTS idx_proxy_enabled            ON proxy_pool (enabled);
 DROP TRIGGER IF EXISTS trg_proxy_updated_at ON proxy_pool;
 CREATE TRIGGER trg_proxy_updated_at
     BEFORE UPDATE ON proxy_pool
-    FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
+    FOR EACH ROW EXECUTE FUNCTION orion_touch_updated_at();
 
 -- ============================================================================
 -- TABLA: sender_profile
@@ -377,7 +409,7 @@ CREATE INDEX IF NOT EXISTS idx_sender_profile_active ON sender_profile (is_activ
 DROP TRIGGER IF EXISTS trg_sender_profile_updated_at ON sender_profile;
 CREATE TRIGGER trg_sender_profile_updated_at
     BEFORE UPDATE ON sender_profile
-    FOR EACH ROW EXECUTE FUNCTION siphon_touch_updated_at();
+    FOR EACH ROW EXECUTE FUNCTION orion_touch_updated_at();
 
 -- ============================================================================
 -- TABLA: reports

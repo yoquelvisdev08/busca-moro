@@ -39,16 +39,16 @@ class Settings(BaseSettings):
     database_max_overflow: int = Field(default=20, alias="DATABASE_MAX_OVERFLOW")
 
     redis_url: str = Field(..., alias="REDIS_URL")
-    queue_discovery: str = Field(default="siphon:queue:discovery", alias="QUEUE_DISCOVERY")
-    queue_audit: str = Field(default="siphon:queue:audit", alias="QUEUE_AUDIT")
-    queue_outreach: str = Field(default="siphon:queue:outreach", alias="QUEUE_OUTREACH")
-    queue_sniper_alerts: str = Field(default="siphon:queue:sniper", alias="QUEUE_SNIPER_ALERTS")
-    queue_dlq: str = Field(default="siphon:queue:dlq", alias="QUEUE_DLQ")
+    queue_discovery: str = Field(default="orion:queue:discovery", alias="QUEUE_DISCOVERY")
+    queue_audit: str = Field(default="orion:queue:audit", alias="QUEUE_AUDIT")
+    queue_outreach: str = Field(default="orion:queue:outreach", alias="QUEUE_OUTREACH")
+    queue_sniper_alerts: str = Field(default="orion:queue:sniper", alias="QUEUE_SNIPER_ALERTS")
+    queue_dlq: str = Field(default="orion:queue:dlq", alias="QUEUE_DLQ")
 
     email_provider: str = Field(default="resend", alias="EMAIL_PROVIDER")
     email_api_key: str = Field(default="", alias="EMAIL_API_KEY")
-    email_from: str = Field(default="outreach@siphonx.dev", alias="EMAIL_FROM")
-    email_from_name: str = Field(default="SIPHON-X Outreach", alias="EMAIL_FROM_NAME")
+    email_from: str = Field(default="outreach@orion.dev", alias="EMAIL_FROM")
+    email_from_name: str = Field(default="Orion Outreach", alias="EMAIL_FROM_NAME")
 
     sender_profile_website: str = Field(default="https://yoquelvis.dev", alias="SENDER_PROFILE_WEBSITE")
 
@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     llm_base_url: str = Field(default="https://api.deepseek.com", alias="LLM_BASE_URL")
     llm_api_key: str = Field(default="", alias="LLM_API_KEY")
     llm_model: str = Field(default="deepseek-chat", alias="LLM_MODEL")
+
+    scout_analyze_url: str = Field(
+        default="http://scout:8082",
+        alias="SCOUT_ANALYZE_URL",
+    )
 
     # PDF Report Generation
     pdf_storage_path: str = Field(default="storage/reports", alias="PDF_STORAGE_PATH")

@@ -1,4 +1,4 @@
-# SIPHON-X: Business Model & Monetization Analysis
+# Orion: Business Model & Monetization Analysis
 
 > Deep analysis of revenue models for a B2B lead generation / sales intelligence platform.
 > Generated: 2026-05-28
@@ -7,7 +7,7 @@
 
 ## Executive Summary
 
-SIPHON-X is **closer to monetization than most startups**. The core pipeline (discover → audit → enrich → outreach) is already functional, including commercial enrichment, segment-aware AI prompts, and email sending via Resend. The main gaps are **distribution and packaging**, not core technology.
+Orion is **closer to monetization than most startups**. The core pipeline (discover → audit → enrich → outreach) is already functional, including commercial enrichment, segment-aware AI prompts, and email sending via Resend. The main gaps are **distribution and packaging**, not core technology.
 
 **Recommended models (ranked):**
 1. **Agency Model** — Fastest to revenue, highest margin, lowest tech overhead
@@ -16,7 +16,7 @@ SIPHON-X is **closer to monetization than most startups**. The core pipeline (di
 
 ---
 
-## What SIPHON-X Already Has (Monetization Assets)
+## What Orion Already Has (Monetization Assets)
 
 | Asset | Status | Value |
 |-------|--------|-------|
@@ -37,10 +37,10 @@ SIPHON-X is **closer to monetization than most startups**. The core pipeline (di
 ## Model 1: Agency Model (RECOMMENDED - Start Here)
 
 ### Concept
-Use SIPHON-X internally as your command center. Sell web development / optimization services to the leads it discovers. The tool is your competitive advantage, not the product.
+Use Orion internally as your command center. Sell web development / optimization services to the leads it discovers. The tool is your competitive advantage, not the product.
 
 ### How It Works
-1. SIPHON-X discovers businesses with broken websites
+1. Orion discovers businesses with broken websites
 2. AI generates personalized outreach emails
 3. You send emails, close deals, deliver web services
 4. Revenue: $500 - $10,000+ per project
@@ -88,7 +88,7 @@ Use SIPHON-X internally as your command center. Sell web development / optimizat
 ## Model 2: SaaS Platform (High Potential, High Effort)
 
 ### Concept
-Multi-tenant platform where agencies/freelancers pay monthly to use SIPHON-X for their own lead generation.
+Multi-tenant platform where agencies/freelancers pay monthly to use Orion for their own lead generation.
 
 ### Pricing Tiers
 
@@ -151,15 +151,15 @@ Phase 3 (Weeks 9-12): Scale
 
 ### Competitive Landscape
 
-| Competitor | Price | What They Do | SIPHON-X Advantage |
+| Competitor | Price | What They Do | Orion Advantage |
 |-----------|-------|--------------|-------------------|
-| Apollo.io | $49-99/mo | Contact database + outreach | SIPHON-X discovers LEADS, not contacts |
-| Hunter.io | $49-399/mo | Email finder + verification | SIPHON-X finds broken sites, not just emails |
-| Lemlist | $59-99/mo | Cold email automation | SIPHON-X generates AI intelligence |
-| Instantly | $30-97/mo | Email warming + sending | SIPHON-X has full pipeline |
-| Snov.io | $39-99/mo | CRM + outreach | SIPHON-X has commercial scoring |
+| Apollo.io | $49-99/mo | Contact database + outreach | Orion discovers LEADS, not contacts |
+| Hunter.io | $49-399/mo | Email finder + verification | Orion finds broken sites, not just emails |
+| Lemlist | $59-99/mo | Cold email automation | Orion generates AI intelligence |
+| Instantly | $30-97/mo | Email warming + sending | Orion has full pipeline |
+| Snov.io | $39-99/mo | CRM + outreach | Orion has commercial scoring |
 
-**Key differentiator:** SIPHON-X discovers businesses with PROBLEMS, not just businesses with email addresses. This is fundamentally different.
+**Key differentiator:** Orion discovers businesses with PROBLEMS, not just businesses with email addresses. This is fundamentally different.
 
 ### Fit for Solo Dev
 - **Challenging but doable:** You'll need to wear many hats (dev, support, sales)
@@ -262,7 +262,7 @@ Sell the intelligence data via API. CRM integrations, bulk exports, enrichment-a
 Connect lead generators with salespeople. You provide the platform, take a commission.
 
 ### How It Works
-1. SIPHON-X discovers and qualifies leads
+1. Orion discovers and qualifies leads
 2. List qualified leads on marketplace
 3. Salespeople/agencies browse and purchase leads
 4. You take 20-30% commission
@@ -283,21 +283,21 @@ Connect lead generators with salespeople. You provide the platform, take a commi
 
 ### Direct Competitors (Lead Generation)
 
-| Tool | Focus | Price | SIPHON-X Edge |
+| Tool | Focus | Price | Orion Edge |
 |------|-------|-------|---------------|
-| Apollo.io | Contact database | $49-99/mo | SIPHON-X finds PROBLEMS, not just contacts |
-| Hunter.io | Email finding | $49-399/mo | SIPHON-X has full audit + AI intelligence |
-| Lemlist | Email automation | $59-99/mo | SIPHON-X generates personalized copy |
-| Instantly | Email warming | $30-97/mo | SIPHON-X has discovery + scoring |
-| Snov.io | All-in-one CRM | $39-99/mo | SIPHON-X has commercial enrichment |
+| Apollo.io | Contact database | $49-99/mo | Orion finds PROBLEMS, not just contacts |
+| Hunter.io | Email finding | $49-399/mo | Orion has full audit + AI intelligence |
+| Lemlist | Email automation | $59-99/mo | Orion generates personalized copy |
+| Instantly | Email warming | $30-97/mo | Orion has discovery + scoring |
+| Snov.io | All-in-one CRM | $39-99/mo | Orion has commercial enrichment |
 
 ### Indirect Competitors (Web Agencies)
 
-| Competitor | SIPHON-X Advantage |
+| Competitor | Orion Advantage |
 |-----------|-------------------|
 | Manual prospecting | 100x faster automated discovery |
-| Fiverr/Upwork agencies | SIPHON-X finds leads THEY miss |
-| Local web agencies | SIPHON-X has data-driven outreach |
+| Fiverr/Upwork agencies | Orion finds leads THEY miss |
+| Local web agencies | Orion has data-driven outreach |
 
 ### Unique Value Propositions
 1. **Problem-first discovery:** Finds businesses with broken websites, not just any business
@@ -472,5 +472,5 @@ class BillingService:
 
 ---
 
-*Analysis based on SIPHON-X codebase as of 2026-05-28.*
+*Analysis based on Orion codebase as of 2026-05-28.*
 *Recommended models: Agency (immediate) → SaaS (scaling) → API (passive income).*

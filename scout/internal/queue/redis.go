@@ -39,8 +39,8 @@ func (c *Client) Push(ctx context.Context, queue string, payload any) error {
 	if err != nil {
 		return fmt.Errorf("marshal payload: %w", err)
 	}
-	if err := c.rdb.LPush(ctx, queue, body).Err(); err != nil {
-		return fmt.Errorf("lpush %s: %w", queue, err)
+	if err := c.rdb.RPush(ctx, queue, body).Err(); err != nil {
+		return fmt.Errorf("rpush %s: %w", queue, err)
 	}
 	return nil
 }

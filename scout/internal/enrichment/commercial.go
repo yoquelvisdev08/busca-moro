@@ -29,6 +29,8 @@ type CommercialSignals struct {
 	LastBlogDays      int    `json:"last_blog_days"` // Days since last blog post (0 = unknown)
 	HasCTA            bool   `json:"has_cta"`
 	RevenueSignal     string `json:"revenue_signal"` // "ecommerce", "subscription", "services", "ads", "none"
+	IsSmallBusiness   bool   `json:"is_small_business"`
+	ContactEmail      string `json:"contact_email"`
 }
 
 var (
@@ -89,7 +91,74 @@ var (
 		regexp.MustCompile(`(?i)aws\.amazon`),
 		regexp.MustCompile(`(?i)amazonaws\.com`),
 	}
+
+	phonePattern        = regexp.MustCompile(`(?i)(\+\d[\d\s\-\(\)]{7,}|\(\d{2,}\)[\d\s\-]{6,}|[\d]{3,}[\s\-][\d]{3,}[\s\-][\d]{3,})`)
+	addressPattern      = regexp.MustCompile(`(?i)(calle|avenida|av\.|plaza|pasaje|paseo|carretera|km\s?\d|cp\s?\d{4,5}|código postal|zip code)`)
+	hoursPattern        = regexp.MustCompile(`(?i)(horario|horarios|hours|horas de atención|abierto de|cerrado)`)
+	whatsappPattern     = regexp.MustCompile(`(?i)(wa\.me|api\.whatsapp\.com|whatsapp)`)
+	gmapsPattern        = regexp.MustCompile(`(?i)(google\.com/maps|maps\.google|maps\.embed|iframe.*maps)`)
+	aboutUsPattern      = regexp.MustCompile(`(?i)(sobre nosotros|quienes somos|nuestro equipo|equipo|conócenos|conocenos|about us|our team)`)
+	localPaymentPattern = regexp.MustCompile(`(?i)(bizum|transferencia|efectivo|pago en tienda|pago contra reembolso|pago en local|metálico)`)
+	emailRegex          = regexp.MustCompile(`[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}`)
 )
+
+func extractEmails(html string) string {
+	matches := emailRegex.FindAllString(html, 10)
+	for _, email := range matches {
+		lower := strings.ToLower(email)
+		if strings.Contains(lower, "example.com") ||
+			strings.Contains(lower, "sentry.io") ||
+			strings.Contains(lower, "webpack") ||
+			strings.Contains(lower, "wixpress.com") ||
+			strings.Contains(lower, "email.com") ||
+			strings.Contains(lower, "domain.com") ||
+			strings.Contains(lower, "yourname") ||
+			strings.Contains(lower, "username") {
+			continue
+		}
+		return email
+	}
+	if len(matches) > 0 {
+		return matches[0]
+	}
+	return ""
+}
+
+func extractMailtoEmails(doc *goquery.Document) string {
+	var emails []string
+	doc.Find("a[href^='mailto:']").Each(func(_ int, sel *goquery.Selection) {
+		href, _ := sel.Attr("href")
+		if strings.HasPrefix(href, "mailto:") {
+			email := strings.TrimPrefix(href, "mailto:")
+			// Remove any query params (e.g., ?subject=...)
+			if idx := strings.Index(email, "?"); idx != -1 {
+				email = email[:idx]
+			}
+			email = strings.TrimSpace(email)
+			if email != "" {
+				emails = append(emails, email)
+			}
+		}
+	})
+	for _, email := range emails {
+		lower := strings.ToLower(email)
+		if strings.Contains(lower, "example.com") ||
+			strings.Contains(lower, "sentry.io") ||
+			strings.Contains(lower, "webpack") ||
+			strings.Contains(lower, "wixpress.com") ||
+			strings.Contains(lower, "email.com") ||
+			strings.Contains(lower, "domain.com") ||
+			strings.Contains(lower, "yourname") ||
+			strings.Contains(lower, "username") {
+			continue
+		}
+		return email
+	}
+	if len(emails) > 0 {
+		return emails[0]
+	}
+	return ""
+}
 
 // DetectSignals analiza el HTML y la URL para extraer señales comerciales.
 func DetectSignals(html string, url string) *CommercialSignals {
@@ -157,6 +226,18 @@ func DetectSignals(html string, url string) *CommercialSignals {
 		}
 	}
 
+	// Email extraction: prefer mailto: links over regex
+	if doc != nil {
+		if email := extractMailtoEmails(doc); email != "" {
+			s.ContactEmail = email
+		}
+	}
+	if s.ContactEmail == "" {
+		if email := extractEmails(html); email != "" {
+			s.ContactEmail = email
+		}
+	}
+
 	if doc != nil {
 		// Pricing page detection
 		doc.Find("a").Each(func(_ int, sel *goquery.Selection) {
@@ -213,7 +294,13 @@ func DetectSignals(html string, url string) *CommercialSignals {
 			firstChunk = html
 		}
 		firstChunkLower := strings.ToLower(firstChunk)
-		ctaKeywords := []string{"contactar", "comprar", "reservar", "cotizar", "solicitar", "get started", "free trial"}
+		ctaKeywords := []string{
+			"contactar", "contacto", "contact us", "contactanos", "contáctanos",
+			"comprar", "buy now", "reservar", "cotizar", "solicitar",
+			"get started", "free trial", "llámanos", "llamenos", "escríbenos",
+			"más información", "subscribe", "join now", "book now", "sign up",
+			"request quote", "pedir presupuesto", "agendar",
+		}
 		for _, kw := range ctaKeywords {
 			if strings.Contains(firstChunkLower, kw) {
 				s.HasCTA = true
@@ -249,10 +336,41 @@ func DetectSignals(html string, url string) *CommercialSignals {
 		})
 	}
 
+	// Small business signal detection
+	s.detectSmallBusiness(html)
+
 	// Revenue signal classification
 	s.classifyRevenue()
 
 	return s
+}
+
+func (s *CommercialSignals) detectSmallBusiness(html string) {
+	score := 0
+	if phonePattern.MatchString(html) {
+		score++
+	}
+	if addressPattern.MatchString(html) {
+		score++
+	}
+	if hoursPattern.MatchString(html) {
+		score++
+	}
+	if whatsappPattern.MatchString(html) {
+		score++
+	}
+	if gmapsPattern.MatchString(html) {
+		score++
+	}
+	if aboutUsPattern.MatchString(html) {
+		score++
+	}
+	if localPaymentPattern.MatchString(html) {
+		score++
+	}
+	if score >= 3 {
+		s.IsSmallBusiness = true
+	}
 }
 
 func (s *CommercialSignals) classifyRevenue() {

@@ -186,8 +186,9 @@ Reglas:
 - Idioma: {language}.
 - JSON válido únicamente.
 - sales_brief: texto para que el consultor hable 30 s con el lead (tú → consultor, no va al PDF).
-- report_narrative: PDF para el cliente en PRIMERA PERSONA del auditor (yo revisé, medí); sin precios, sin SIPHON-X; prohibido "este es un sitio", "se detectó".
-- cold_email_alt: segunda variante de email (ángulo distinto al principal), máx. 150 palabras.
+- commercial_playbook: SOLO para la app del consultor (precio orientativo, plazos, CTA llamada). NO va al PDF.
+- report_narrative: PDF para el cliente: SOLO diagnóstico técnico + oportunidad de mejora. Sin precios, sin plazos de proyecto, sin paquetes. Primera persona del auditor; sin Orion; prohibido "este es un sitio", "se detectó".
+- cold_email_alt: segunda variante de email (ángulo distinto al principal), máx. 150 palabras; sin precios.
 - Si el dominio es de marca global o subdominio regional, analiza el sitio auditado con precisión.
 """
 
@@ -212,6 +213,12 @@ Cuerpo (extracto): {primary_body_excerpt}
 Devuelve JSON:
 {{
   "sales_brief": "3-5 frases: gancho, problema, propuesta de valor, CTA verbal para llamada",
+  "commercial_playbook": {{
+    "price_range": "rango orientativo ej. 1.500-3.500 EUR (solo consultor)",
+    "delivery_timeline": "plazo realista ej. 2-4 semanas",
+    "call_cta": "frase para agendar llamada 15 min con enlace o teléfono si aplica",
+    "scope_summary": "qué incluye la propuesta en 2-3 bullets cortos"
+  }},
   "report_narrative": {{
     "report_title": "título específico del informe",
     "site_context": "1-2 frases en yo (yo identifiqué que es...)",

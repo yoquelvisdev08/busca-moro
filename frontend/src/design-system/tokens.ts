@@ -1,5 +1,5 @@
 /**
- * SIPHON-X Design Tokens
+ * Orion Design Tokens
  * All values reference CSS custom properties from theme.css
  *
  * Color scheme: Indigo/Purple on dark (#15121b) background

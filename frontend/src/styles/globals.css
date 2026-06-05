@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════
-   SIPHON-X Kinetic Ledger Design Tokens
+   Orion Kinetic Ledger Design Tokens
    Stitch project 10329478822198781265 — Dark-mode only
    ═══════════════════════════════════════════════════════ */
 
@@ -207,9 +207,13 @@
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible,
-  [tabindex]:focus-visible {
+  [tabindex]:not([tabindex="-1"]):focus-visible {
     outline: 2px solid var(--sx-primary-container);
     outline-offset: 2px;
+  }
+
+  [role="grid"]:focus-visible {
+    outline: none;
   }
 
   /* Skip-to-content link (hidden until focused) */

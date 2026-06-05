@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import html as html_lib
 import logging
 from typing import Optional
 from dataclasses import dataclass
@@ -18,8 +19,8 @@ class EmailConfig:
 
     provider: str = "resend"
     api_key: str = ""
-    from_email: str = "outreach@siphonx.dev"
-    from_name: str = "SIPHON-X Outreach"
+    from_email: str = "outreach@orion.dev"
+    from_name: str = "Orion Outreach"
 
 
 @dataclass
@@ -124,7 +125,7 @@ class EmailService:
         if html_body:
             payload["html"] = html_body
         else:
-            payload["html"] = body.replace("\n", "<br>")
+            payload["html"] = html_lib.escape(body).replace("\n", "<br>")
 
         if attachments:
             resend_attachments = []

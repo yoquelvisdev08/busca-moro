@@ -20,9 +20,11 @@ const (
 
 // Candidate es una URL a inspeccionar por el Scout.
 type Candidate struct {
-	URL    string
-	Source Source
-	Query  string
+	URL      string
+	Source   Source
+	Query    string
+	Location string
+	Industry string
 }
 
 // LoadSeeds lee un archivo con una URL por línea.

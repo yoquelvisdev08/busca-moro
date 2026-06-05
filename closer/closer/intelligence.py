@@ -167,6 +167,9 @@ class IntelligenceEngine:
         report_narrative = supplement_payload.get("report_narrative")
         if isinstance(report_narrative, dict):
             extras["report_narrative"] = report_narrative
+        playbook = supplement_payload.get("commercial_playbook")
+        if isinstance(playbook, dict):
+            extras["commercial_playbook"] = playbook
 
         prompt_hash = hashlib.sha256(
             (pain_points_user + "||" + email_user + "||" + supplement_user).encode("utf-8")

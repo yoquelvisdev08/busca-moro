@@ -1,5 +1,5 @@
 /**
- * SIPHON-X Kinetic Ledger Design Tokens
+ * Orion Kinetic Ledger Design Tokens
  * All values reference CSS custom properties from globals.css
  *
  * Color scheme: Indigo/Purple on dark (#0b1326) background

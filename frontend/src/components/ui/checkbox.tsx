@@ -6,11 +6,13 @@ import { cn } from "@/lib/utils"
 
 function Checkbox({
   className,
+  indeterminate,
   ...props
-}: CheckboxPrimitive.Root.Props) {
+}: CheckboxPrimitive.Root.Props & { indeterminate?: boolean }) {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
+      data-indeterminate={indeterminate ? "" : undefined}
       className={cn(
         "peer group/checkbox relative inline-flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input bg-transparent text-white transition-colors outline-none after:absolute after:-inset-x-2.5 after:-inset-y-2.5 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary-container data-checked:bg-primary-container data-indeterminate:border-primary-container data-indeterminate:bg-primary-container data-disabled:cursor-not-allowed data-disabled:opacity-50",
         className

@@ -3,6 +3,7 @@ package proxy
 
 import (
 	"bufio"
+	"crypto/tls"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -14,10 +15,11 @@ import (
 
 // Rotator selecciona proxies y user-agents aleatorios.
 type Rotator struct {
-	mu        sync.Mutex
-	proxies   []*url.URL
-	userAgent []string
-	rand      *rand.Rand
+	mu              sync.Mutex
+	proxies         []*url.URL
+	userAgent       []string
+	rand            *rand.Rand
+	sharedTransport *http.Transport
 }
 
 // NewRotator construye un rotador leyendo archivos con un valor por línea.
@@ -43,11 +45,20 @@ func NewRotator(proxiesPath, userAgentsPath string) (*Rotator, error) {
 		}
 	}
 
-	return &Rotator{
+	r := &Rotator{
 		proxies:   parsed,
 		userAgent: uas,
 		rand:      rand.New(rand.NewSource(time.Now().UnixNano())),
-	}, nil
+	}
+	r.sharedTransport = &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+		ForceAttemptHTTP2:   false,
+		TLSNextProto:        map[string]func(string, *tls.Conn) http.RoundTripper{},
+	}
+	return r, nil
 }
 
 // PickProxy retorna un proxy aleatorio o nil si no hay configurados.
@@ -69,10 +80,10 @@ func (r *Rotator) PickUserAgent() string {
 
 // NewHTTPClient construye un cliente con timeout, UA aleatorio y proxy.
 func (r *Rotator) NewHTTPClient(timeout time.Duration) *http.Client {
-	transport := &http.Transport{
-		ResponseHeaderTimeout: timeout,
-		IdleConnTimeout:       30 * time.Second,
-	}
+	// Clone shared transport to set per-request proxy without affecting the base
+	transport := r.sharedTransport.Clone()
+	transport.ResponseHeaderTimeout = timeout
+	transport.IdleConnTimeout = 30 * time.Second
 	if proxyURL := r.PickProxy(); proxyURL != nil {
 		transport.Proxy = http.ProxyURL(proxyURL)
 	}

@@ -1,4 +1,4 @@
-# SIPHON-X :: Analisis Estrategico y Tecnico
+# Orion :: Analisis Estrategico y Tecnico
 ## Como Capturar Leads de Calidad Dispuestos a Pagar + Diagnostico del Frontend
 
 ---
@@ -7,7 +7,7 @@
 
 ### 1.1. El Problema Fundamental del Sistema Actual
 
-El SIPHON-X en su estado actual captura leads basados en **deficiencias tecnicas** del sitio web. Esto es correcto desde el punto de vista tecnico, pero **insuficiente** desde el punto de vista comercial. Detectar un sitio lento o con SSL caducado no garantiza que el dueno de ese sitio:
+El Orion en su estado actual captura leads basados en **deficiencias tecnicas** del sitio web. Esto es correcto desde el punto de vista tecnico, pero **insuficiente** desde el punto de vista comercial. Detectar un sitio lento o con SSL caducado no garantiza que el dueno de ese sitio:
 
 - Tenga presupuesto para contratar un redisenio.
 - Entienda el valor de invertir en su presencia digital.
@@ -95,7 +95,7 @@ El `auditor_core.py` toma screenshot, mide Lighthouse, extrae contactos. **Pero 
 
 ### 1.4. Propuesta: Arquitectura de Enriquecimiento de Leads
 
-Para transformar SIPHON-X en una maquina de capturar clientes con presupuesto, se propone una **nueva capa de enriquecimiento** que se ejecute ANTES de que un lead sea considerado "de alta calidad".
+Para transformar Orion en una maquina de capturar clientes con presupuesto, se propone una **nueva capa de enriquecimiento** que se ejecute ANTES de que un lead sea considerado "de alta calidad".
 
 ```
 Scout encuentra URL
@@ -660,7 +660,7 @@ La estetica terminal es un diferenciador de marca. Pero debe evolucionar de "mue
 
 ## PARTE 3: RESUMEN EJECUTIVO Y ROADMAP
 
-### Prioridades para Hacer SIPHON-X Rentable
+### Prioridades para Hacer Orion Rentable
 
 | Fase | Que hacer | Impacto | Esfuerzo | Timeline |
 |------|-----------|---------|----------|----------|
@@ -675,9 +675,9 @@ La estetica terminal es un diferenciador de marca. Pero debe evolucionar de "mue
 
 > **Un lead de calidad no es un sitio con problemas tecnicos. Es un NEGOCIO con problemas tecnicos que tiene PRESUPUESTO para solucionarlos y un DECISION MAKER que entiende el VALOR de hacerlo.**
 
-El SIPHON-X actual detecta problemas tecnicos. Para ser rentable, debe detectar **negocios con problemas**.
+El Orion actual detecta problemas tecnicos. Para ser rentable, debe detectar **negocios con problemas**.
 
 ---
 
-*Documento generado para SIPHON-X el 2026-05-16.*
+*Documento generado para Orion el 2026-05-16.*
 *Incluye analisis de negocio, propuesta de arquitectura de enriquecimiento, diagnostico del frontend, y roadmap de implementacion.*

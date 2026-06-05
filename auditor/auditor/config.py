@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     service_name: str = Field(default="auditor", alias="SERVICE_NAME")
 
     redis_url: str = Field(..., alias="REDIS_URL")
-    queue_audit: str = Field(default="siphon:queue:audit", alias="QUEUE_AUDIT")
-    queue_outreach: str = Field(default="siphon:queue:outreach", alias="QUEUE_OUTREACH")
-    queue_dlq: str = Field(default="siphon:queue:dlq", alias="QUEUE_DLQ")
+    queue_audit: str = Field(default="orion:queue:audit", alias="QUEUE_AUDIT")
+    queue_outreach: str = Field(default="orion:queue:outreach", alias="QUEUE_OUTREACH")
+    queue_dlq: str = Field(default="orion:queue:dlq", alias="QUEUE_DLQ")
 
     api_base_url: str = Field(default="http://api:8000", alias="API_BASE_URL")
 

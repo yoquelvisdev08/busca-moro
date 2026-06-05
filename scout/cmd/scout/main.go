@@ -1,22 +1,19 @@
-// Command scout es el worker de descubrimiento de SIPHON-X.
+// Command scout es el worker de descubrimiento de Orion.
 //
 // Flujo:
 //  1. Carga seeds y Dorks desde el sistema de archivos.
 //  2. Resuelve los Dorks a URLs candidatas vía DorkScraper / MapsScraper.
 //  3. Para cada candidata: realiza fingerprint (SSL, tiempo, tech).
 //  4. Aplica filtros (sitios deficientes) y publica el lead en la API.
-//  5. La API a su vez encola en la cola `siphon:queue:audit` para el Auditor.
+//  5. La API a su vez encola en la cola `orion:queue:audit` para el Auditor.
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -24,14 +21,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/siphonx/scout/internal/config"
-	"github.com/siphonx/scout/internal/discovery"
-	"github.com/siphonx/scout/internal/enrichment"
-	"github.com/siphonx/scout/internal/filters"
-	"github.com/siphonx/scout/internal/fingerprint"
-	"github.com/siphonx/scout/internal/logging"
-	"github.com/siphonx/scout/internal/proxy"
-	"github.com/siphonx/scout/internal/queue"
+	"github.com/orion/scout/internal/config"
+	"github.com/orion/scout/internal/discovery"
+	"github.com/orion/scout/internal/httpserver"
+	"github.com/orion/scout/internal/logging"
+	"github.com/orion/scout/internal/pipeline"
+	"github.com/orion/scout/internal/proxy"
+	"github.com/orion/scout/internal/queue"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -68,6 +64,8 @@ func run() error {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+
+	httpserver.Start(ctx, logger, cfg, rotator)
 
 	pass := 0
 	for {
@@ -125,21 +123,21 @@ func singlePass(
 		logger.Warn("dorks_load_failed", "err", err)
 	}
 
-	// Also load dorks from Redis (AI-generated)
-	redisDorks := loadRedisDorks(q, cfg.QueueDiscovery)
-	if len(redisDorks) > 0 {
-		logger.Info("redis_dorks_loaded", "count", len(redisDorks))
-		dorks = append(dorks, redisDorks...)
+	redisBatch := loadRedisBatch(q, cfg.QueueDiscovery)
+	if len(redisBatch.queries) > 0 {
+		logger.Info("redis_dorks_loaded", "count", len(redisBatch.queries), "location", redisBatch.location)
+		dorks = append(dorks, redisBatch.queries...)
 	}
 
-	logger.Info("pass_start", "seeds", len(seeds), "dorks", len(dorks))
+	logger.Info("pass_start", "seeds", len(seeds), "dorks", len(dorks), "target_location", redisBatch.location)
 
 	candidates := make(chan discovery.Candidate, cfg.Concurrency*4)
+	var seenHosts sync.Map
 	g, gctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
 		defer close(candidates)
-		return populateCandidates(gctx, logger, cfg, rotator, seeds, dorks, candidates)
+		return populateCandidates(gctx, logger, cfg, rotator, seeds, dorks, redisBatch.location, redisBatch.industry, candidates)
 	})
 
 	var wg sync.WaitGroup
@@ -148,7 +146,7 @@ func singlePass(
 		workerID := i
 		g.Go(func() error {
 			defer wg.Done()
-			return worker(gctx, workerID, logger, cfg, rotator, candidates)
+			return worker(gctx, workerID, logger, cfg, rotator, &seenHosts, candidates)
 		})
 	}
 
@@ -168,6 +166,8 @@ func populateCandidates(
 	rotator *proxy.Rotator,
 	seeds []discovery.Candidate,
 	dorks []string,
+	targetLocation string,
+	targetIndustry string,
 	out chan<- discovery.Candidate,
 ) error {
 	for _, s := range seeds {
@@ -192,11 +192,13 @@ func populateCandidates(
 		default:
 		}
 
-		searxResults, err := searx.Search(ctx, q, 25)
+		searxResults, err := searx.Search(ctx, q, 35)
 		if err != nil {
 			logger.Warn("searxng_search_failed", "query", q, "err", err)
 		}
 		for _, r := range searxResults {
+			r.Location = targetLocation
+			r.Industry = targetIndustry
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
@@ -204,16 +206,22 @@ func populateCandidates(
 			}
 		}
 
-		mapsResults, err := mapsScraper.SearchBusinesses(ctx, q, 25)
+		mapsResults, err := mapsScraper.SearchBusinesses(ctx, q, 30)
 		if err != nil {
 			logger.Warn("maps_search_failed", "query", q, "err", err)
 		}
 		for _, r := range mapsResults {
+			r.Location = targetLocation
+			r.Industry = targetIndustry
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			case out <- r:
 			}
+		}
+
+		if len(searxResults) == 0 && len(mapsResults) == 0 {
+			logger.Warn("both_discovery_sources_empty", "query", q)
 		}
 
 		time.Sleep(1 * time.Second) // rate-limit suave entre Dorks
@@ -227,12 +235,9 @@ func worker(
 	logger *slog.Logger,
 	cfg *config.Config,
 	rotator *proxy.Rotator,
+	seenHosts *sync.Map,
 	in <-chan discovery.Candidate,
 ) error {
-	rules := filters.DefaultRules(cfg.LoadTimeThreshold)
-	client := rotator.NewHTTPClient(cfg.HTTPTimeout)
-	apiClient := &http.Client{Timeout: 15 * time.Second}
-
 	for cand := range in {
 		select {
 		case <-ctx.Done():
@@ -242,118 +247,97 @@ func worker(
 
 		log := logger.With("worker", workerID, "url", cand.URL, "source", string(cand.Source))
 
-		res, err := fingerprint.Inspect(ctx, client, cand.URL)
+		hostKey := pipeline.HostKey(cand.URL)
+		if _, loaded := seenHosts.LoadOrStore(hostKey, true); loaded {
+			log.Debug("candidate_skipped_duplicate_host")
+			continue
+		}
+
+		outcome, err := pipeline.Publish(ctx, log, cfg, rotator, pipeline.PublishOptions{
+			RawURL:          cand.URL,
+			Location:        cand.Location,
+			Industry:        cand.Industry,
+			DiscoverySource: string(cand.Source),
+			DiscoveryQuery:  cand.Query,
+		})
 		if err != nil {
-			log.Warn("fingerprint_failed", "err", err)
+			log.Warn("publish_failed", "err", err)
 			continue
 		}
-		signals := enrichment.DetectSignals(res.HTMLBody, res.FinalURL)
-		verdict := filters.Evaluate(res, signals, rules)
 		log.Info("fingerprinted",
-			"status", res.StatusCode,
-			"ssl", res.HasSSL,
-			"load_ms", res.LoadTimeMs,
-			"wp", res.WordPress,
-			"eligible", verdict.Eligible,
-			"reasons", strings.Join(verdict.Reasons, ","),
-			"problem_score", verdict.ProblemScore,
-			"commercial_score", verdict.CommercialScore,
-			"total_score", verdict.TotalScore,
-			"segment", verdict.Segment,
+			"eligible", outcome.Eligible,
+			"reasons", strings.Join(outcome.Reasons, ","),
+			"problem_score", outcome.ProblemScore,
+			"commercial_score", outcome.CommercialScore,
+			"total_score", outcome.TotalScore,
+			"segment", outcome.Segment,
+			"skipped", outcome.SkippedReason,
 		)
-
-		if !verdict.Eligible || verdict.Segment == "D" {
-			continue
+		if outcome.Published {
+			log.Info("lead_published", "segment", outcome.Segment, "total_score", outcome.TotalScore)
 		}
-
-		body := map[string]any{
-			"url":                    normalizeURL(res.FinalURL, cand.URL),
-			"score":                  verdict.TotalScore,
-			"problem_score":          verdict.ProblemScore,
-			"commercial_score":       verdict.CommercialScore,
-			"segment":                verdict.Segment,
-			"revenue_signal":         signals.RevenueSignal,
-			"has_pricing_page":       signals.HasPricingPage,
-			"has_testimonials":       signals.HasTestimonials,
-			"content_freshness_days": signals.LastBlogDays,
-			"tech_stack":             res.TechStack,
-			"has_ssl":                res.HasSSL,
-			"load_time_ms":           res.LoadTimeMs,
-			"discovery_source":       string(cand.Source),
-			"discovery_query":        cand.Query,
-			"commercial_signals":     verdict.CommercialSignals,
-		}
-		if err := postLead(ctx, apiClient, cfg.APIBaseURL, body); err != nil {
-			log.Error("api_publish_failed", "err", err)
-			continue
-		}
-		log.Info("lead_published", "segment", verdict.Segment, "total_score", verdict.TotalScore)
-	}
-	return nil
-}
-
-func normalizeURL(finalURL, fallback string) string {
-	if finalURL != "" {
-		return finalURL
-	}
-	if strings.HasPrefix(fallback, "http") {
-		return fallback
-	}
-	return "http://" + fallback
-}
-
-func postLead(ctx context.Context, client *http.Client, apiBase string, payload map[string]any) error {
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiBase+"/v1/leads", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		buf, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("api status %d: %s", resp.StatusCode, string(buf))
 	}
 	return nil
 }
 
 // checkStartSignal verifica si hay un signal de arranque inmediato en Redis.
 func checkStartSignal(q *queue.Client, cfg *config.Config) bool {
-	val, err := q.Get("siphon:signal:start")
+	val, err := q.Get("orion:signal:start")
 	if err != nil {
 		return false
 	}
 	if val == "1" {
-		q.Delete("siphon:signal:start")
+		q.Delete("orion:signal:start")
 		return true
 	}
 	return false
 }
 
-// loadRedisDorks lee dorks generados por IA desde la cola de discovery.
-func loadRedisDorks(q *queue.Client, queueKey string) []string {
-	var dorks []string
-	for {
-		msg, err := q.LPop(queueKey)
-		if err != nil {
-			break // cola vacía
+type redisDiscoveryBatch struct {
+	queries  []string
+	location string
+	industry string
+}
+
+const maxBatchSize = 1000
+
+// loadRedisBatch lee dorks IA y el contexto de mercado (país/industria).
+func loadRedisBatch(q *queue.Client, queueKey string) redisDiscoveryBatch {
+	var batch redisDiscoveryBatch
+	if raw, err := q.Get("orion:discovery:context"); err == nil && raw != "" {
+		var ctx struct {
+			Location string `json:"location"`
+			Industry string `json:"industry"`
 		}
-		// Parse JSON message
-		var dorkMsg struct {
-			Type  string `json:"type"`
-			Query string `json:"query"`
-		}
-		if err := json.Unmarshal([]byte(msg), &dorkMsg); err == nil && dorkMsg.Query != "" {
-			dorks = append(dorks, dorkMsg.Query)
+		if err := json.Unmarshal([]byte(raw), &ctx); err == nil {
+			batch.location = ctx.Location
+			batch.industry = ctx.Industry
 		}
 	}
-	return dorks
+	count := 0
+	for {
+		if count >= maxBatchSize {
+			break
+		}
+		msg, err := q.LPop(queueKey)
+		if err != nil {
+			break
+		}
+		var dorkMsg struct {
+			Query    string `json:"query"`
+			Location string `json:"location"`
+			Industry string `json:"industry"`
+		}
+		if err := json.Unmarshal([]byte(msg), &dorkMsg); err == nil && dorkMsg.Query != "" {
+			batch.queries = append(batch.queries, dorkMsg.Query)
+			if batch.location == "" && dorkMsg.Location != "" {
+				batch.location = dorkMsg.Location
+			}
+			if batch.industry == "" && dorkMsg.Industry != "" {
+				batch.industry = dorkMsg.Industry
+			}
+		}
+		count++
+	}
+	return batch
 }

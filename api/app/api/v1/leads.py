@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -15,30 +16,38 @@ from app.models.lead import LeadStatus
 from app.schemas.lead import (
     LeadCreate,
     LeadListResponse,
+    LeadNextStepSet,
     LeadOutreachSummary,
     LeadRead,
     LeadUpdate,
 )
+from app.services.lead_closure import requires_next_step
 from app.services.lead_delete_reasons import REASON_CODES
 from app.services.lead_service import LeadService
 from app.services.outreach_service import OutreachService
 from app.services.queue_service import QueueService
 
 
+def _lead_has_email(lead) -> bool:
+    if lead.email and str(lead.email).strip():
+        return True
+    return bool(lead.secondary_emails and len(lead.secondary_emails) > 0)
+
+
 def _lead_read_with_outreach(lead, stats_row) -> LeadRead:
     base = LeadRead.model_validate(lead)
-    if stats_row is None:
-        return base
-    return base.model_copy(
-        update={
-            "outreach": LeadOutreachSummary(
-                has_message_sent=stats_row.has_message_sent,
-                messages_sent_count=stats_row.messages_sent_count,
-                has_reply_received=stats_row.has_reply_received,
-                inbound_messages_count=stats_row.inbound_messages_count,
-            )
-        }
-    )
+    updates: dict = {
+        "needs_next_step": requires_next_step(lead.status, lead.next_step_type),
+        "has_email": _lead_has_email(lead),
+    }
+    if stats_row is not None:
+        updates["outreach"] = LeadOutreachSummary(
+            has_message_sent=stats_row.has_message_sent,
+            messages_sent_count=stats_row.messages_sent_count,
+            has_reply_received=stats_row.has_reply_received,
+            inbound_messages_count=stats_row.inbound_messages_count,
+        )
+    return base.model_copy(update=updates)
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
@@ -74,10 +83,39 @@ async def list_leads(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     status_filter: Optional[LeadStatus] = Query(default=None, alias="status"),
+    needs_next_step: bool = Query(
+        default=False,
+        description="Solo leads contactados sin siguiente paso definido",
+    ),
+    message_sent: Optional[bool] = Query(
+        default=None,
+        description="true=revisados (ya escrito), false=nuevos (sin mensaje enviado)",
+    ),
+    has_email: Optional[bool] = Query(
+        default=None,
+        description="Filtrar por presencia de email en el lead",
+    ),
+    discovered_since: Optional[datetime] = Query(
+        default=None,
+        description="Leads descubiertos o actualizados desde esta fecha (ISO 8601)",
+    ),
+    created_since: Optional[datetime] = Query(
+        default=None,
+        description="Solo dominios nuevos creados desde esta fecha (ISO 8601)",
+    ),
     session: AsyncSession = Depends(get_session),
 ) -> LeadListResponse:
     service = LeadService(session)
-    items, total = await service.list(limit=limit, offset=offset, status=status_filter)
+    items, total = await service.list(
+        limit=limit,
+        offset=offset,
+        status=status_filter,
+        needs_next_step_only=needs_next_step,
+        message_sent=message_sent,
+        has_email=has_email,
+        discovered_since=discovered_since,
+        created_since=created_since,
+    )
     outreach_service = OutreachService(session)
     stats = await outreach_service.stats_for_leads([item.id for item in items])
     return LeadListResponse(
@@ -122,6 +160,32 @@ async def delete_lead(
     if not deleted:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
     return {"status": "deleted", "lead_id": str(lead_id)}
+
+
+@router.post("/{lead_id}/next-step", response_model=LeadRead)
+async def set_lead_next_step(
+    lead_id: uuid.UUID,
+    payload: LeadNextStepSet,
+    session: AsyncSession = Depends(get_session),
+) -> LeadRead:
+    """Registra el siguiente paso comercial: llamada, propuesta o descarte."""
+    service = LeadService(session)
+    try:
+        lead = await service.set_next_step(
+            lead_id,
+            step=payload.step,
+            scheduled_at=payload.scheduled_at,
+            notes=payload.notes,
+            close_as_lost=payload.close_as_lost,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+    outreach_service = OutreachService(session)
+    stats = await outreach_service.stats_for_leads([lead_id])
+    return _lead_read_with_outreach(lead, stats.get(lead_id))
 
 
 @router.patch("/{lead_id}", response_model=LeadRead)

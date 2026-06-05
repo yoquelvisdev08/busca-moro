@@ -1,8 +1,8 @@
-# Exploration: Agency Model Full Implementation — SIPHON-X
+# Exploration: Agency Model Full Implementation — Orion
 
 ## Current State
 
-SIPHON-X is a multi-service lead generation platform with a functional pipeline: **discover → audit → enrich → outreach**. The platform is being transformed into an agency business model where the owner sells web optimization services to discovered leads.
+Orion is a multi-service lead generation platform with a functional pipeline: **discover → audit → enrich → outreach**. The platform is being transformed into an agency business model where the owner sells web optimization services to discovered leads.
 
 ### What Already Works
 - **Scout (Go)**: Discovery via SearXNG + Google Maps scraper
@@ -154,7 +154,7 @@ PDF Report Structure:
 Resend API supports attachments via base64 encoding:
 ```json
 {
-  "from": "outreach@siphonx.dev",
+  "from": "outreach@orion.dev",
   "to": ["prospect@example.com"],
   "subject": "Your Website Health Report",
   "html": "<p>...</p>",
@@ -236,7 +236,7 @@ class AuditMode(str, Enum):
 ### Queue Management
 - Quick scans: Same queue, priority 1
 - Standard audits: Same queue, priority 2
-- Deep analysis: Separate queue (`siphon:queue:audit-deep`), priority 3
+  - Deep analysis: Separate queue (`orion:queue:audit-deep`), priority 3
 - Deep audits should be rate-limited (max 5 concurrent)
 
 ### Affected Files
@@ -541,7 +541,7 @@ UI Redesign ──────────────────────�
 
 ### Infrastructure
 - No new Docker services needed
-- Redis queues: Add `siphon:queue:audit-deep` for deep analysis
+- Redis queues: Add `orion:queue:audit-deep` for deep analysis
 - PostgreSQL: Add tables for campaigns, deals, follow-ups
 
 ---

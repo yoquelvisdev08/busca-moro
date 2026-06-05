@@ -1,14 +1,19 @@
-# SIPHON-X :: Lista de Dorks para descubrimiento de prospectos.
+# Orion :: Lista de Dorks para descubrimiento de prospectos.
 # Una consulta por línea. Lineas que comienzan con # se ignoran.
-# Combinan operadores avanzados para detectar sitios deficientes/obsoletos.
+# Palabras clave simples (sin operadores de Google) para encontrar pequenos negocios reales.
 
-inurl:"wp-content" "powered by wordpress" intext:"abogados"
-intext:"powered by wordpress" intitle:"clinica dental"
-inurl:"index.php?option=com_" "Joomla"
-"Powered by Joomla" intext:"contacto"
-intitle:"index of" "wp-config.php"
-"made with prestashop" intext:"contacto"
-intext:"hecho con drupal" intext:"servicios"
-inurl:".php?id=" intext:"restaurante"
-inurl:"shop" intext:"contacto" intitle:"woocommerce"
-inurl:"/wp-admin" intext:"recuperar contraseña"
+necesito ayuda con mi pagina web
+busco desarrollador web para negocio
+necesito arreglar mi sitio web
+mi pagina web no funciona bien
+quiero mejorar mi pagina web
+necesito disenador web para empresa
+busco quien me haga pagina web
+necesito crear mi pagina web ya
+dentista horario contacto cita telefono
+clinica dental servicios precios contacto
+restaurante menu reservas ubicacion telefono
+abogados servicios contacto consulta legal
+taller mecanico servicios precios contacto
+peluqueria servicios precios cita online
+veterinaria servicios horario contacto urgencias

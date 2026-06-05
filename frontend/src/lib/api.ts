@@ -53,6 +53,11 @@ export interface Lead {
   discovered_at: string;
   audited_at: string | null;
   contacted_at: string | null;
+  next_step_type?: string | null;
+  next_step_at?: string | null;
+  next_step_notes?: string | null;
+  needs_next_step?: boolean;
+  has_email?: boolean;
   tech_stack: Record<string, unknown>;
   social_links: Record<string, unknown>;
   commercial_score: number | null;
@@ -111,8 +116,16 @@ export interface Audit {
   extracted_contacts: Record<string, any>;
 }
 
+export interface CommercialPlaybook {
+  price_range?: string;
+  delivery_timeline?: string;
+  call_cta?: string;
+  scope_summary?: string | string[];
+}
+
 export interface SalesIntelligenceExtras {
   sales_brief?: string;
+  commercial_playbook?: CommercialPlaybook;
   cold_email_subject_alt?: string | null;
   cold_email_body_alt?: string | null;
   report_narrative?: Record<string, unknown>;
@@ -313,12 +326,42 @@ export interface MonitorStatus {
   }[];
 }
 
+export interface BulkSendDetail {
+  lead_id: string;
+  status: "sent" | "skipped" | "failed";
+  detail: string;
+}
+
+export interface BulkSendResponse {
+  sent: number;
+  skipped: BulkSendDetail[];
+  failed: BulkSendDetail[];
+}
+
 export const api = {
-  listLeads(params: { limit?: number; offset?: number; status?: LeadStatus } = {}) {
+  listLeads(
+    params: {
+      limit?: number;
+      offset?: number;
+      status?: LeadStatus;
+      needs_next_step?: boolean;
+      message_sent?: boolean;
+      has_email?: boolean;
+      discovered_since?: string;
+      created_since?: string;
+    } = {},
+  ) {
     const search = new URLSearchParams();
     if (params.limit) search.set("limit", String(params.limit));
     if (params.offset) search.set("offset", String(params.offset));
     if (params.status) search.set("status", params.status);
+    if (params.needs_next_step) search.set("needs_next_step", "true");
+    if (params.message_sent === true) search.set("message_sent", "true");
+    if (params.message_sent === false) search.set("message_sent", "false");
+    if (params.has_email === true) search.set("has_email", "true");
+    if (params.has_email === false) search.set("has_email", "false");
+    if (params.discovered_since) search.set("discovered_since", params.discovered_since);
+    if (params.created_since) search.set("created_since", params.created_since);
     const qs = search.toString();
     return request<LeadListResponse>(`/v1/leads${qs ? `?${qs}` : ""}`);
   },
@@ -329,6 +372,20 @@ export const api = {
     return request<Lead>(`/v1/leads/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+    });
+  },
+  setLeadNextStep(
+    id: string,
+    payload: {
+      step: "call" | "proposal" | "discard";
+      scheduled_at?: string;
+      notes?: string;
+      close_as_lost?: boolean;
+    },
+  ) {
+    return request<Lead>(`/v1/leads/${id}/next-step`, {
+      method: "POST",
+      body: JSON.stringify(payload),
     });
   },
   deleteLead(id: string, payload: { reason: string; detail?: string }) {
@@ -378,10 +435,14 @@ export const api = {
     if (body) params.set("body", body);
     if (attachReportId) params.set("attach_report_id", attachReportId);
     if (toEmail?.trim()) params.set("to_email", toEmail.trim());
-    return request<{ status: string; message_id: string; outreach_id: string; recipient: string; has_attachment: boolean }>(
-      `/v1/outreach/send?${params.toString()}`,
-      { method: "POST" }
-    );
+    return request<{
+      status: string;
+      message_id: string;
+      outreach_id: string;
+      recipient: string;
+      has_attachment: boolean;
+      needs_next_step?: boolean;
+    }>(`/v1/outreach/send?${params.toString()}`, { method: "POST" });
   },
   getSenderProfile() {
     return request<SenderProfile | null>("/v1/sender-profile");
@@ -413,6 +474,29 @@ export const api = {
       `/v1/scout/start?${search.toString()}`,
       { method: "POST" }
     );
+  },
+  analyzeUrl(params: {
+    url: string;
+    location?: string;
+    industry?: string;
+  }) {
+    return request<{
+      success: boolean;
+      published: boolean;
+      message: string;
+      url: string;
+      segment?: string | null;
+      total_score?: number | null;
+      skipped_reason?: string | null;
+      reasons?: string[];
+    }>("/v1/scout/analyze-url", {
+      method: "POST",
+      body: JSON.stringify({
+        url: params.url,
+        location: params.location ?? null,
+        industry: params.industry ?? null,
+      }),
+    });
   },
 
   /* ── Reports ── */
@@ -499,6 +583,12 @@ export const api = {
       `/v1/outreach${qs ? `?${qs}` : ""}`,
     );
   },
+  trackOutreachReply(messageId: string) {
+    return request<{ status: string; follow_ups_cancelled: boolean }>(
+      `/v1/outreach/${messageId}/track-reply`,
+      { method: "POST" },
+    );
+  },
   recordInboundMessage(payload: {
     lead_id: string;
     sender_email: string;
@@ -509,6 +599,14 @@ export const api = {
     return request<OutreachMessage>("/v1/outreach/inbound", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+
+  /* ── Bulk Report Send ── */
+  bulkReportSend(leadIds: string[], attachReport = true) {
+    return request<BulkSendResponse>("/v1/outreach/bulk-send", {
+      method: "POST",
+      body: JSON.stringify({ lead_ids: leadIds, attach_report: attachReport }),
     });
   },
 };

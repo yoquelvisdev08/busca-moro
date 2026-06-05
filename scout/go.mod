@@ -1,4 +1,4 @@
-module github.com/siphonx/scout
+module github.com/orion/scout
 
 go 1.23
 

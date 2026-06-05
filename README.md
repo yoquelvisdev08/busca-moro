@@ -1,10 +1,10 @@
-# SIPHON-X Agency Platform
+# Orion Agency Platform
 
 Plataforma de generación de leads con inteligencia artificial para agencias de optimización web. Descubre sitios web con problemas, genera reportes profesionales automatizados y ejecuta campañas de outreach en frío.
 
 ## 🎯 Modelo de Negocio
 
-**Agencia de Optimización Web**: SIPHON-X descubre negocios con sitios web deficientes, cuantifica sus pérdidas de revenue, y les envía propuestas de mejora personalizadas.
+**Agencia de Optimización Web**: Orion descubre negocios con sitios web deficientes, cuantifica sus pérdidas de revenue, y les envía propuestas de mejora personalizadas.
 
 ### Flujo de Valor
 
@@ -166,8 +166,8 @@ El frontend se sirve como static files desde Docker:
 ```bash
 cd frontend
 npm run build
-docker build -t siphon-frontend .
-docker run -p 3000:80 siphon-frontend
+docker build -t orion-frontend .
+docker run -p 3000:80 orion-frontend
 ```
 
 O deploy a Vercel/Netlify:
@@ -209,8 +209,8 @@ vercel --prod
 
 ```bash
 # Base de datos
-POSTGRES_DB=siphon
-POSTGRES_USER=siphon
+POSTGRES_DB=orion
+POSTGRES_USER=orion
 POSTGRES_PASSWORD=<tu-password>
 
 # Redis
