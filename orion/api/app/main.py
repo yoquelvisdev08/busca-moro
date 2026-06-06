@@ -51,13 +51,19 @@ async def _follow_up_poller(interval_seconds: int) -> None:
         await asyncio.sleep(interval_seconds)
 
 
-async def _automation_poller(interval_seconds: int) -> None:
-    """Background task: envía reporte + email a leads enriquecidos cuando está activo."""
-    logger.info("automation_poller_started", extra={"interval_seconds": interval_seconds})
+async def _automation_poller() -> None:
+    """Background task: avanza pipeline y outreach según configuración en Redis."""
+    logger.info("automation_poller_started")
     while True:
+        interval_seconds = 45
         try:
             from app.core.database import get_session_factory
             from app.services.automation_processor import process_automation_cycle
+            from app.services.automation_service import AutomationService
+
+            redis = get_redis()
+            config = await AutomationService(redis).get_config()
+            interval_seconds = config.pipeline_poll_seconds
 
             factory = get_session_factory()
             async with factory() as session:
@@ -104,7 +110,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         logger.info("follow_up_poller_launched")
 
-    _automation_task = asyncio.create_task(_automation_poller(45))
+    _automation_task = asyncio.create_task(_automation_poller())
     logger.info("automation_poller_launched")
 
     try:

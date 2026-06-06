@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ExternalLink,
   MessageCircle,
@@ -17,7 +18,8 @@ import {
   useTriggerPoseidonScanMutation,
   useUpdatePoseidonSignalMutation,
 } from "@/lib/hooks";
-import { ORION_APP_URL, type PoseidonSignal, type PoseidonSignalStatus } from "@/lib/api";
+import { orionLeadUrl, type PoseidonSignal, type PoseidonSignalStatus } from "@/lib/api";
+import { ScanProgressPanel, formatWhen } from "@/components/domain/ScanProgressPanel";
 import { DataTable } from "@/components/tables/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,22 +43,17 @@ const CATEGORY_LABELS: Record<string, string> = {
   general: "General",
 };
 
-function formatWhen(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("es-ES", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function orionLeadUrl(leadId: string): string {
-  return `${ORION_APP_URL}/leads/${leadId}`;
-}
-
 export function InboxPage() {
-  const [tab, setTab] = useState<PoseidonSignalStatus | "all">("new");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab");
+  const [tab, setTab] = useState<PoseidonSignalStatus | "all">(
+    initialTab === "contacted" ||
+      initialTab === "reviewed" ||
+      initialTab === "dismissed" ||
+      initialTab === "new"
+      ? initialTab
+      : "new",
+  );
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
@@ -78,6 +75,8 @@ export function InboxPage() {
   const signals = data?.items ?? [];
   const total = data?.total ?? 0;
   const pageCount = Math.ceil(total / pagination.pageSize) || 1;
+
+  const scanning = scanStatus?.active || scanMutation.isPending;
 
   const columns = useMemo<ColumnDef<PoseidonSignal, unknown>[]>(
     () => [
@@ -261,10 +260,12 @@ export function InboxPage() {
           disabled={scanMutation.isPending || scanStatus?.active}
           className="gap-2 shrink-0"
         >
-          <RefreshCw className={cn("size-4", scanStatus?.active && "animate-spin")} />
-          {scanStatus?.active ? "Escaneando…" : "Escanear ahora"}
+          <RefreshCw className={cn("size-4", scanning && "animate-spin")} />
+          {scanning ? "Escaneando…" : "Escanear ahora"}
         </Button>
       </div>
+
+      {scanning && <ScanProgressPanel scanStatus={scanStatus} scanning={scanning} />}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Nuevos" value={stats?.new ?? 0} highlight />
@@ -285,6 +286,7 @@ export function InboxPage() {
             type="button"
             onClick={() => {
               setTab(t.id);
+              setSearchParams(t.id === "all" ? {} : { tab: t.id });
               setPagination((p) => ({ ...p, pageIndex: 0 }));
             }}
             className={cn(

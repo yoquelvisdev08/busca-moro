@@ -74,6 +74,10 @@ class PoseidonScanStatus(BaseModel):
     last_scan_saved: int = 0
     last_error: Optional[str] = None
     queries_count: int = 0
+    phase: Optional[str] = None
+    progress_current: int = 0
+    progress_total: int = 0
+    status_message: Optional[str] = None
 
 
 class PoseidonConvertResult(BaseModel):

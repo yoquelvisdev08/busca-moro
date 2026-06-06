@@ -87,11 +87,12 @@ func run() error {
 			return nil
 		}
 
-		logger.Info("sleeping until next pass", "interval", cfg.LoopInterval.String())
+		logger.Info("sleeping until next pass", "interval", getLoopInterval(q, cfg).String())
 		// Check for start signal every 5 seconds during sleep
 		started := time.Now()
 		signaled := false
-		for time.Since(started) < cfg.LoopInterval {
+		sleepFor := getLoopInterval(q, cfg)
+		for time.Since(started) < sleepFor {
 			if checkStartSignal(q, cfg) {
 				logger.Info("start signal detected, running immediately")
 				signaled = true
@@ -347,6 +348,26 @@ func isAutoScoutEnabled(q *queue.Client) bool {
 		return true
 	}
 	return *cfg.AutoScoutEnabled
+}
+
+func getLoopInterval(q *queue.Client, cfg *config.Config) time.Duration {
+	if cfg.LoopInterval <= 0 {
+		return cfg.LoopInterval
+	}
+	raw, err := q.Get(automationConfigKey)
+	if err != nil || raw == "" {
+		return cfg.LoopInterval
+	}
+	var ac struct {
+		ScoutLoopMinutes *int `json:"scout_loop_minutes"`
+	}
+	if err := json.Unmarshal([]byte(raw), &ac); err != nil {
+		return cfg.LoopInterval
+	}
+	if ac.ScoutLoopMinutes == nil || *ac.ScoutLoopMinutes <= 0 {
+		return cfg.LoopInterval
+	}
+	return time.Duration(*ac.ScoutLoopMinutes) * time.Minute
 }
 
 func shouldRunPass(ctx context.Context, logger *slog.Logger, cfg *config.Config, q *queue.Client) bool {

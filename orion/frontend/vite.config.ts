@@ -24,6 +24,7 @@ export default defineConfig(async ({ mode }) => {
   }
 
   return {
+    base: "/orion/",
     plugins,
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(pkg.version ?? "dev"),

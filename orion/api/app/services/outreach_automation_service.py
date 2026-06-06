@@ -70,6 +70,13 @@ class OutreachAutomationService:
                 lead_id, "failed", "email_api_key_not_configured"
             )
 
+        from app.core.redis_client import get_redis
+        from app.services.automation_service import AutomationService
+
+        automation = AutomationService(get_redis())
+        if not await automation.pdf_enabled():
+            return OutreachAutomationResult(lead_id, "skipped", "pdf_disabled")
+
         await persist_lead_email(self._session, lead, recipient)
 
         try:
@@ -105,8 +112,8 @@ class OutreachAutomationService:
             EmailConfig(
                 provider=self._settings.email_provider,
                 api_key=self._settings.email_api_key,
-                from_email=self._settings.email_from,
-                from_name=self._settings.email_from_name,
+                from_email=await automation.effective_email_from(),
+                from_name=await automation.effective_email_from_name(),
             )
         )
         html_body = await build_outreach_email_html(

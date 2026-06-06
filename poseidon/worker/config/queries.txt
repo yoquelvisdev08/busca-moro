@@ -1,13 +1,13 @@
-# Poseidon :: consultas globales (PullPush + SearXNG fallback)
-# Una query por linea.
+# Poseidon :: solo consultas en español (LATAM / España)
 
 necesito ayuda pagina web
 busco desarrollador web español
 wordpress lento ayuda
 mi sitio web no carga
-need help wordpress website
-looking for web developer freelance
-website slow need help
+ayuda wordpress sitio roto
+busco freelancer web español
 scraping datos python ayuda
 cotización pagina web negocio
 hosting caido ayuda web
+desarrollador web remoto latam
+presupuesto pagina web pyme

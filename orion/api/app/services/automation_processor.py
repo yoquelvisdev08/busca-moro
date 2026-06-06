@@ -14,6 +14,7 @@ from app.models.audit import Audit
 from app.models.lead import Lead, LeadStatus
 from app.models.outreach import MessageDirection, OutreachMessage
 from app.models.sales_intelligence import SalesIntelligence
+from app.schemas.automation import AutomationConfigUpdate
 from app.services.automation_service import AUTOMATION_STATS_KEY, AutomationService
 from app.services.lead_contact import resolve_lead_email
 from app.services.outreach_automation_service import OutreachAutomationService
@@ -239,7 +240,10 @@ async def process_auto_outreach(session: AsyncSession) -> tuple[int, int, str]:
     if not config.auto_outreach_enabled:
         return 0, 0, "disabled"
 
-    if not settings.pdf_generation_enabled:
+    if not config.auto_email_enabled:
+        return 0, 0, "email_paused"
+
+    if not await automation.pdf_enabled():
         return 0, 0, "pdf_disabled"
 
     if not settings.email_api_key:
@@ -292,6 +296,15 @@ async def process_auto_outreach(session: AsyncSession) -> tuple[int, int, str]:
         elif outcome.status == "failed":
             failed += 1
             details.append(f"{lead.normalized_domain}: {outcome.detail}")
+            if "429" in outcome.detail or "daily_quota_exceeded" in outcome.detail:
+                await automation.update_config(
+                    AutomationConfigUpdate(auto_email_enabled=False)
+                )
+                logger.warning(
+                    "auto_email_disabled_quota",
+                    extra={"lead": lead.normalized_domain, "detail": outcome.detail[:200]},
+                )
+                break
 
     detail = "; ".join(details) if details else "no_candidates"
     if sent or failed:

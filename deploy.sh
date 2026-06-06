@@ -133,7 +133,7 @@ sleep 15
 
 # Verificar servicios críticos
 echo -e "${BLUE}Verificando servicios críticos...${NC}"
-for svc in api scout searxng frontend; do
+for svc in api scout searxng olimpo-frontend; do
     if docker compose ps $svc --format json 2>/dev/null | grep -q '"State":"running"'; then
         echo -e "${GREEN}  ✅ $svc corriendo${NC}"
     else
@@ -155,7 +155,9 @@ echo -e "${GREEN}║              🎉 Deploy Completado Exitosamente           
 echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${BLUE}📍 URLs de acceso:${NC}"
-echo -e "   • Frontend:        ${GREEN}http://localhost:3000${NC}"
+echo -e "   • Olimpo (portal): ${GREEN}http://localhost:3000${NC}"
+echo -e "   • Orion:           ${GREEN}http://localhost:3000/orion/${NC}"
+echo -e "   • Poseidon:        ${GREEN}http://localhost:3000/poseidon/${NC}"
 echo -e "   • API:             ${GREEN}http://localhost:8000${NC}"
 echo -e "   • API Docs:        ${GREEN}http://localhost:8000/docs${NC}"
 echo -e "   • Nginx Admin:     ${GREEN}http://localhost:81${NC}"

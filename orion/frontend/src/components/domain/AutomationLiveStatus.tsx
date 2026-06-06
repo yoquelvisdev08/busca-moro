@@ -45,8 +45,10 @@ export function AutomationLiveStatus({
   const scout = status?.scout;
   const autoScout = config?.auto_scout_enabled ?? false;
   const autoOutreach = config?.auto_outreach_enabled ?? false;
+  const autoEmail = config?.auto_email_enabled ?? true;
   const anyAuto = autoScout || autoOutreach;
-  const loopMinutes = status?.scout_loop_minutes ?? 5;
+  const loopMinutes = status?.scout_loop_minutes ?? 15;
+  const pollSeconds = status?.pipeline_poll_seconds ?? 45;
 
   useEffect(() => {
     if (!anyAuto) return;
@@ -167,25 +169,29 @@ export function AutomationLiveStatus({
     ? scoutMode === "discovery"
       ? "Discover en marcha"
       : "Scout buscando leads ahora"
-    : autoOutreach
-      ? "Pipeline completo · auditando y enviando emails"
-      : autoScout
-        ? secondsUntilNext != null && secondsUntilNext > 0
-          ? `Scout en pausa · próxima pasada en ${formatDuration(secondsUntilNext)}`
-          : "Scout listo · iniciando pasada..."
-        : "Pipeline en marcha";
+    : autoOutreach && !autoEmail
+      ? "Pipeline activo · auditando (emails pausados)"
+      : autoOutreach
+        ? "Pipeline completo · auditando y enviando emails"
+        : autoScout
+          ? secondsUntilNext != null && secondsUntilNext > 0
+            ? `Scout en pausa · próxima pasada en ${formatDuration(secondsUntilNext)}`
+            : "Scout listo · iniciando pasada..."
+          : "Pipeline en marcha";
 
   const subline = scoutActive
     ? `Pasada #${scout.pass ?? 0} · ${scout.dorks_count ?? 0} dorks · ${scout.seeds_count ?? 0} seeds${
         scout.location ? ` · ${scout.location}` : ""
       }`
-    : autoOutreach
-      ? `Cada ~45s: impulsa auditoría/closer (hasta 15 por pasada) y envía hasta ${config?.auto_outreach_max_per_run ?? 3} emails`
-      : autoScout
-        ? `Ciclo cada ~${loopMinutes} min con dorks.txt${
-            finishedMs ? ` · última pasada terminó a las ${formatClock(scout?.finished_at)}` : ""
-          }`
-        : "Scout manual disponible en Discover";
+    : autoOutreach && !autoEmail
+      ? `Cada ~${pollSeconds}s: impulsa auditoría y Closer · emails OFF (cuota Resend o pausa manual)`
+      : autoOutreach
+        ? `Cada ~${pollSeconds}s: impulsa auditoría/closer (hasta 15 por pasada) y envía hasta ${config?.auto_outreach_max_per_run ?? 3} emails`
+        : autoScout
+          ? `Ciclo cada ~${loopMinutes} min con dorks.txt${
+              finishedMs ? ` · última pasada terminó a las ${formatClock(scout?.finished_at)}` : ""
+            }`
+          : "Scout manual disponible en Discover";
 
   return (
     <div
@@ -224,7 +230,7 @@ export function AutomationLiveStatus({
                 {autoOutreach && (
                   <Chip variant="outline" color="secondary" className="text-[10px]">
                     <Mail className="size-3" aria-hidden />
-                    Email auto
+                    {autoEmail ? "Email auto" : "Email pausado"}
                   </Chip>
                 )}
               </div>

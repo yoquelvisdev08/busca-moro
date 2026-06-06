@@ -4,6 +4,13 @@ export function ShellHeader() {
   return (
     <header className="h-14 border-b border-border bg-bg flex items-center justify-between px-4 md:px-6 shrink-0">
       <div className="flex items-center gap-3">
+        <a
+          href="/"
+          className="text-[11px] font-medium text-text-muted hover:text-primary transition-colors"
+          title="Volver a Olimpo"
+        >
+          Olimpo
+        </a>
         <div className="flex size-9 items-center justify-center rounded-lg bg-primary/15 border border-primary/30">
           <Waves className="size-5 text-primary" aria-hidden />
         </div>

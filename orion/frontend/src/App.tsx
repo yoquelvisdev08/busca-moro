@@ -106,7 +106,7 @@ function RouteChangeCloser() {
 
 export function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/orion">
       <TooltipProvider>
         <RouteChangeCloser />
         <a href="#main-content" className="skip-to-content sr-only">

@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.schemas.automation import (
     AutomationConfig,
     AutomationConfigUpdate,
+    AutomationEnvHints,
     AutomationStats,
     AutomationStatus,
     PipelineCounts,
@@ -32,14 +33,62 @@ class AutomationService:
         self._redis = redis
 
     async def get_config(self) -> AutomationConfig:
+        defaults = self._defaults_from_env()
         raw = await self._redis.get(AUTOMATION_CONFIG_KEY)
         if not raw:
-            return AutomationConfig()
+            return defaults
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            return AutomationConfig()
-        return AutomationConfig.model_validate(data)
+            return defaults
+        merged = {**defaults.model_dump(), **data}
+        return AutomationConfig.model_validate(merged)
+
+    @staticmethod
+    def _defaults_from_env() -> AutomationConfig:
+        settings = get_settings()
+        return AutomationConfig(
+            scout_loop_minutes=AutomationService._parse_loop_minutes(
+                os.environ.get("SCOUT_LOOP_INTERVAL", "15m")
+            ),
+            pipeline_poll_seconds=int(os.environ.get("AUTOMATION_POLL_SECONDS", "45") or 45),
+            pdf_generation_enabled=settings.pdf_generation_enabled,
+            email_from=settings.email_from,
+            email_from_name=settings.email_from_name,
+            agency_owner_name=settings.agency_owner_name,
+            agency_owner_title=settings.agency_owner_title,
+            agency_website=settings.agency_website or settings.sender_profile_website,
+        )
+
+    @staticmethod
+    def env_hints() -> AutomationEnvHints:
+        settings = get_settings()
+        return AutomationEnvHints(
+            email_api_key_configured=bool(settings.email_api_key),
+            llm_api_key_configured=bool(settings.llm_api_key),
+            scout_loop_env_minutes=AutomationService._parse_loop_minutes(
+                os.environ.get("SCOUT_LOOP_INTERVAL", "15m")
+            ),
+            pipeline_poll_env_seconds=int(os.environ.get("AUTOMATION_POLL_SECONDS", "45") or 45),
+            email_from_env=settings.email_from,
+            email_from_name_env=settings.email_from_name,
+        )
+
+    async def effective_email_from(self) -> str:
+        config = await self.get_config()
+        settings = get_settings()
+        cleaned = (config.email_from or "").strip()
+        return cleaned or settings.email_from
+
+    async def effective_email_from_name(self) -> str:
+        config = await self.get_config()
+        settings = get_settings()
+        cleaned = (config.email_from_name or "").strip()
+        return cleaned or settings.email_from_name
+
+    async def pdf_enabled(self) -> bool:
+        config = await self.get_config()
+        return config.pdf_generation_enabled
 
     async def update_config(self, patch: AutomationConfigUpdate) -> AutomationConfig:
         current = await self.get_config()
@@ -131,7 +180,8 @@ class AutomationService:
             outreach=await queue.length(settings.queue_outreach),
             dlq=await queue.length(settings.queue_dlq),
         )
-        loop_minutes = self._parse_loop_minutes(os.environ.get("SCOUT_LOOP_INTERVAL", "15m"))
+        loop_minutes = config.scout_loop_minutes
+        poll_seconds = config.pipeline_poll_seconds
 
         pipeline = PipelineCounts()
         if session is not None:
@@ -147,6 +197,8 @@ class AutomationService:
             queues=queues,
             pipeline=pipeline,
             scout_loop_minutes=loop_minutes,
+            pipeline_poll_seconds=poll_seconds,
+            env_hints=self.env_hints(),
             scout_pass_active=scout.active,
             scout_pass_mode=scout.mode,
         )

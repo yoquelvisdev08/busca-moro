@@ -14,7 +14,7 @@ import redis.asyncio as aioredis
 
 from poseidon.api_client import APIClient
 from poseidon.config import Settings, get_settings
-from poseidon.discovery import collect_hits
+from poseidon.discovery import collect_hits, count_discovery_steps
 from poseidon.intent import classify_hit
 from poseidon.llm_client import LLMClient
 
@@ -49,6 +49,18 @@ async def publish_scan_status(redis, payload: dict) -> None:
     await redis.set(SCAN_STATUS_KEY, json.dumps(payload), ex=86400)
 
 
+async def _merge_scan_status(redis, patch: dict) -> None:
+    raw = await redis.get(SCAN_STATUS_KEY)
+    base: dict = {}
+    if raw:
+        try:
+            base = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            base = {}
+    base.update(patch)
+    await publish_scan_status(redis, base)
+
+
 async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
     queries = load_queries(settings.queries_file)
     http = httpx.AsyncClient(timeout=60.0, follow_redirects=True)
@@ -62,6 +74,7 @@ async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
         )
 
     started = datetime.now(timezone.utc).isoformat()
+    discovery_total = count_discovery_steps(settings, queries)
     await publish_scan_status(
         redis,
         {
@@ -70,7 +83,11 @@ async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
             "last_scan_found": 0,
             "last_scan_saved": 0,
             "last_error": None,
-            "queries_count": len(queries) + len(settings.subreddit_scans),
+            "queries_count": discovery_total,
+            "phase": "discovery",
+            "progress_current": 0,
+            "progress_total": discovery_total,
+            "status_message": "Iniciando escaneo…",
         },
     )
 
@@ -78,11 +95,53 @@ async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
     llm_used = 0
     llm_disabled = False
     last_error: str | None = None
+    found = 0
+
+    async def report_discovery(current: int, total: int, message: str) -> None:
+        await _merge_scan_status(
+            redis,
+            {
+                "active": True,
+                "phase": "discovery",
+                "progress_current": current,
+                "progress_total": total,
+                "status_message": message,
+            },
+        )
+
+    async def report_classify(current: int, total: int, message: str) -> None:
+        await _merge_scan_status(
+            redis,
+            {
+                "active": True,
+                "phase": "classify",
+                "progress_current": current,
+                "progress_total": total,
+                "status_message": message,
+                "last_scan_found": total,
+            },
+        )
 
     try:
-        hits = await collect_hits(settings, http, queries)
+        hits = await collect_hits(
+            settings,
+            http,
+            queries,
+            on_progress=report_discovery,
+        )
         found = len(hits)
         logger.info("poseidon_hits_collected found=%s", found)
+
+        await _merge_scan_status(
+            redis,
+            {
+                "phase": "classify",
+                "progress_current": 0,
+                "progress_total": max(found, 1),
+                "status_message": f"{found} posts encontrados · clasificando…",
+                "last_scan_found": found,
+            },
+        )
 
         if found == 0:
             last_error = (
@@ -90,7 +149,13 @@ async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
                 "Verifica Arctic Shift / SearXNG o amplía POSEIDON_MAX_POST_AGE_DAYS."
             )
 
-        for hit in hits:
+        for index, hit in enumerate(hits, start=1):
+            if index == 1 or index == found or index % 5 == 0:
+                await report_classify(
+                    index,
+                    found,
+                    f"Clasificando {index}/{found}… ({saved} guardadas)",
+                )
             use_llm = llm is not None and not llm_disabled and llm_used < settings.max_llm_classifications
             verdict = await classify_hit(
                 hit,
@@ -98,6 +163,7 @@ async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
                 min_keyword=settings.min_keyword_score,
                 min_intent=settings.min_intent_score,
                 min_intent_no_llm=settings.min_intent_score_no_llm,
+                require_spanish=settings.require_spanish,
             )
             if use_llm and verdict.llm_score is None and llm is not None:
                 llm_disabled = True
@@ -141,10 +207,14 @@ async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
     status = {
         "active": False,
         "last_scan_at": finished,
-        "last_scan_found": found if "found" in locals() else 0,
+        "last_scan_found": found,
         "last_scan_saved": saved,
         "last_error": last_error if saved == 0 and found == 0 else None,
-        "queries_count": len(queries) + len(settings.subreddit_scans),
+        "queries_count": discovery_total,
+        "phase": "done",
+        "progress_current": max(found, 1),
+        "progress_total": max(found, 1),
+        "status_message": f"Escaneo completado · {saved} guardadas de {found} encontradas",
     }
     await publish_scan_status(redis, status)
     return status
@@ -224,6 +294,10 @@ async def main() -> None:
                         "last_scan_saved": 0,
                         "last_error": str(exc),
                         "queries_count": len(load_queries(settings.queries_file)),
+                        "phase": "error",
+                        "progress_current": 0,
+                        "progress_total": 0,
+                        "status_message": "Error en el escaneo",
                     },
                 )
 

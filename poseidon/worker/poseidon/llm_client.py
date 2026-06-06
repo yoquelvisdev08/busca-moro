@@ -10,15 +10,16 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM = """Eres un clasificador de leads B2B para un consultor web freelance hispanohablante.
-Analiza si el texto es una PERSONA o NEGOCIO pidiendo ayuda real (no un tutorial, noticia, oferta de empleo ni spam).
+_SYSTEM = """Eres un clasificador de leads para un consultor web freelance que SOLO trabaja en ESPAÑOL (España/LATAM).
+Rechaza posts mayormente en inglés o sin señales claras de español.
+Analiza si el texto es una PERSONA o NEGOCIO pidiendo ayuda real (no tutorial, noticia, spam ni [For Hire]).
 Responde SOLO JSON válido con este schema:
 {
   "is_real_request": true,
   "intent_category": "web_dev|scraping|performance|hosting|wordpress|general",
   "confidence": 0-100,
   "summary": "una frase en español",
-  "reply_angle": "cómo responder en 1 frase directa y humana"
+  "reply_angle": "cómo responder en 1 frase directa y humana en español"
 }"""
 
 

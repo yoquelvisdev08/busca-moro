@@ -341,12 +341,30 @@ export interface ScoutPassStatus {
 export interface AutomationConfig {
   auto_scout_enabled: boolean;
   auto_outreach_enabled: boolean;
+  auto_email_enabled: boolean;
   auto_outreach_min_segment: "A" | "B" | "C";
   auto_outreach_max_per_run: number;
   default_num_dorks: number;
   default_industry: string;
   default_location: string;
   default_niche: string;
+  scout_loop_minutes: number;
+  pipeline_poll_seconds: number;
+  pdf_generation_enabled: boolean;
+  email_from: string;
+  email_from_name: string;
+  agency_owner_name: string;
+  agency_owner_title: string;
+  agency_website: string;
+}
+
+export interface AutomationEnvHints {
+  email_api_key_configured: boolean;
+  llm_api_key_configured: boolean;
+  scout_loop_env_minutes: number;
+  pipeline_poll_env_seconds: number;
+  email_from_env: string;
+  email_from_name_env: string;
 }
 
 export type AutomationConfigUpdate = Partial<AutomationConfig>;
@@ -377,6 +395,8 @@ export interface AutomationStatus {
   queues: PipelineQueues;
   pipeline: PipelineCounts;
   scout_loop_minutes: number;
+  pipeline_poll_seconds: number;
+  env_hints: AutomationEnvHints;
   scout_pass_active: boolean;
   scout_pass_mode: string;
 }

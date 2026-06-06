@@ -41,7 +41,8 @@ class Settings(BaseSettings):
     )
     use_pullpush: bool = Field(default=False, alias="POSEIDON_USE_PULLPUSH")
     pullpush_max_age_days: int = Field(default=400, alias="POSEIDON_PULLPUSH_MAX_AGE_DAYS")
-    use_searx: bool = Field(default=True, alias="POSEIDON_USE_SEARX")
+    require_spanish: bool = Field(default=True, alias="POSEIDON_REQUIRE_SPANISH")
+    use_searx: bool = Field(default=False, alias="POSEIDON_USE_SEARX")
     subreddit_scans: list[tuple[str, str]] = Field(default_factory=list)
     query_subreddits: list[str] = Field(default_factory=list)
 
@@ -63,30 +64,32 @@ def get_settings() -> Settings:
 
 def _default_subreddit_scans() -> list[tuple[str, str]]:
     return [
-        ("wordpress", "help fix broken"),
-        ("wordpress", "wordpress error slow"),
-        ("webdev", "need help website"),
-        ("webdev", "looking for developer"),
-        ("web_design", "need help"),
-        ("smallbusiness", "website"),
-        ("forhire", "Hiring"),
-        ("slavelabour", "TASK"),
-        ("spain", "pagina web"),
-        ("latam", "desarrollador web"),
+        ("spain", "pagina web ayuda"),
+        ("spain", "desarrollador web"),
         ("es", "wordpress ayuda"),
+        ("es", "pagina web"),
+        ("latam", "desarrollador web"),
+        ("latam", "pagina web ayuda"),
+        ("mexico", "desarrollador web"),
+        ("argentina", "pagina web"),
+        ("Colombia", "sitio web ayuda"),
+        ("chile", "desarrollador web"),
+        ("Peru", "pagina web"),
+        ("Venezuela", "wordpress ayuda"),
     ]
 
 
 def _default_query_subreddits() -> list[str]:
     return [
-        "wordpress",
-        "webdev",
-        "web_design",
-        "smallbusiness",
-        "forhire",
-        "slavelabour",
         "spain",
-        "latam",
         "es",
-        "Entrepreneur",
+        "latam",
+        "mexico",
+        "argentina",
+        "Colombia",
+        "chile",
+        "Peru",
+        "Venezuela",
+        "Uruguay",
+        "Ecuador",
     ]

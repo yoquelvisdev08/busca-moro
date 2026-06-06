@@ -13,7 +13,8 @@ Plataforma de generación de leads con inteligencia artificial para agencias de 
 
 ```
 busca-moro/
-├── docker-compose.yml      # Orquesta Orion + Poseidon + infra compartida
+├── docker-compose.yml      # Orquesta Olimpo + API + workers
+├── olimpo/                 # Portal :3000 — /, /orion/, /poseidon/
 ├── orion/
 │   ├── api/                # FastAPI (leads, reports, outreach…)
 │   ├── frontend/           # React SPA
@@ -111,8 +112,9 @@ cp .env.example .env
 
 ### Acceso
 
-- **Orion UI**: http://localhost:3000
-- **Poseidon UI**: http://localhost:3001
+- **Olimpo (portal)**: http://localhost:3000
+- **Orion**: http://localhost:3000/orion/
+- **Poseidon**: http://localhost:3000/poseidon/
 - **API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs
 - **Nginx Admin**: http://localhost:81

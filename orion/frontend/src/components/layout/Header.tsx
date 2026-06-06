@@ -36,6 +36,13 @@ export function Header() {
     >
       {/* Left: Mobile hamburger + Page context */}
       <div className="flex items-center gap-3">
+        <a
+          href="/"
+          className="hidden sm:inline-flex text-[11px] font-medium text-text-muted hover:text-primary transition-colors"
+          title="Volver a Olimpo"
+        >
+          Olimpo
+        </a>
         {/* Mobile hamburger */}
         <button
           className="md:hidden p-1.5 rounded-sm text-text-muted hover:text-text hover:bg-surface transition-colors"

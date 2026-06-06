@@ -43,9 +43,9 @@ export const colors = {
 
 /* ── Chart Colors ── */
 export const chartColors = {
-  primary: "#6366f1",
-  secondary: "#a855f7",
-  tertiary: "#d97721",
+  primary: "#22d3ee",
+  secondary: "#0891b2",
+  tertiary: "#14b8a6",
 } as const;
 
 export type ChartColor = keyof typeof chartColors;

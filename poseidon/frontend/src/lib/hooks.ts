@@ -7,6 +7,14 @@ const keys = {
   scanStatus: ["poseidon", "scan-status"] as const,
 };
 
+export function usePoseidonRecentSignals() {
+  return useQuery({
+    queryKey: ["poseidon", "signals", "recent"],
+    queryFn: () => api.listPoseidonSignals({ limit: 200, min_score: 0 }),
+    refetchInterval: 30_000,
+  });
+}
+
 export function usePoseidonSignals(params?: {
   status?: PoseidonSignalStatus;
   min_score?: number;
@@ -32,7 +40,7 @@ export function usePoseidonScanStatus() {
   return useQuery({
     queryKey: keys.scanStatus,
     queryFn: () => api.getPoseidonScanStatus(),
-    refetchInterval: 10_000,
+    refetchInterval: (query) => (query.state.data?.active ? 2_000 : 15_000),
   });
 }
 

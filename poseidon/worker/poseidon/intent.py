@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from poseidon.language import looks_spanish
 from poseidon.llm_client import LLMClient
 from poseidon.pullpush_client import is_supply_side_title
 from poseidon.searx_client import SearchHit
@@ -76,7 +77,11 @@ async def classify_hit(
     min_keyword: int,
     min_intent: int,
     min_intent_no_llm: int = 32,
+    require_spanish: bool = True,
 ) -> IntentVerdict:
+    if require_spanish and not looks_spanish(f"{hit.title} {hit.snippet} {hit.query}"):
+        return IntentVerdict(0, 0, "general", None, None, None, False)
+
     kw_score, category = keyword_score(hit)
     if kw_score < min_keyword:
         return IntentVerdict(kw_score, kw_score, category, None, None, None, False)

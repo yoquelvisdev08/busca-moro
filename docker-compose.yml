@@ -247,11 +247,10 @@ services:
     logging: *default-logging
 
   poseidon-frontend:
+    profiles: ["legacy-split-ui"]
     build:
       context: ./poseidon/frontend
       dockerfile: Dockerfile
-      args:
-        VITE_ORION_APP_URL: ${POSEIDON_ORION_APP_URL:-http://localhost:3000}
     container_name: poseidon-frontend
     restart: unless-stopped
     env_file: ./.env
@@ -263,11 +262,28 @@ services:
       - orion-edge
     ports:
       - "3001:80"
+    logging: *default-logging
+
+  olimpo-frontend:
+    build:
+      context: .
+      dockerfile: olimpo/Dockerfile
+    container_name: olimpo-frontend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - orion-core
+      - orion-edge
+    ports:
+      - "3000:80"
     expose:
       - "80"
     logging: *default-logging
 
   frontend:
+    profiles: ["legacy-split-ui"]
     build:
       context: ./orion/frontend
       dockerfile: Dockerfile

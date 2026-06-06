@@ -173,9 +173,7 @@ class PoseidonService:
 
         business_url = extract_business_url(signal.title, signal.snippet)
         if not business_url:
-            raise ValueError(
-                "No se detectó un sitio web en el post. Contacta manualmente por el enlace del hilo."
-            )
+            business_url = f"https://poseidon.{signal.id}.local"
 
         notes = (
             f"[Poseidon] {signal.platform} · score {signal.intent_score}\n"
@@ -186,6 +184,7 @@ class PoseidonService:
         lead = await lead_service.upsert(
             LeadCreate(
                 url=business_url,
+                company_name=(signal.title or "Lead Poseidon")[:250],
                 discovery_source="poseidon",
                 discovery_query=signal.query_used or signal.intent_category,
                 score=min(signal.intent_score, 100),

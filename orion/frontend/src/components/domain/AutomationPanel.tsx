@@ -44,6 +44,15 @@ export function AutomationPanel({
 
   const [autoScout, setAutoScout] = useState(true);
   const [autoOutreach, setAutoOutreach] = useState(false);
+  const [autoEmail, setAutoEmail] = useState(true);
+  const [scoutLoopMinutes, setScoutLoopMinutes] = useState(15);
+  const [pipelinePollSeconds, setPipelinePollSeconds] = useState(45);
+  const [pdfEnabled, setPdfEnabled] = useState(true);
+  const [emailFrom, setEmailFrom] = useState("");
+  const [emailFromName, setEmailFromName] = useState("");
+  const [agencyOwnerName, setAgencyOwnerName] = useState("");
+  const [agencyOwnerTitle, setAgencyOwnerTitle] = useState("");
+  const [agencyWebsite, setAgencyWebsite] = useState("");
   const [minSegment, setMinSegment] = useState<"A" | "B" | "C">("B");
   const [maxPerRun, setMaxPerRun] = useState(3);
   const [numDorks, setNumDorks] = useState(20);
@@ -56,6 +65,15 @@ export function AutomationPanel({
     const c = status.config;
     setAutoScout(c.auto_scout_enabled);
     setAutoOutreach(c.auto_outreach_enabled);
+    setAutoEmail(c.auto_email_enabled ?? true);
+    setScoutLoopMinutes(c.scout_loop_minutes ?? 15);
+    setPipelinePollSeconds(c.pipeline_poll_seconds ?? 45);
+    setPdfEnabled(c.pdf_generation_enabled ?? true);
+    setEmailFrom(c.email_from ?? "");
+    setEmailFromName(c.email_from_name ?? "");
+    setAgencyOwnerName(c.agency_owner_name ?? "");
+    setAgencyOwnerTitle(c.agency_owner_title ?? "");
+    setAgencyWebsite(c.agency_website ?? "");
     setMinSegment(c.auto_outreach_min_segment);
     setMaxPerRun(c.auto_outreach_max_per_run);
     setNumDorks(c.default_num_dorks);
@@ -86,10 +104,20 @@ export function AutomationPanel({
 
   const handleToggleOutreach = async (checked: boolean) => {
     setAutoOutreach(checked);
-    await save({ auto_outreach_enabled: checked });
+    if (!checked) {
+      setAutoEmail(false);
+      await save({ auto_outreach_enabled: false, auto_email_enabled: false });
+      return;
+    }
+    await save({ auto_outreach_enabled: true });
   };
 
-  const handleSaveDefaults = async () => {
+  const handleToggleEmail = async (checked: boolean) => {
+    setAutoEmail(checked);
+    await save({ auto_email_enabled: checked });
+  };
+
+  const handleSaveSettings = async () => {
     await save({
       default_num_dorks: numDorks,
       default_industry: defaultIndustry,
@@ -97,6 +125,14 @@ export function AutomationPanel({
       default_niche: defaultNiche,
       auto_outreach_min_segment: minSegment,
       auto_outreach_max_per_run: maxPerRun,
+      scout_loop_minutes: scoutLoopMinutes,
+      pipeline_poll_seconds: pipelinePollSeconds,
+      pdf_generation_enabled: pdfEnabled,
+      email_from: emailFrom,
+      email_from_name: emailFromName,
+      agency_owner_name: agencyOwnerName,
+      agency_owner_title: agencyOwnerTitle,
+      agency_website: agencyWebsite,
     });
     onDefaultsChange?.({
       industry: defaultIndustry,
@@ -109,10 +145,12 @@ export function AutomationPanel({
   const enableFullAuto = async () => {
     setAutoScout(true);
     setAutoOutreach(true);
+    setAutoEmail(true);
     try {
       await updateMutation.mutateAsync({
         auto_scout_enabled: true,
         auto_outreach_enabled: true,
+        auto_email_enabled: true,
       });
       notify.success("Modo completo activado: buscar + auditar + enviar emails");
     } catch (e) {
@@ -133,14 +171,19 @@ export function AutomationPanel({
   const scoutActive = status?.scout?.active ?? status?.scout_pass_active ?? false;
   const scoutMode = status?.scout?.mode ?? status?.scout_pass_mode ?? "automatic";
 
-  const fullMode = autoScout && autoOutreach;
+  const fullMode = autoScout && autoOutreach && autoEmail;
+  const pipelineOnly = autoOutreach && !autoEmail;
   const modeSummary = fullMode
     ? "Modo completo: buscar leads + auditar + enviar emails"
-    : autoScout
-      ? "Solo búsqueda activa (Scout auto, sin emails automáticos)"
-      : autoOutreach
-        ? "Solo pipeline de email (auditar + enviar, Scout manual)"
-        : "Automatización apagada";
+    : pipelineOnly
+      ? "Pipeline activo: auditar y generar reportes · emails pausados"
+      : autoScout
+        ? "Solo búsqueda activa (Scout auto, sin pipeline automático)"
+        : autoOutreach
+          ? autoEmail
+            ? "Solo pipeline + email (Scout manual)"
+            : "Solo pipeline (auditar + closer, sin emails)"
+          : "Automatización apagada";
 
   if (variant === "compact") {
     return (
@@ -203,7 +246,7 @@ export function AutomationPanel({
               <Mail className="size-4 shrink-0 text-primary mt-0.5" aria-hidden />
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium text-text">Reporte + email (auto)</p>
+                  <p className="text-sm font-medium text-text">Pipeline auto (auditar + IA)</p>
                   <Chip
                     variant={autoOutreach ? "solid" : "outline"}
                     color={autoOutreach ? "success" : "secondary"}
@@ -213,7 +256,7 @@ export function AutomationPanel({
                   </Chip>
                 </div>
                 <p className="text-xs text-text-muted">
-                  Leads enriquecidos con email, segmento {minSegment}+
+                  Auditor → Closer → reporte PDF (sin depender de Scout)
                 </p>
               </div>
             </div>
@@ -221,7 +264,41 @@ export function AutomationPanel({
               checked={autoOutreach}
               onCheckedChange={(v) => void handleToggleOutreach(Boolean(v))}
               disabled={updateMutation.isPending}
-              aria-label="Enviar reporte y email automáticamente"
+              aria-label="Activar pipeline automático de auditoría"
+            />
+          </div>
+
+          <div
+            className={cn(
+              "flex items-center justify-between gap-4 rounded-lg border px-4 py-3",
+              autoOutreach
+                ? "border-border/60 bg-surface/40"
+                : "border-border/40 bg-surface/20 opacity-60",
+            )}
+          >
+            <div className="flex items-start gap-3 min-w-0">
+              <Mail className="size-4 shrink-0 text-text-muted mt-0.5" aria-hidden />
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-text">Enviar emails auto</p>
+                  <Chip
+                    variant={autoEmail && autoOutreach ? "solid" : "outline"}
+                    color={autoEmail && autoOutreach ? "success" : "secondary"}
+                    className="text-[10px]"
+                  >
+                    {autoEmail && autoOutreach ? "ON" : "OFF"}
+                  </Chip>
+                </div>
+                <p className="text-xs text-text-muted">
+                  Resend · segmento {minSegment}+ · pausa si cuota diaria
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={autoEmail && autoOutreach}
+              onCheckedChange={(v) => void handleToggleEmail(Boolean(v))}
+              disabled={updateMutation.isPending || !autoOutreach}
+              aria-label="Enviar emails automáticamente"
             />
           </div>
 
@@ -337,17 +414,38 @@ export function AutomationPanel({
             <AutomationModeCard
               active={autoOutreach}
               icon={<Mail className="size-4" aria-hidden />}
-              title="Reporte + correo auto"
+              title="Pipeline auto (auditar + reporte)"
               description={
                 <>
-                  Flujo: Scout → Auditor (Lighthouse) → Closer (IA) → PDF + cold email.
-                  Solo leads <strong>enriched</strong> con email y segmento mínimo.
+                  Flujo: Auditor (Lighthouse) → Closer (IA) → PDF. Puedes pausar solo
+                  el envío por email si Resend agota cuota.
                 </>
               }
-              switchLabel="Activar reporte y correo automático"
+              switchLabel="Activar pipeline automático"
               checked={autoOutreach}
               onCheckedChange={(v) => void handleToggleOutreach(v)}
               disabled={updateMutation.isPending}
+              footer={
+                <div
+                  className={cn(
+                    "flex items-center justify-between gap-3 rounded-lg border px-3 py-2",
+                    autoOutreach ? "border-border/60 bg-surface/30" : "opacity-50",
+                  )}
+                >
+                  <div>
+                    <p className="text-xs font-medium text-text">Enviar emails auto</p>
+                    <p className="text-[11px] text-text-muted">
+                      Segmento {minSegment}+ · máx. {maxPerRun}/ciclo
+                    </p>
+                  </div>
+                  <Switch
+                    checked={autoEmail && autoOutreach}
+                    onCheckedChange={(v) => void handleToggleEmail(Boolean(v))}
+                    disabled={updateMutation.isPending || !autoOutreach}
+                    aria-label="Enviar emails automáticamente"
+                  />
+                </div>
+              }
             />
           </div>
 
@@ -355,6 +453,138 @@ export function AutomationPanel({
       </Card>
 
       <AutomationLiveStatus variant="panel" />
+
+      <Card className="border-border/80">
+        <CardHeader className="border-b border-border/60 pb-4">
+          <h2 className="text-base font-headline font-semibold text-text">
+            Intervalos y tiempos
+          </h2>
+          <p className="text-xs text-text-muted mt-0.5">
+            Sustituyen valores de <code className="text-[10px]">.env</code> en runtime (sin
+            reiniciar contenedores). Los secretos (API keys) siguen en .env.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-5 pt-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-[11px] uppercase tracking-wider text-text-muted">
+                Pasada Scout cada ({scoutLoopMinutes} min)
+              </Label>
+              <input
+                type="range"
+                min={5}
+                max={120}
+                step={5}
+                value={scoutLoopMinutes}
+                onChange={(e) => setScoutLoopMinutes(Number(e.target.value))}
+                className="w-full h-2 rounded-full bg-surface-high accent-primary cursor-pointer"
+              />
+              <p className="text-[10px] text-text-dim">
+                .env SCOUT_LOOP_INTERVAL:{" "}
+                {status?.env_hints?.scout_loop_env_minutes ?? 15} min
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] uppercase tracking-wider text-text-muted">
+                Ciclo pipeline cada ({pipelinePollSeconds} s)
+              </Label>
+              <input
+                type="range"
+                min={15}
+                max={180}
+                step={15}
+                value={pipelinePollSeconds}
+                onChange={(e) => setPipelinePollSeconds(Number(e.target.value))}
+                className="w-full h-2 rounded-full bg-surface-high accent-primary cursor-pointer"
+              />
+              <p className="text-[10px] text-text-dim">
+                Auditar + closer + emails (si están activos)
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/80">
+        <CardHeader className="border-b border-border/60 pb-4">
+          <h2 className="text-base font-headline font-semibold text-text">
+            Correo y reportes
+          </h2>
+          <p className="text-xs text-text-muted mt-0.5">
+            Remitente visible en cold email. La API key de Resend permanece en .env (
+            {status?.env_hints?.email_api_key_configured ? "configurada" : "sin configurar"}).
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-5">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-surface/40 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-text">Generar PDF en outreach auto</p>
+              <p className="text-xs text-text-muted">Desactiva si solo quieres email sin adjunto</p>
+            </div>
+            <Switch
+              checked={pdfEnabled}
+              onCheckedChange={(v) => setPdfEnabled(Boolean(v))}
+              disabled={updateMutation.isPending}
+              aria-label="Generar PDF automáticamente"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-[11px] uppercase tracking-wider text-text-muted">
+                Email remitente
+              </Label>
+              <Input
+                type="email"
+                placeholder={status?.env_hints?.email_from_env || "outreach@dominio.com"}
+                value={emailFrom}
+                onChange={(e) => setEmailFrom(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] uppercase tracking-wider text-text-muted">
+                Nombre remitente
+              </Label>
+              <Input
+                placeholder={status?.env_hints?.email_from_name_env || "Tu nombre"}
+                value={emailFromName}
+                onChange={(e) => setEmailFromName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] uppercase tracking-wider text-text-muted">
+                Nombre (firma)
+              </Label>
+              <Input
+                placeholder="Yoquelvis"
+                value={agencyOwnerName}
+                onChange={(e) => setAgencyOwnerName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[11px] uppercase tracking-wider text-text-muted">
+                Título (firma)
+              </Label>
+              <Input
+                placeholder="Desarrollo web y optimización"
+                value={agencyOwnerTitle}
+                onChange={(e) => setAgencyOwnerTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-[11px] uppercase tracking-wider text-text-muted">
+                Web agencia
+              </Label>
+              <Input
+                type="url"
+                placeholder="https://tu-sitio.com"
+                value={agencyWebsite}
+                onChange={(e) => setAgencyWebsite(e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="border-border/80 overflow-visible">
         <CardHeader className="border-b border-border/60 pb-4">
@@ -454,7 +684,7 @@ export function AutomationPanel({
           </div>
 
           <Button
-            onClick={() => void handleSaveDefaults()}
+            onClick={() => void handleSaveSettings()}
             disabled={updateMutation.isPending}
             className="gap-2"
           >
@@ -463,7 +693,7 @@ export function AutomationPanel({
             ) : (
               <Save className="size-4" aria-hidden />
             )}
-            Guardar configuración
+            Guardar toda la configuración
           </Button>
         </CardContent>
       </Card>
@@ -480,6 +710,7 @@ function AutomationModeCard({
   checked,
   onCheckedChange,
   disabled,
+  footer,
 }: {
   active: boolean;
   icon: ReactNode;
@@ -489,6 +720,7 @@ function AutomationModeCard({
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
+  footer?: ReactNode;
 }) {
   return (
     <div
@@ -538,6 +770,7 @@ function AutomationModeCard({
         />
       </div>
       <p className="text-xs text-text-muted leading-relaxed">{description}</p>
+      {footer}
     </div>
   );
 }

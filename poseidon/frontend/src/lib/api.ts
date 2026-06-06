@@ -1,9 +1,14 @@
 const RAW_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 const API_BASE = RAW_BASE.replace(/\/$/, "");
 
-export const ORION_APP_URL = (
-  import.meta.env.VITE_ORION_APP_URL ?? "http://localhost:3000"
-).replace(/\/$/, "");
+export const ORION_APP_URL = (import.meta.env.VITE_ORION_APP_URL ?? "").replace(/\/$/, "");
+
+export function orionLeadUrl(leadId: string): string {
+  if (ORION_APP_URL) {
+    return `${ORION_APP_URL}/orion/leads/${leadId}`;
+  }
+  return `/orion/leads/${leadId}`;
+}
 
 export type PoseidonSignalStatus =
   | "new"
@@ -55,6 +60,10 @@ export interface PoseidonScanStatus {
   last_scan_saved: number;
   last_error: string | null;
   queries_count: number;
+  phase?: "discovery" | "classify" | "done" | "error" | null;
+  progress_current?: number;
+  progress_total?: number;
+  status_message?: string | null;
 }
 
 export interface PoseidonConvertResult {
