@@ -80,6 +80,15 @@ class AutomationService:
             json.dumps(stats.model_dump()),
         )
 
+    async def reset_outreach_failures(self) -> None:
+        """Reinicia contador acumulado de fallos tras un reintento masivo."""
+        stats = await self.get_stats()
+        stats.outreach_failed_total = 0
+        await self._redis.set(
+            AUTOMATION_STATS_KEY,
+            json.dumps(stats.model_dump()),
+        )
+
     async def record_pipeline_run(self, detail: str = "") -> None:
         stats = await self.get_stats()
         stats.last_pipeline_run_at = datetime.now(tz=timezone.utc).isoformat()

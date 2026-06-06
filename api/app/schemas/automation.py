@@ -79,3 +79,11 @@ class AutomationStatus(BaseModel):
     # Compatibilidad con clientes anteriores
     scout_pass_active: bool = False
     scout_pass_mode: str = "automatic"
+
+
+class OutreachRetryResult(BaseModel):
+    sent: int = 0
+    failed: int = 0
+    skipped: int = 0
+    pending_before: int = 0
+    detail: str = ""

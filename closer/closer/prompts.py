@@ -60,6 +60,10 @@ Reglas estrictas:
 - IMPORTANTE: Presentate como {sender_name}, mencioná tu expertise y tu web
   {sender_website}. El email debe generar confianza y hacer que QUIERAN contactarte.
 - El CTA debe ser claro y fácil: "Respondé este email", "Visita mi web", "Agendemos 15 min".
+- NO cierres con firma (nombre, email, web, "Saludos") — la plantilla HTML la agrega sola.
+  Terminá en el CTA, sin despedida formal duplicada.
+- Evitá frases genéricas de plantilla ("Optimización web", "sin compromiso", "me encargo de todo" repetido).
+  Escribí como una nota personal 1-a-1, concreta y directa.
 """
 
 

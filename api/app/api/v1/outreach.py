@@ -28,6 +28,7 @@ from app.schemas.outreach import (
 from app.services.email_service import EmailConfig, EmailService
 from app.services.lead_contact import persist_lead_email, resolve_lead_email
 from app.services.lead_service import LeadService
+from app.services.outreach_email_renderer import build_outreach_email_html
 from app.services.outreach_service import OutreachService
 from app.services.pdf_service import PDFService
 from app.services.sender_profile_service import SenderProfileService
@@ -281,10 +282,20 @@ async def send_outreach_email(
         )
     )
 
+    html_body = await build_outreach_email_html(
+        session,
+        settings,
+        body_text=final_body,
+        has_report_attachment=has_attachment,
+        lead_domain=lead.normalized_domain,
+        subject=final_subject,
+    )
+
     result = await email_service.send(
         to=recipient,
         subject=final_subject,
         body=final_body,
+        html_body=html_body,
         attachments=attachments,
     )
 
@@ -467,6 +478,14 @@ async def bulk_send_outreach(
             to=recipient,
             subject=final_subject,
             body=final_body,
+            html_body=await build_outreach_email_html(
+                session,
+                settings,
+                body_text=final_body,
+                has_report_attachment=True,
+                lead_domain=lead.normalized_domain,
+                subject=final_subject,
+            ),
             attachments=attachments,
         )
 

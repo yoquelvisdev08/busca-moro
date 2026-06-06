@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
 from sqlalchemy import exists, func, select
@@ -13,7 +14,8 @@ from app.models.audit import Audit
 from app.models.lead import Lead, LeadStatus
 from app.models.outreach import MessageDirection, OutreachMessage
 from app.models.sales_intelligence import SalesIntelligence
-from app.services.automation_service import AutomationService
+from app.services.automation_service import AUTOMATION_STATS_KEY, AutomationService
+from app.services.lead_contact import resolve_lead_email
 from app.services.outreach_automation_service import OutreachAutomationService
 from app.services.queue_service import QueueService
 
@@ -270,7 +272,9 @@ async def process_auto_outreach(session: AsyncSession) -> tuple[int, int, str]:
             break
         if not AutomationService.segment_meets_min(lead.segment, config.auto_outreach_min_segment):
             continue
-        if not _lead_has_email(lead):
+
+        recipient, _ = await resolve_lead_email(session, lead.id)
+        if not recipient:
             continue
 
         intel_exists = await session.execute(
@@ -293,6 +297,104 @@ async def process_auto_outreach(session: AsyncSession) -> tuple[int, int, str]:
     if sent or failed:
         await automation.record_outreach_run(sent=sent, failed=failed, detail=detail)
     return sent, failed, detail
+
+
+async def retry_pending_outreach(
+    session: AsyncSession,
+    *,
+    limit: int = 200,
+    reset_failure_counter: bool = True,
+) -> dict[str, int | str]:
+    """Reenvía reporte + email a leads enriched sin mensaje outbound previo."""
+    settings = get_settings()
+    redis = get_redis()
+    automation = AutomationService(redis)
+    config = await automation.get_config()
+
+    if not settings.email_api_key:
+        return {"sent": 0, "failed": 0, "skipped": 0, "pending_before": 0, "detail": "email_api_key_missing"}
+
+    outbound_exists = exists().where(
+        OutreachMessage.lead_id == Lead.id,
+        OutreachMessage.direction == MessageDirection.outbound.value,
+    )
+
+    stmt = (
+        select(Lead)
+        .where(
+            Lead.deleted_at.is_(None),
+            Lead.status == LeadStatus.enriched,
+            ~outbound_exists,
+        )
+        .order_by(Lead.commercial_score.desc(), Lead.updated_at.desc())
+        .limit(limit)
+    )
+    candidates = list((await session.execute(stmt)).scalars().all())
+    pending_before = len(candidates)
+
+    service = OutreachAutomationService(session, settings)
+    sent = 0
+    failed = 0
+    skipped = 0
+    details: list[str] = []
+
+    for lead in candidates:
+        if not AutomationService.segment_meets_min(
+            lead.segment, config.auto_outreach_min_segment
+        ):
+            skipped += 1
+            continue
+
+        recipient, _ = await resolve_lead_email(session, lead.id)
+        if not recipient:
+            skipped += 1
+            if len(details) < 12:
+                details.append(f"{lead.normalized_domain}: sin email válido")
+            continue
+
+        intel_exists = await session.execute(
+            select(SalesIntelligence.id)
+            .where(SalesIntelligence.lead_id == lead.id)
+            .limit(1)
+        )
+        if intel_exists.scalar_one_or_none() is None:
+            skipped += 1
+            continue
+
+        outcome = await service.send_report_and_email(lead.id)
+        if outcome.status == "sent":
+            sent += 1
+            await session.commit()
+            if len(details) < 12:
+                details.append(f"{lead.normalized_domain}: ok")
+        elif outcome.status == "failed":
+            failed += 1
+            await session.commit()
+            if len(details) < 12:
+                details.append(f"{lead.normalized_domain}: {outcome.detail[:80]}")
+        else:
+            skipped += 1
+
+    detail = "; ".join(details) if details else "retry_complete"
+    if sent or failed:
+        await automation.record_outreach_run(
+            sent=sent, failed=failed, detail=f"retry: {detail}"
+        )
+    if reset_failure_counter:
+        stats = await automation.get_stats()
+        stats.outreach_failed_total = failed
+        await redis.set(
+            AUTOMATION_STATS_KEY,
+            json.dumps(stats.model_dump()),
+        )
+
+    return {
+        "sent": sent,
+        "failed": failed,
+        "skipped": skipped,
+        "pending_before": pending_before,
+        "detail": detail,
+    }
 
 
 async def process_automation_cycle(session: AsyncSession) -> dict[str, int | str]:

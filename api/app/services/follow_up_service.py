@@ -199,10 +199,22 @@ class FollowUpService:
             )
         )
 
+        from app.services.outreach_email_renderer import build_outreach_email_html
+
+        html_body = await build_outreach_email_html(
+            self._session,
+            settings,
+            body_text=fu.body,
+            has_report_attachment=attachments is not None,
+            lead_domain=getattr(lead, "normalized_domain", None),
+            subject=fu.subject,
+        )
+
         result = await email_service.send(
             to=lead.email,
             subject=fu.subject,
             body=fu.body,
+            html_body=html_body,
             attachments=attachments,
         )
 

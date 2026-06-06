@@ -19,6 +19,7 @@ from app.schemas.outreach import OutreachCreate
 from app.services.email_service import EmailConfig, EmailService
 from app.services.lead_contact import persist_lead_email, resolve_lead_email
 from app.services.lead_service import LeadService
+from app.services.outreach_email_renderer import build_outreach_email_html
 from app.services.outreach_service import OutreachService
 from app.services.pdf_service import PDFService
 from app.services.sender_profile_service import SenderProfileService
@@ -108,10 +109,19 @@ class OutreachAutomationService:
                 from_name=self._settings.email_from_name,
             )
         )
+        html_body = await build_outreach_email_html(
+            self._session,
+            self._settings,
+            body_text=final_body,
+            has_report_attachment=True,
+            lead_domain=lead.normalized_domain,
+            subject=final_subject,
+        )
         email_result = await email_service.send(
             to=recipient,
             subject=final_subject,
             body=final_body,
+            html_body=html_body,
             attachments=attachments,
         )
 

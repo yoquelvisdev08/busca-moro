@@ -14,6 +14,7 @@ from app.core.redis_client import get_redis
 from app.schemas.automation import (
     AutomationConfigUpdate,
     AutomationStatus,
+    OutreachRetryResult,
 )
 from app.services.automation_service import AutomationService
 
@@ -53,3 +54,21 @@ async def reconcile_pipeline(
     enqueued = await reconcile_audit_queue(session, force=True)
     logger.info("pipeline_reconcile_manual", extra={"enqueued": enqueued})
     return await AutomationService(redis).get_status(session)
+
+
+@router.post("/retry-outreach", response_model=OutreachRetryResult)
+async def retry_failed_outreach(
+    limit: int = 200,
+    session: AsyncSession = Depends(get_session),
+    redis: aioredis.Redis = Depends(get_redis),
+) -> OutreachRetryResult:
+    """Reenvía emails a leads enriched pendientes (fallos históricos por EMAIL_FROM, etc.)."""
+    from app.services.automation_processor import retry_pending_outreach
+
+    result = await retry_pending_outreach(
+        session,
+        limit=min(max(limit, 1), 500),
+        reset_failure_counter=True,
+    )
+    logger.info("outreach_retry_manual", extra=result)
+    return OutreachRetryResult(**result)
