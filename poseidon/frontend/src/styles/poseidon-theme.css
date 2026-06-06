@@ -1,0 +1,12 @@
+/* Poseidon — identidad visual oceánica (separada de Orion) */
+:root {
+  --sx-primary: #22d3ee;
+  --sx-primary-container: rgba(34, 211, 238, 0.12);
+  --sx-primary-soft: rgba(34, 211, 238, 0.08);
+  --sx-primary-glow: 0 0 24px rgba(34, 211, 238, 0.25);
+  --sx-bg: #062a2f;
+  --sx-bg-lower: #041f23;
+  --sx-surface: rgba(8, 47, 52, 0.85);
+  --sx-surface-high: #0a353b;
+  --sx-surface-highest: #0f4249;
+}

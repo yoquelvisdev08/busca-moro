@@ -1,6 +1,32 @@
 # Orion Agency Platform
 
+Monorepo **busca-moro** con dos productos:
+
+| Carpeta | Producto | Rol |
+|---------|----------|-----|
+| [`orion/`](orion/README.md) | Orion | Prospección B2B — discovery, audit, leads, outreach |
+| [`poseidon/`](poseidon/README.md) | Poseidon | Leads calientes — intención de compra en Reddit/foros |
+
 Plataforma de generación de leads con inteligencia artificial para agencias de optimización web. Descubre sitios web con problemas, genera reportes profesionales automatizados y ejecuta campañas de outreach en frío.
+
+## Estructura del repositorio
+
+```
+busca-moro/
+├── docker-compose.yml      # Orquesta Orion + Poseidon + infra compartida
+├── orion/
+│   ├── api/                # FastAPI (leads, reports, outreach…)
+│   ├── frontend/           # React SPA
+│   ├── discovery/          # Scout (Go)
+│   ├── audit/              # Auditor
+│   ├── intelligence/       # Closer
+│   ├── monitor/            # Sniper
+│   └── infra/db, searxng/
+└── poseidon/
+    ├── poseidon_api/       # API domain (montado en Orion API)
+    ├── worker/             # Worker de escaneo
+    └── frontend/           # UI propia (puerto 3001)
+```
 
 ## 🎯 Modelo de Negocio
 
@@ -85,7 +111,8 @@ cp .env.example .env
 
 ### Acceso
 
-- **Frontend**: http://localhost:3000
+- **Orion UI**: http://localhost:3000
+- **Poseidon UI**: http://localhost:3001
 - **API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs
 - **Nginx Admin**: http://localhost:81

@@ -42,7 +42,7 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./orion/infra/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     networks:
       - orion-core
     healthcheck:
@@ -97,8 +97,8 @@ services:
 
   api:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: orion/api/Dockerfile
     container_name: orion-api
     restart: unless-stopped
     env_file: ./.env
@@ -136,7 +136,7 @@ services:
       SEARXNG_BASE_URL: "http://localhost:8080/"
       SEARXNG_SECRET: ${SEARXNG_SECRET:-auto_generated}
     volumes:
-      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - ./orion/infra/searxng/settings.yml:/etc/searxng/settings.yml:ro
     networks:
       - orion-core
     healthcheck:
@@ -148,7 +148,7 @@ services:
 
   scout:
     build:
-      context: ./scout
+      context: ./orion/discovery
       dockerfile: Dockerfile
     container_name: orion-scout
     restart: unless-stopped
@@ -169,7 +169,7 @@ services:
 
   auditor:
     build:
-      context: ./auditor
+      context: ./orion/audit
       dockerfile: Dockerfile
     container_name: orion-auditor
     restart: unless-stopped
@@ -190,7 +190,7 @@ services:
 
   closer:
     build:
-      context: ./closer
+      context: ./orion/intelligence
       dockerfile: Dockerfile
     container_name: orion-closer
     restart: unless-stopped
@@ -208,7 +208,7 @@ services:
 
   sniper:
     build:
-      context: ./sniper
+      context: ./orion/monitor
       dockerfile: Dockerfile
     container_name: orion-sniper
     restart: unless-stopped
@@ -224,9 +224,52 @@ services:
       - orion-core
     logging: *default-logging
 
+  poseidon:
+    build:
+      context: ./poseidon
+      dockerfile: Dockerfile
+    container_name: orion-poseidon
+    restart: unless-stopped
+    env_file: ./.env
+    environment:
+      SERVICE_NAME: poseidon
+      POSEIDON_LOOP_INTERVAL_MINUTES: ${POSEIDON_LOOP_INTERVAL_MINUTES:-45}
+      POSEIDON_USE_LLM: ${POSEIDON_USE_LLM:-true}
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+      searxng:
+        condition: service_healthy
+    networks:
+      - orion-core
+    logging: *default-logging
+
+  poseidon-frontend:
+    build:
+      context: ./poseidon/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_ORION_APP_URL: ${POSEIDON_ORION_APP_URL:-http://localhost:3000}
+    container_name: poseidon-frontend
+    restart: unless-stopped
+    env_file: ./.env
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - orion-core
+      - orion-edge
+    ports:
+      - "3001:80"
+    expose:
+      - "80"
+    logging: *default-logging
+
   frontend:
     build:
-      context: ./frontend
+      context: ./orion/frontend
       dockerfile: Dockerfile
     container_name: orion-frontend
     restart: unless-stopped

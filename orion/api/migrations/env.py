@@ -11,12 +11,16 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-# Ensure the api package is on sys.path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Ensure the api package and Poseidon domain are on sys.path
+_api_root = os.path.join(os.path.dirname(__file__), "..")
+_repo_root = os.path.abspath(os.path.join(_api_root, "..", ".."))
+sys.path.insert(0, _api_root)
+sys.path.insert(0, os.path.join(_repo_root, "poseidon"))
 
 from app.core.config import get_settings           # noqa: E402
 from app.core.database import Base                 # noqa: E402
 from app.models import *                           # noqa: E402, F403 — load all models for metadata
+from poseidon_api.models import PoseidonSignal     # noqa: E402, F401
 
 config = context.config
 
