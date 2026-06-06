@@ -85,3 +85,50 @@ class PoseidonConvertResult(BaseModel):
     lead_id: uuid.UUID
     lead_url: str
     message: str
+
+
+class SubredditScan(BaseModel):
+    subreddit: str = Field(min_length=1, max_length=80)
+    query: str = Field(min_length=1, max_length=200)
+
+
+class PoseidonConfig(BaseModel):
+    loop_interval_minutes: int = Field(default=45, ge=5, le=1440)
+    query_delay_seconds: float = Field(default=1.0, ge=0.2, le=10.0)
+    results_per_query: int = Field(default=20, ge=5, le=100)
+    max_post_age_days: int = Field(default=120, ge=7, le=730)
+    min_keyword_score: int = Field(default=25, ge=0, le=100)
+    min_intent_score: int = Field(default=45, ge=0, le=100)
+    min_intent_score_no_llm: int = Field(default=32, ge=0, le=100)
+    max_llm_classifications: int = Field(default=40, ge=0, le=200)
+    use_llm: bool = True
+    use_arctic_shift: bool = True
+    use_pullpush: bool = False
+    use_searx: bool = True
+    require_spanish: bool = True
+    require_latam_or_spain: bool = True
+    search_queries: list[str] = Field(default_factory=list)
+    subreddit_scans: list[SubredditScan] = Field(default_factory=list)
+    query_subreddits: list[str] = Field(default_factory=list)
+    searx_domains: list[str] = Field(default_factory=list)
+
+
+class PoseidonConfigUpdate(BaseModel):
+    loop_interval_minutes: Optional[int] = Field(default=None, ge=5, le=1440)
+    query_delay_seconds: Optional[float] = Field(default=None, ge=0.2, le=10.0)
+    results_per_query: Optional[int] = Field(default=None, ge=5, le=100)
+    max_post_age_days: Optional[int] = Field(default=None, ge=7, le=730)
+    min_keyword_score: Optional[int] = Field(default=None, ge=0, le=100)
+    min_intent_score: Optional[int] = Field(default=None, ge=0, le=100)
+    min_intent_score_no_llm: Optional[int] = Field(default=None, ge=0, le=100)
+    max_llm_classifications: Optional[int] = Field(default=None, ge=0, le=200)
+    use_llm: Optional[bool] = None
+    use_arctic_shift: Optional[bool] = None
+    use_pullpush: Optional[bool] = None
+    use_searx: Optional[bool] = None
+    require_spanish: Optional[bool] = None
+    require_latam_or_spain: Optional[bool] = None
+    search_queries: Optional[list[str]] = None
+    subreddit_scans: Optional[list[SubredditScan]] = None
+    query_subreddits: Optional[list[str]] = None
+    searx_domains: Optional[list[str]] = None

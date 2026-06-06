@@ -33,5 +33,9 @@ Portal: **http://localhost:3000** · Poseidon: **/poseidon/** · Orion: **/orion
 | Variable | Descripción |
 |----------|-------------|
 | `POSEIDON_USE_ARCTIC_SHIFT` | Fuente principal (Reddit reciente) |
+| `POSEIDON_USE_SEARX` | Búsqueda web en foros (default: true) |
 | `POSEIDON_USE_LLM` | Clasificación DeepSeek (requiere créditos) |
 | `POSEIDON_REQUIRE_SPANISH` | Solo guardar posts en español (default: true) |
+| `POSEIDON_REQUIRE_LATAM` | Solo España / LATAM (default: true) |
+
+Configuración operativa (queries, subreddits, umbrales): **GET/PATCH `/v1/poseidon/config`** o UI en `/poseidon/settings`.

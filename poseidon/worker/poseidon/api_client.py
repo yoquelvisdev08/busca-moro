@@ -23,6 +23,17 @@ class APIClient:
                 return response.json()
         raise RuntimeError("unreachable")
 
+    async def get_config(self) -> dict[str, Any]:
+        async for attempt in self._retries():
+            with attempt:
+                response = await self._client.get("/v1/poseidon/config")
+                response.raise_for_status()
+                body = response.json()
+                if isinstance(body, dict):
+                    return body
+                return {}
+        return {}
+
     def _retries(self) -> AsyncRetrying:
         return AsyncRetrying(
             stop=stop_after_attempt(4),

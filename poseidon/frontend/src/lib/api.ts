@@ -73,6 +73,34 @@ export interface PoseidonConvertResult {
   message: string;
 }
 
+export interface SubredditScan {
+  subreddit: string;
+  query: string;
+}
+
+export interface PoseidonConfig {
+  loop_interval_minutes: number;
+  query_delay_seconds: number;
+  results_per_query: number;
+  max_post_age_days: number;
+  min_keyword_score: number;
+  min_intent_score: number;
+  min_intent_score_no_llm: number;
+  max_llm_classifications: number;
+  use_llm: boolean;
+  use_arctic_shift: boolean;
+  use_pullpush: boolean;
+  use_searx: boolean;
+  require_spanish: boolean;
+  require_latam_or_spain: boolean;
+  search_queries: string[];
+  subreddit_scans: SubredditScan[];
+  query_subreddits: string[];
+  searx_domains: string[];
+}
+
+export type PoseidonConfigUpdate = Partial<PoseidonConfig>;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -131,5 +159,14 @@ export const api = {
   },
   triggerPoseidonScan() {
     return request<PoseidonScanStatus>("/v1/poseidon/scan", { method: "POST" });
+  },
+  getPoseidonConfig() {
+    return request<PoseidonConfig>("/v1/poseidon/config");
+  },
+  updatePoseidonConfig(patch: PoseidonConfigUpdate) {
+    return request<PoseidonConfig>("/v1/poseidon/config", {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
   },
 };

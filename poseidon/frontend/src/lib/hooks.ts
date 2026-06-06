@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type PoseidonSignalStatus } from "@/lib/api";
+import { api, type PoseidonConfigUpdate, type PoseidonSignalStatus } from "@/lib/api";
 
 const keys = {
   signals: (params?: object) => ["poseidon", "signals", params] as const,
   stats: ["poseidon", "stats"] as const,
   scanStatus: ["poseidon", "scan-status"] as const,
+  config: ["poseidon", "config"] as const,
 };
 
 export function usePoseidonRecentSignals() {
@@ -76,6 +77,23 @@ export function useTriggerPoseidonScanMutation() {
     mutationFn: () => api.triggerPoseidonScan(),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.scanStatus });
+    },
+  });
+}
+
+export function usePoseidonConfig() {
+  return useQuery({
+    queryKey: keys.config,
+    queryFn: () => api.getPoseidonConfig(),
+  });
+}
+
+export function useUpdatePoseidonConfigMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: PoseidonConfigUpdate) => api.updatePoseidonConfig(patch),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.config });
     },
   });
 }

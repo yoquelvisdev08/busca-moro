@@ -63,13 +63,30 @@ class SearXNGClient:
         self._client = client
 
     async def search(self, query: str, limit: int = 25) -> list[SearchHit]:
+        return await self._fetch(query, limit=limit)
+
+    async def search_sites(
+        self,
+        query: str,
+        domains: list[str],
+        *,
+        limit: int = 25,
+    ) -> list[SearchHit]:
+        cleaned_domains = [d.strip().lower().removeprefix("www.") for d in domains if d.strip()]
+        if not cleaned_domains:
+            return []
+        site_clause = " OR ".join(f"site:{domain}" for domain in cleaned_domains[:8])
+        scoped = f"({site_clause}) {query}"
+        return await self._fetch(scoped, limit=limit, label=query)
+
+    async def _fetch(self, query: str, *, limit: int, label: str | None = None) -> list[SearchHit]:
         response = await self._client.get(
             f"{self._base_url}/search",
             params={
                 "q": query,
                 "format": "json",
                 "categories": "general",
-                "engines": "google,bing",
+                "engines": "google,bing,duckduckgo",
                 "pageno": "1",
             },
         )
@@ -77,6 +94,7 @@ class SearXNGClient:
         body: dict[str, Any] = response.json()
         hits: list[SearchHit] = []
         seen: set[str] = set()
+        query_label = label or query
 
         for item in body.get("results") or []:
             if len(hits) >= limit:
@@ -92,7 +110,7 @@ class SearXNGClient:
                     url=url,
                     title=str(item.get("title") or "").strip(),
                     snippet=_clean_snippet(str(item.get("content") or item.get("snippet") or "")),
-                    query=query,
+                    query=query_label,
                 )
             )
         return hits

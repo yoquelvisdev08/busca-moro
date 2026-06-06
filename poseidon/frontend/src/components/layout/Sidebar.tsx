@@ -6,6 +6,7 @@ import {
   PanelLeft,
   X,
   Waves,
+  Settings,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui-store";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/inbox", label: "Inbox", icon: Inbox, end: true },
+  { to: "/settings", label: "Configuración", icon: Settings, end: true },
 ] as const;
 
 export function Sidebar() {

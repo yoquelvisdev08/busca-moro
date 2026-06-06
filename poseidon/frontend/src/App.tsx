@@ -9,6 +9,9 @@ import { useUIStore } from "@/stores/ui-store";
 const DashboardPage = lazy(() =>
   import("@/pages/DashboardPage").then((m) => ({ default: m.DashboardPage })),
 );
+const SettingsPage = lazy(() =>
+  import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+);
 const InboxPage = lazy(() =>
   import("@/pages/InboxPage").then((m) => ({ default: m.InboxPage })),
 );
@@ -41,6 +44,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<DashboardPage />} />
       <Route path="/inbox" element={<InboxPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

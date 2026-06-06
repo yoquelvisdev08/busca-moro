@@ -17,6 +17,7 @@ from poseidon.config import Settings, get_settings
 from poseidon.discovery import collect_hits, count_discovery_steps
 from poseidon.intent import classify_hit
 from poseidon.llm_client import LLMClient
+from poseidon.runtime_config import build_scan_config
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +63,11 @@ async def _merge_scan_status(redis, patch: dict) -> None:
 
 
 async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
-    queries = load_queries(settings.queries_file)
+    remote = await api.get_config()
+    scan = build_scan_config(settings, remote)
     http = httpx.AsyncClient(timeout=60.0, follow_redirects=True)
     llm: LLMClient | None = None
-    if settings.use_llm and settings.llm_api_key:
+    if scan.use_llm and settings.use_llm and settings.llm_api_key:
         llm = LLMClient(
             base_url=settings.llm_base_url,
             api_key=settings.llm_api_key,
@@ -74,7 +76,7 @@ async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
         )
 
     started = datetime.now(timezone.utc).isoformat()
-    discovery_total = count_discovery_steps(settings, queries)
+    discovery_total = count_discovery_steps(scan)
     await publish_scan_status(
         redis,
         {
@@ -125,8 +127,8 @@ async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
     try:
         hits = await collect_hits(
             settings,
+            scan,
             http,
-            queries,
             on_progress=report_discovery,
         )
         found = len(hits)
@@ -156,14 +158,15 @@ async def run_scan(settings: Settings, api: APIClient, redis) -> dict:
                     found,
                     f"Clasificando {index}/{found}… ({saved} guardadas)",
                 )
-            use_llm = llm is not None and not llm_disabled and llm_used < settings.max_llm_classifications
+            use_llm = llm is not None and not llm_disabled and llm_used < scan.max_llm_classifications
             verdict = await classify_hit(
                 hit,
                 llm=llm if use_llm else None,
-                min_keyword=settings.min_keyword_score,
-                min_intent=settings.min_intent_score,
-                min_intent_no_llm=settings.min_intent_score_no_llm,
-                require_spanish=settings.require_spanish,
+                min_keyword=scan.min_keyword_score,
+                min_intent=scan.min_intent_score,
+                min_intent_no_llm=scan.min_intent_score_no_llm,
+                require_spanish=scan.require_spanish,
+                require_latam_or_spain=scan.require_latam_or_spain,
             )
             if use_llm and verdict.llm_score is None and llm is not None:
                 llm_disabled = True
@@ -235,10 +238,10 @@ def _platform_from_url(url: str) -> str:
     return "forum"
 
 
-async def wait_for_next_scan(redis, stop: asyncio.Event, settings: Settings) -> None:
+async def wait_for_next_scan(redis, stop: asyncio.Event, settings: Settings, scan_minutes: int) -> None:
     """Espera el intervalo pero reacciona al botón Escanear ahora."""
     elapsed = 0
-    interval = settings.loop_interval_minutes * 60
+    interval = scan_minutes * 60
     poll = max(2, settings.scan_poll_seconds)
     while elapsed < interval and not stop.is_set():
         if await redis.get(SCAN_SIGNAL_KEY) == "1":
@@ -275,7 +278,11 @@ async def main() -> None:
                 await redis.delete(SCAN_SIGNAL_KEY)
 
             logger.info("poseidon_scan_start")
+            scan_minutes = settings.loop_interval_minutes
             try:
+                remote = await api.get_config()
+                scan = build_scan_config(settings, remote)
+                scan_minutes = scan.loop_interval_minutes
                 result = await run_scan(settings, api, redis)
                 logger.info(
                     "poseidon_scan_done found=%s saved=%s error=%s",
@@ -301,7 +308,7 @@ async def main() -> None:
                     },
                 )
 
-            await wait_for_next_scan(redis, stop, settings)
+            await wait_for_next_scan(redis, stop, settings, scan_minutes)
     finally:
         await api.aclose()
         await redis.aclose()

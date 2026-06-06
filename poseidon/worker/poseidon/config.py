@@ -42,7 +42,8 @@ class Settings(BaseSettings):
     use_pullpush: bool = Field(default=False, alias="POSEIDON_USE_PULLPUSH")
     pullpush_max_age_days: int = Field(default=400, alias="POSEIDON_PULLPUSH_MAX_AGE_DAYS")
     require_spanish: bool = Field(default=True, alias="POSEIDON_REQUIRE_SPANISH")
-    use_searx: bool = Field(default=False, alias="POSEIDON_USE_SEARX")
+    use_searx: bool = Field(default=True, alias="POSEIDON_USE_SEARX")
+    require_latam_or_spain: bool = Field(default=True, alias="POSEIDON_REQUIRE_LATAM")
     subreddit_scans: list[tuple[str, str]] = Field(default_factory=list)
     query_subreddits: list[str] = Field(default_factory=list)
 

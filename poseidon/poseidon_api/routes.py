@@ -10,7 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_session
 from app.core.redis_client import get_redis
 from poseidon_api.models import PoseidonSignalStatus
+from poseidon_api.config_service import PoseidonConfigService
 from poseidon_api.schemas import (
+    PoseidonConfig,
+    PoseidonConfigUpdate,
     PoseidonConvertResult,
     PoseidonScanStatus,
     PoseidonSignalCreate,
@@ -154,3 +157,17 @@ async def trigger_scan() -> PoseidonScanStatus:
     redis = get_redis()
     await redis.set(POSEIDON_SCAN_SIGNAL_KEY, "1", ex=300)
     return PoseidonScanStatus(active=True)
+
+
+@router.get("/config", response_model=PoseidonConfig)
+async def get_poseidon_config() -> PoseidonConfig:
+    redis = get_redis()
+    service = PoseidonConfigService(redis)
+    return await service.get_config()
+
+
+@router.patch("/config", response_model=PoseidonConfig)
+async def update_poseidon_config(patch: PoseidonConfigUpdate) -> PoseidonConfig:
+    redis = get_redis()
+    service = PoseidonConfigService(redis)
+    return await service.update_config(patch)
