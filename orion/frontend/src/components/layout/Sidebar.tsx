@@ -52,17 +52,26 @@ export function Sidebar() {
       aria-label="Main navigation"
     >
       {/* Brand */}
-      <div className="flex items-center justify-between px-4 py-5">
-        {sidebarOpen && (
-          <div>
-            <h1 className="text-lg font-headline font-semibold tracking-tighter text-primary">
-              Orion
-            </h1>
-            <p className="text-[10px] uppercase tracking-widest text-text-muted mt-0.5">
-              Precision Leads
-            </p>
-          </div>
-        )}
+      <div className={cn("flex px-4 py-5", sidebarOpen ? "items-center justify-between" : "flex-col items-center gap-2")}>
+        <div className={cn("flex items-center gap-2.5 min-w-0", !sidebarOpen && "justify-center")}>
+          <img
+            src="/orion/logos/orion.svg"
+            alt=""
+            className="size-8 shrink-0"
+            width={32}
+            height={32}
+          />
+          {sidebarOpen && (
+            <div className="min-w-0">
+              <h1 className="text-lg font-headline font-semibold tracking-tighter text-primary">
+                Orion
+              </h1>
+              <p className="text-[10px] uppercase tracking-widest text-text-muted mt-0.5">
+                Precision Leads
+              </p>
+            </div>
+          )}
+        </div>
         {/* Desktop toggle */}
         <button
           onClick={toggleSidebar}

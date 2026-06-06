@@ -5,7 +5,6 @@ import {
   PanelLeftClose,
   PanelLeft,
   X,
-  Waves,
   Settings,
 } from "lucide-react";
 import { useUIStore } from "@/stores/ui-store";
@@ -30,17 +29,29 @@ export function Sidebar() {
       )}
       aria-label="Navegación Poseidon"
     >
-      <div className="flex items-center justify-between px-4 py-5">
-        {sidebarOpen && (
+      <div className={cn("flex px-4 py-5", sidebarOpen ? "items-center justify-between" : "flex-col items-center gap-2")}>
+        {sidebarOpen ? (
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15 border border-primary/30 shrink-0">
-              <Waves className="size-4 text-primary" aria-hidden />
-            </div>
+            <img
+              src="/poseidon/logos/poseidon.svg"
+              alt=""
+              className="size-8 shrink-0"
+              width={32}
+              height={32}
+            />
             <div className="min-w-0">
               <h1 className="text-sm font-headline font-semibold text-primary truncate">Poseidon</h1>
               <p className="text-[10px] uppercase tracking-widest text-text-muted">Leads calientes</p>
             </div>
           </div>
+        ) : (
+          <img
+            src="/poseidon/logos/poseidon.svg"
+            alt="Poseidon"
+            className="size-8 shrink-0"
+            width={32}
+            height={32}
+          />
         )}
         <button
           type="button"

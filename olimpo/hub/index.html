@@ -56,6 +56,9 @@
       }
 
       .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
         font-size: 0.95rem;
         font-weight: 600;
         letter-spacing: -0.02em;
@@ -63,9 +66,9 @@
         text-decoration: none;
       }
 
-      .logo span {
-        color: var(--muted);
-        font-weight: 400;
+      .logo img {
+        width: 1.35rem;
+        height: 1.35rem;
       }
 
       .status {
@@ -151,6 +154,11 @@
         color: var(--poseidon);
       }
 
+      .card-icon img {
+        width: 1.35rem;
+        height: 1.35rem;
+      }
+
       .card-icon svg {
         width: 1.15rem;
         height: 1.15rem;
@@ -215,7 +223,10 @@
   <body>
     <div class="wrap">
       <header>
-        <a class="logo" href="/">Olimpo <span>/ portal</span></a>
+        <a class="logo" href="/">
+          <img src="/assets/logos/olimpo.svg" alt="" width="22" height="22" />
+          Olimpo
+        </a>
         <div class="status" id="api-status" role="status">
           <span class="dot" id="status-dot"></span>
           <span id="status-label">Comprobando…</span>
@@ -233,10 +244,7 @@
       <nav class="cards" aria-label="Módulos">
         <a class="card orion" href="/orion/">
           <div class="card-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2" />
-            </svg>
+            <img src="/assets/logos/orion.svg" alt="" width="22" height="22" />
           </div>
           <div class="card-body">
             <h2>Orion</h2>
@@ -251,10 +259,7 @@
 
         <a class="card poseidon" href="/poseidon/">
           <div class="card-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M2 12c2-4 6-8 10-8s8 4 10 8c-2 4-6 8-10 8s-8-4-10-8z" />
-              <circle cx="12" cy="12" r="2.5" />
-            </svg>
+            <img src="/assets/logos/poseidon.svg" alt="" width="22" height="22" />
           </div>
           <div class="card-body">
             <h2>Poseidon</h2>

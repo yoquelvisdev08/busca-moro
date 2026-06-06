@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="Olimpo">
+  <defs>
+    <linearGradient id="olimpo-g" x1="6" y1="4" x2="26" y2="26" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e2c990"/>
+      <stop offset="1" stop-color="#b8954a"/>
+    </linearGradient>
+  </defs>
+  <path
+    d="M16 5.5 25.5 25.5H6.5L16 5.5Z"
+    stroke="url(#olimpo-g)"
+    stroke-width="1.6"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M16 9.5v3.5M16 9.5l-1.8 1.8M16 9.5l1.8 1.8"
+    stroke="#e2c990"
+    stroke-width="1.4"
+    stroke-linecap="round"
+  />
+  <circle cx="16" cy="8.5" r="1.2" fill="#e2c990"/>
+</svg>

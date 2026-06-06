@@ -19,6 +19,7 @@ RUN npm run build
 
 FROM nginx:1.27-alpine
 COPY olimpo/hub/index.html /usr/share/nginx/html/index.html
+COPY olimpo/hub/assets /usr/share/nginx/html/assets
 COPY --from=orion-build /app/dist /usr/share/nginx/html/orion
 COPY --from=poseidon-build /app/dist /usr/share/nginx/html/poseidon
 COPY olimpo/nginx.conf /etc/nginx/conf.d/default.conf
