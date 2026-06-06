@@ -12,6 +12,7 @@ import { MetricCard } from "@/components/charts/MetricCard";
 import { AreaChart } from "@/components/charts/AreaChart";
 import { DataTable } from "@/components/tables/DataTable";
 import { StatusLED } from "@/components/domain/StatusLED";
+import { AutomationPanel } from "@/components/domain/AutomationPanel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -228,6 +229,8 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AutomationPanel variant="compact" />
 
       {/* Bottom Row: Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

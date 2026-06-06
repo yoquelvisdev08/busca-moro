@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { notify } from "@/lib/notify";
 import {
   Search,
@@ -8,11 +8,12 @@ import {
   Loader2,
   CheckCircle2,
   Link2,
+  Settings2,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useLeads, useMonitorStatus, queryKeys } from "@/lib/hooks";
+import { useLeads, useMonitorStatus, useAutomationStatus, queryKeys } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,9 @@ import {
   DISCOVER_INDUSTRIES,
 } from "@/lib/discover-options";
 import { cn } from "@/lib/utils";
+import { AutomationPanel } from "@/components/domain/AutomationPanel";
+
+type DiscoverTab = "search" | "automation";
 
 type DiscoveryPhase = "idle" | "generating" | "scouting" | "done";
 
@@ -57,6 +61,10 @@ function segmentChipColor(segment: string | null | undefined) {
 
 export function DiscoverPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab =
+    searchParams.get("tab") === "automation" ? "automation" : "search";
+  const [activeTab, setActiveTab] = useState<DiscoverTab>(initialTab);
   const queryClient = useQueryClient();
   const [industry, setIndustry] = useState("");
   const [niche, setNiche] = useState("");
@@ -71,6 +79,30 @@ export function DiscoverPage() {
   const prevNewLeadsRef = useRef(0);
   const touchedRef = useRef(0);
   const createdRef = useRef(0);
+
+  const applyAutomationDefaults = useCallback(
+    (defaults: {
+      industry: string;
+      location: string;
+      niche: string;
+      numDorks: number;
+    }) => {
+      if (defaults.industry) setIndustry(defaults.industry);
+      if (defaults.location) setCountry(defaults.location);
+      if (defaults.niche) setNiche(defaults.niche);
+      if (defaults.numDorks) setNumDorks(defaults.numDorks);
+    },
+    [],
+  );
+
+  const setTab = (tab: DiscoverTab) => {
+    setActiveTab(tab);
+    if (tab === "automation") {
+      setSearchParams({ tab: "automation" });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   const scoutingActive = phase === "generating" || phase === "scouting";
 
@@ -94,6 +126,16 @@ export function DiscoverPage() {
     },
   );
   const { data: monitor } = useMonitorStatus();
+  const { data: automationStatus } = useAutomationStatus();
+
+  useEffect(() => {
+    const c = automationStatus?.config;
+    if (!c) return;
+    if (c.default_industry) setIndustry(c.default_industry);
+    if (c.default_location) setCountry(c.default_location);
+    if (c.default_niche) setNiche(c.default_niche);
+    if (c.default_num_dorks) setNumDorks(c.default_num_dorks);
+  }, [automationStatus?.config]);
 
   const leads = recentLeadsData?.items ?? [];
   const discoveryQueue = monitor?.queues.discovery ?? 0;
@@ -281,6 +323,47 @@ export function DiscoverPage() {
           </p>
         </header>
 
+        <div
+          className="flex gap-1 rounded-lg border border-border/60 bg-surface-high/30 p-1"
+          role="tablist"
+          aria-label="Secciones de Discover"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "search"}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
+              activeTab === "search"
+                ? "bg-surface text-text shadow-sm"
+                : "text-text-muted hover:text-text",
+            )}
+            onClick={() => setTab("search")}
+          >
+            <Search className="size-4" aria-hidden />
+            Buscar
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "automation"}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
+              activeTab === "automation"
+                ? "bg-surface text-text shadow-sm"
+                : "text-text-muted hover:text-text",
+            )}
+            onClick={() => setTab("automation")}
+          >
+            <Settings2 className="size-4" aria-hidden />
+            Automatización
+          </button>
+        </div>
+
+        {activeTab === "automation" ? (
+          <AutomationPanel onDefaultsChange={applyAutomationDefaults} />
+        ) : (
+          <>
         <Card className="border-border/80 overflow-visible">
           <CardHeader className="border-b border-border/60 pb-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -736,6 +819,8 @@ export function DiscoverPage() {
             )}
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
     </PageContainer>
   );

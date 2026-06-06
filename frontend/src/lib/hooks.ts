@@ -11,6 +11,9 @@ import {
   type LeadListResponse,
   type OutreachMessage,
   type MonitorStatus,
+  type ScoutPassStatus,
+  type AutomationStatus,
+  type AutomationConfigUpdate,
 } from "@/lib/api";
 
 /* ═══════════════════════════════════════════════════════
@@ -46,6 +49,10 @@ export const queryKeys = {
   },
   monitor: {
     status: ["monitor", "status"] as const,
+    scoutPass: ["monitor", "scout-pass"] as const,
+  },
+  automation: {
+    status: ["automation", "status"] as const,
   },
   senderProfile: ["sender-profile"] as const,
 };
@@ -336,6 +343,32 @@ export function useMonitorStatus() {
     queryKey: queryKeys.monitor.status,
     queryFn: () => api.getMonitorStatus(),
     refetchInterval: 5_000,
+  });
+}
+
+export function useScoutPassStatus(options?: { refetchInterval?: number | false }) {
+  return useQuery<ScoutPassStatus>({
+    queryKey: queryKeys.monitor.scoutPass,
+    queryFn: () => api.getScoutPassStatus(),
+    refetchInterval: options?.refetchInterval ?? 4_000,
+  });
+}
+
+export function useAutomationStatus(options?: { refetchInterval?: number | false }) {
+  return useQuery<AutomationStatus>({
+    queryKey: queryKeys.automation.status,
+    queryFn: () => api.getAutomationStatus(),
+    refetchInterval: options?.refetchInterval ?? 8_000,
+  });
+}
+
+export function useUpdateAutomationConfigMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: AutomationConfigUpdate) => api.updateAutomationConfig(patch),
+    onSuccess: (data) => {
+      qc.setQueryData(queryKeys.automation.status, data);
+    },
   });
 }
 

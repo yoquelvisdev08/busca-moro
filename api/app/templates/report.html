@@ -11,7 +11,7 @@
   <div class="doc-header-top">
     <p class="doc-kicker">Auditoría digital · Confidencial</p>
     <p class="doc-byline">
-      <strong>{{ consultant.name }}</strong>{% if consultant.title %} — {{ consultant.title }}{% endif %}{% if consultant.website %} · {{ consultant.website }}{% endif %}
+      <strong>{{ consultant.name }}</strong>{% if consultant.title %} — {{ consultant.title }}{% endif %}{% if consultant.email %} · {{ consultant.email }}{% elif consultant.website %} · {{ consultant.website }}{% endif %}
     </p>
     <h1 class="doc-title">{{ narrative.report_title }}</h1>
     <p class="doc-domain">{{ lead.url }}</p>
@@ -295,6 +295,7 @@
       <p class="offer-next">{{ offer.next_step if offer.next_step else narrative.closing_note }}</p>
       <p class="offer-contact">
         <strong>{{ consultant.name }}</strong>{% if consultant.title %} · {{ consultant.title }}{% endif %}
+        {% if consultant.email %}<br><a href="mailto:{{ consultant.email }}">{{ consultant.email }}</a>{% endif %}
         {% if consultant.website %}<br>{{ consultant.website }}{% endif %}
       </p>
     </div>
@@ -304,6 +305,8 @@
 
 <footer class="doc-footer">
   {{ consultant.name }}{% if consultant.title %} · {{ consultant.title }}{% endif %}
+  {% if consultant.email %} · {{ consultant.email }}{% endif %}
+  {% if consultant.website %} · {{ consultant.website }}{% endif %}
   · Informe del {{ generated_at }} · Confidencial para {{ lead.company_name }}
 </footer>
 

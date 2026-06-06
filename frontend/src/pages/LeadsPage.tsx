@@ -42,6 +42,7 @@ import {
 import { StatusLED, type StatusLEDVariant } from "@/components/domain/StatusLED";
 import { Chip, type ChipColor } from "@/components/domain/Chip";
 import { LeadsPipelineTabs } from "@/components/domain/LeadsPipelineTabs";
+import { AutomationLiveStatus } from "@/components/domain/AutomationLiveStatus";
 import { leadHasEmail, leadPrimaryEmail } from "@/lib/lead-email";
 import { cn } from "@/lib/utils";
 
@@ -629,6 +630,8 @@ export function LeadsPage({ pipeline = "new" }: { pipeline?: LeadsPipeline }) {
         <LeadsPipelineTabs />
       </div>
 
+      {pipeline === "new" && <AutomationLiveStatus variant="banner" />}
+
       <section className="rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
         <DataTable<Lead>
           data={leads}
@@ -767,7 +770,7 @@ export function LeadsPage({ pipeline = "new" }: { pipeline?: LeadsPipeline }) {
                 ? "Prueba ajustando los filtros"
                 : pipeline === "reviewed"
                   ? "Cuando envíes un mensaje, el lead aparecerá aquí"
-                  : "Descubre leads en Discover o revisa la pestaña de revisados"}
+                  : "Scout puede traer leads solos cada ~15 min, o lanza Discover para buscar por país y nicho"}
             </p>
           </div>
           {!searchValue &&

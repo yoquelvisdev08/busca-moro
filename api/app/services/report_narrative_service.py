@@ -48,6 +48,7 @@ def _build_user_prompt(ctx: dict[str, Any]) -> str:
 TU PERFIL (úsalo en la sección final):
 - Bio: {bio or "consultor full-stack enfocado en rendimiento y conversión"}
 - Servicios: {services}
+- Email: {consultant.get("email") or ""}
 - Web: {consultant.get("website") or ""}
 
 DOMINIO / EMPRESA:
@@ -96,6 +97,7 @@ def _default_consultant_offer(ctx: dict[str, Any]) -> dict[str, Any]:
     lead = ctx.get("lead") or {}
     domain = lead.get("domain") or "tu sitio"
     name = consultant.get("name") or "Yo"
+    email = consultant.get("email") or ""
     website = consultant.get("website") or ""
     services = consultant.get("services") or [
         "Auditoría y corrección de rendimiento",
@@ -123,10 +125,15 @@ def _default_consultant_offer(ctx: dict[str, Any]) -> dict[str, Any]:
             "Validamos resultados con nueva auditoría y analítica",
         ],
         "next_step": (
-            f"Si te encaja, escríbeme o visita {website} y agendamos 15 minutos para definir el plan. "
+            f"Si te encaja, escríbeme a {email} y agendamos 15 minutos para definir el plan. "
             "Sin compromiso en esa llamada."
-            if website
-            else "Si te encaja, respóndeme y agendamos 15 minutos para definir el plan."
+            if email
+            else (
+                f"Si te encaja, escríbeme o visita {website} y agendamos 15 minutos para definir el plan. "
+                "Sin compromiso en esa llamada."
+                if website
+                else "Si te encaja, respóndeme y agendamos 15 minutos para definir el plan."
+            )
         ),
     }
 

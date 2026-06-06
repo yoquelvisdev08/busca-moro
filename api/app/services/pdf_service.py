@@ -24,6 +24,7 @@ from app.models.audit import Audit
 from app.models.lead import Lead
 from app.models.report import Report, ReportStatus, report_status_value
 from app.models.sales_intelligence import SalesIntelligence
+from app.services.report_identity import resolve_report_identity
 from app.services.report_narrative_service import generate_report_narrative
 from app.services.revenue_loss import calculate_revenue_loss, RevenueLossEstimate
 from app.services.sender_profile_service import SenderProfileService
@@ -229,7 +230,8 @@ class PDFService:
 
         profile_service = SenderProfileService(self._session)
         sender = await profile_service.get_active()
-        consultant, brand = self._build_report_identity(sender)
+        settings = get_settings()
+        consultant, brand = resolve_report_identity(sender, settings)
 
         audit_ctx = self._build_audit_context(audit) if audit else None
         intel_extras = (getattr(intel, "extras", None) or {}) if intel else {}
@@ -297,48 +299,9 @@ class PDFService:
 
     @staticmethod
     def _build_report_identity(sender) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Perfil humano del consultor (tú) + marca en pie de página."""
-
-        agency_name = os.environ.get("AGENCY_NAME", "Orion")
-        agency_site = os.environ.get("AGENCY_WEBSITE", "https://orion.dev")
-        owner_name = os.environ.get("AGENCY_OWNER_NAME", "Tu consultor")
-
-        if sender is not None:
-            consultant_name = sender.name or owner_name
-            consultant_title = sender.title or "Consultor de rendimiento web"
-            consultant_company = sender.company or agency_name
-            consultant_website = sender.website or agency_site
-            consultant_bio = sender.bio
-            consultant_services = list(sender.services or [])
-        else:
-            consultant_name = owner_name
-            consultant_title = "Consultor de rendimiento web"
-            consultant_company = agency_name
-            consultant_website = agency_site
-            consultant_bio = None
-            consultant_services = []
-
-        consultant = {
-            "name": consultant_name,
-            "title": consultant_title,
-            "company": consultant_company,
-            "website": consultant_website,
-            "bio": consultant_bio,
-            "services": consultant_services,
-            "byline": (
-                f"{consultant_name}, {consultant_title}"
-                if consultant_title
-                else consultant_name
-            ),
-        }
-        brand = {
-            "name": consultant_company,
-            "website": consultant_website,
-            "tagline": "Optimización web y crecimiento digital",
-            "primary_color": os.environ.get("AGENCY_PRIMARY_COLOR", "#6366f1"),
-            "accent_color": os.environ.get("AGENCY_ACCENT_COLOR", "#a5b4fc"),
-        }
-        return consultant, brand
+        """Deprecated: usar report_identity.resolve_report_identity."""
+        settings = get_settings()
+        return resolve_report_identity(sender, settings)
 
     # ------------------------------------------------------------------
     # Audit context builder

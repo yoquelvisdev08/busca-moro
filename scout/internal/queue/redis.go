@@ -50,6 +50,15 @@ func (c *Client) Length(ctx context.Context, queue string) (int64, error) {
 	return c.rdb.LLen(ctx, queue).Result()
 }
 
+// Set guarda un valor con TTL opcional.
+func (c *Client) Set(key string, value string, ttl time.Duration) error {
+	ctx := context.Background()
+	if ttl > 0 {
+		return c.rdb.Set(ctx, key, value, ttl).Err()
+	}
+	return c.rdb.Set(ctx, key, value, 0).Err()
+}
+
 // Get obtiene un valor de Redis por clave.
 func (c *Client) Get(key string) (string, error) {
 	return c.rdb.Get(context.Background(), key).Result()

@@ -326,6 +326,80 @@ export interface MonitorStatus {
   }[];
 }
 
+export interface ScoutPassStatus {
+  active: boolean;
+  pass: number;
+  mode: "automatic" | "discovery" | string;
+  dorks_count: number;
+  seeds_count: number;
+  location: string;
+  industry: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface AutomationConfig {
+  auto_scout_enabled: boolean;
+  auto_outreach_enabled: boolean;
+  auto_outreach_min_segment: "A" | "B" | "C";
+  auto_outreach_max_per_run: number;
+  default_num_dorks: number;
+  default_industry: string;
+  default_location: string;
+  default_niche: string;
+}
+
+export type AutomationConfigUpdate = Partial<AutomationConfig>;
+
+export interface AutomationStats {
+  outreach_sent_total: number;
+  outreach_failed_total: number;
+  last_outreach_run_at: string | null;
+  last_outreach_detail: string | null;
+  last_pipeline_run_at: string | null;
+  last_pipeline_detail: string | null;
+}
+
+export interface PipelineCounts {
+  queued: number;
+  auditing: number;
+  audited: number;
+  enriched: number;
+  enriched_with_email: number;
+  ready_for_outreach: number;
+  contacted: number;
+}
+
+export interface AutomationStatus {
+  config: AutomationConfig;
+  stats: AutomationStats;
+  scout: ScoutPassSnapshot;
+  queues: PipelineQueues;
+  pipeline: PipelineCounts;
+  scout_loop_minutes: number;
+  scout_pass_active: boolean;
+  scout_pass_mode: string;
+}
+
+export interface ScoutPassSnapshot {
+  active: boolean;
+  pass: number;
+  mode: string;
+  dorks_count: number;
+  seeds_count: number;
+  location: string;
+  industry: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface PipelineQueues {
+  discovery: number;
+  audit: number;
+  outreach: number;
+  dlq: number;
+}
+
 export interface BulkSendDetail {
   lead_id: string;
   status: "sent" | "skipped" | "failed";
@@ -409,6 +483,9 @@ export const api = {
   },
   getQueueDepths() {
     return request<QueueDepths>("/v1/monitor/queues");
+  },
+  getScoutPassStatus() {
+    return request<ScoutPassStatus>("/v1/monitor/scout");
   },
   listSniperTargets() {
     return request<SniperTarget[]>("/v1/sniper/targets?only_enabled=true");
@@ -607,6 +684,16 @@ export const api = {
     return request<BulkSendResponse>("/v1/outreach/bulk-send", {
       method: "POST",
       body: JSON.stringify({ lead_ids: leadIds, attach_report: attachReport }),
+    });
+  },
+
+  getAutomationStatus() {
+    return request<AutomationStatus>("/v1/automation/status");
+  },
+  updateAutomationConfig(patch: AutomationConfigUpdate) {
+    return request<AutomationStatus>("/v1/automation/config", {
+      method: "PATCH",
+      body: JSON.stringify(patch),
     });
   },
 };

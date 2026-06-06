@@ -89,6 +89,16 @@ class AuditorWorker:
 
         log.info("audit_start", extra={"lead_id": lead_id, "url": url})
         try:
+            lead_resp = await self._http.get(f"/v1/leads/{lead_id}")
+            if lead_resp.status_code == 404:
+                log.warning("lead_not_found_skip", extra={"lead_id": lead_id})
+                return
+            lead_resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            log.warning("lead_prefetch_failed", extra={"lead_id": lead_id, "err": str(exc)})
+            return
+
+        try:
             result = await self._auditor.audit(lead_id=lead_id, url=url)
         except Exception as exc:  # noqa: BLE001
             log.exception("audit_unhandled", extra={"lead_id": lead_id, "url": url})

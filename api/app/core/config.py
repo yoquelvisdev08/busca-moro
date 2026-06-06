@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     email_from_name: str = Field(default="Orion Outreach", alias="EMAIL_FROM_NAME")
 
     sender_profile_website: str = Field(default="https://yoquelvis.dev", alias="SENDER_PROFILE_WEBSITE")
+    agency_name: str = Field(default="", alias="AGENCY_NAME")
+    agency_website: str = Field(default="", alias="AGENCY_WEBSITE")
+    agency_owner_name: str = Field(default="", alias="AGENCY_OWNER_NAME")
+    agency_owner_title: str = Field(default="Desarrollo web y optimización", alias="AGENCY_OWNER_TITLE")
 
     # LLM settings (for Scout dork generation)
     llm_base_url: str = Field(default="https://api.deepseek.com", alias="LLM_BASE_URL")

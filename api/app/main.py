@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Global references for background tasks
 _follow_up_task: asyncio.Task | None = None
+_automation_task: asyncio.Task | None = None
 
 
 async def _follow_up_poller(interval_seconds: int) -> None:
@@ -50,9 +51,40 @@ async def _follow_up_poller(interval_seconds: int) -> None:
         await asyncio.sleep(interval_seconds)
 
 
+async def _automation_poller(interval_seconds: int) -> None:
+    """Background task: envía reporte + email a leads enriquecidos cuando está activo."""
+    logger.info("automation_poller_started", extra={"interval_seconds": interval_seconds})
+    while True:
+        try:
+            from app.core.database import get_session_factory
+            from app.services.automation_processor import process_automation_cycle
+
+            factory = get_session_factory()
+            async with factory() as session:
+                result = await process_automation_cycle(session)
+                await session.commit()
+                if any(
+                    result.get(k)
+                    for k in (
+                        "audit_requeued",
+                        "closer_requeued",
+                        "outreach_sent",
+                        "outreach_failed",
+                    )
+                ):
+                    logger.info("automation_poller_processed", extra=result)
+        except asyncio.CancelledError:
+            logger.info("automation_poller_cancelled")
+            return
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("automation_poller_error", extra={"error": str(exc)})
+
+        await asyncio.sleep(interval_seconds)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    global _follow_up_task
+    global _follow_up_task, _automation_task
 
     settings = get_settings()
     logger = configure_logging(settings.service_name)
@@ -72,13 +104,38 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         logger.info("follow_up_poller_launched")
 
+    _automation_task = asyncio.create_task(_automation_poller(45))
+    logger.info("automation_poller_launched")
+
+    try:
+        from app.core.database import get_session_factory
+        from app.services.automation_processor import reconcile_audit_queue
+        from app.services.automation_service import AutomationService
+
+        factory = get_session_factory()
+        async with factory() as session:
+            config = await AutomationService(redis).get_config()
+            if config.auto_outreach_enabled:
+                enqueued = await reconcile_audit_queue(session, force=True)
+                await session.commit()
+                logger.info("audit_queue_startup_reconcile", extra={"enqueued": enqueued})
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("audit_queue_startup_reconcile_failed", extra={"error": str(exc)})
+
     yield
 
-    # Graceful shutdown: cancel follow-up poller
+    # Graceful shutdown: cancel background pollers
     if _follow_up_task is not None and not _follow_up_task.done():
         _follow_up_task.cancel()
         try:
             await _follow_up_task
+        except asyncio.CancelledError:
+            pass
+
+    if _automation_task is not None and not _automation_task.done():
+        _automation_task.cancel()
+        try:
+            await _automation_task
         except asyncio.CancelledError:
             pass
 

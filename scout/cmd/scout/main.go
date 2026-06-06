@@ -70,12 +70,16 @@ func run() error {
 	pass := 0
 	for {
 		pass++
-		if err := singlePass(ctx, logger.With("pass", pass), cfg, rotator, q); err != nil {
-			if errors.Is(err, context.Canceled) {
-				logger.Info("scout stopped by signal")
-				return nil
+		if shouldRunPass(ctx, logger, cfg, q) {
+			if err := singlePass(ctx, logger.With("pass", pass), cfg, rotator, q, pass); err != nil {
+				if errors.Is(err, context.Canceled) {
+					logger.Info("scout stopped by signal")
+					return nil
+				}
+				logger.Error("pass failed", "err", err)
 			}
-			logger.Error("pass failed", "err", err)
+		} else {
+			logger.Info("pass_skipped", "reason", "auto_scout_disabled")
 		}
 
 		if cfg.LoopInterval <= 0 {
@@ -113,6 +117,7 @@ func singlePass(
 	cfg *config.Config,
 	rotator *proxy.Rotator,
 	q *queue.Client,
+	passNumber int,
 ) error {
 	seeds, err := discovery.LoadSeeds(cfg.TargetsFile)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -130,6 +135,33 @@ func singlePass(
 	}
 
 	logger.Info("pass_start", "seeds", len(seeds), "dorks", len(dorks), "target_location", redisBatch.location)
+
+	mode := "automatic"
+	if len(redisBatch.queries) > 0 {
+		mode = "discovery"
+	}
+	publishPassStatus(q, passStatus{
+		Active:     true,
+		Pass:       passNumber,
+		Mode:       mode,
+		DorksCount: len(dorks),
+		SeedsCount: len(seeds),
+		Location:   redisBatch.location,
+		Industry:   redisBatch.industry,
+		StartedAt:  time.Now().UTC().Format(time.RFC3339),
+	})
+	defer func() {
+		publishPassStatus(q, passStatus{
+			Active:     false,
+			Pass:       passNumber,
+			Mode:       mode,
+			DorksCount: len(dorks),
+			SeedsCount: len(seeds),
+			Location:   redisBatch.location,
+			Industry:   redisBatch.industry,
+			FinishedAt: time.Now().UTC().Format(time.RFC3339),
+		})
+	}()
 
 	candidates := make(chan discovery.Candidate, cfg.Concurrency*4)
 	var seenHosts sync.Map
@@ -293,6 +325,45 @@ func checkStartSignal(q *queue.Client, cfg *config.Config) bool {
 	return false
 }
 
+const automationConfigKey = "orion:config:automation"
+
+func hasStartSignal(q *queue.Client) bool {
+	val, err := q.Get("orion:signal:start")
+	return err == nil && val == "1"
+}
+
+func isAutoScoutEnabled(q *queue.Client) bool {
+	raw, err := q.Get(automationConfigKey)
+	if err != nil || raw == "" {
+		return true
+	}
+	var cfg struct {
+		AutoScoutEnabled *bool `json:"auto_scout_enabled"`
+	}
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		return true
+	}
+	if cfg.AutoScoutEnabled == nil {
+		return true
+	}
+	return *cfg.AutoScoutEnabled
+}
+
+func shouldRunPass(ctx context.Context, logger *slog.Logger, cfg *config.Config, q *queue.Client) bool {
+	if hasStartSignal(q) {
+		return true
+	}
+	n, err := q.Length(ctx, cfg.QueueDiscovery)
+	if err == nil && n > 0 {
+		return true
+	}
+	enabled := isAutoScoutEnabled(q)
+	if !enabled {
+		logger.Debug("auto_scout_disabled")
+	}
+	return enabled
+}
+
 type redisDiscoveryBatch struct {
 	queries  []string
 	location string
@@ -340,4 +411,30 @@ func loadRedisBatch(q *queue.Client, queueKey string) redisDiscoveryBatch {
 		count++
 	}
 	return batch
+}
+
+const scoutPassRedisKey = "orion:scout:pass"
+
+type passStatus struct {
+	Active     bool   `json:"active"`
+	Pass       int    `json:"pass"`
+	Mode       string `json:"mode"`
+	DorksCount int    `json:"dorks_count"`
+	SeedsCount int    `json:"seeds_count"`
+	Location   string `json:"location"`
+	Industry   string `json:"industry"`
+	StartedAt  string `json:"started_at,omitempty"`
+	FinishedAt string `json:"finished_at,omitempty"`
+}
+
+func publishPassStatus(q *queue.Client, st passStatus) {
+	body, err := json.Marshal(st)
+	if err != nil {
+		return
+	}
+	ttl := 45 * time.Minute
+	if !st.Active {
+		ttl = 2 * time.Hour
+	}
+	_ = q.Set(scoutPassRedisKey, string(body), ttl)
 }
