@@ -289,6 +289,8 @@ async def send_outreach_email(
         has_report_attachment=has_attachment,
         lead_domain=lead.normalized_domain,
         subject=final_subject,
+        lead_id=lead_id,
+        intel=intel,
     )
 
     result = await email_service.send(
@@ -485,6 +487,8 @@ async def bulk_send_outreach(
                 has_report_attachment=True,
                 lead_domain=lead.normalized_domain,
                 subject=final_subject,
+                lead_id=lead_id,
+                intel=intel,
             ),
             attachments=attachments,
         )

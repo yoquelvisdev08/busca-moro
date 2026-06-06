@@ -200,6 +200,17 @@ class FollowUpService:
         )
 
         from app.services.outreach_email_renderer import build_outreach_email_html
+        from app.models.sales_intelligence import SalesIntelligence
+        from sqlalchemy import select
+
+        intel = (
+            await self._session.execute(
+                select(SalesIntelligence)
+                .where(SalesIntelligence.lead_id == fu.lead_id)
+                .order_by(SalesIntelligence.generated_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
 
         html_body = await build_outreach_email_html(
             self._session,
@@ -208,6 +219,8 @@ class FollowUpService:
             has_report_attachment=attachments is not None,
             lead_domain=getattr(lead, "normalized_domain", None),
             subject=fu.subject,
+            lead_id=fu.lead_id,
+            intel=intel,
         )
 
         result = await email_service.send(

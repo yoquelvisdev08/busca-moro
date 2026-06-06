@@ -116,6 +116,8 @@ class OutreachAutomationService:
             has_report_attachment=True,
             lead_domain=lead.normalized_domain,
             subject=final_subject,
+            lead_id=lead_id,
+            intel=intel,
         )
         email_result = await email_service.send(
             to=recipient,
