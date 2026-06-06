@@ -15,6 +15,7 @@ import {
   usePoseidonScanStatus,
   usePoseidonSignals,
   usePoseidonStats,
+  useReconcilePoseidonSignalsMutation,
   useTriggerPoseidonScanMutation,
   useUpdatePoseidonSignalMutation,
 } from "@/lib/hooks";
@@ -62,7 +63,7 @@ export function InboxPage() {
   const statusFilter = tab === "all" ? undefined : tab;
   const { data, isLoading, error, refetch } = usePoseidonSignals({
     status: statusFilter,
-    min_score: 45,
+    actionable_only: tab === "new" || tab === "all",
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
   });
@@ -71,10 +72,10 @@ export function InboxPage() {
   const updateMutation = useUpdatePoseidonSignalMutation();
   const convertMutation = useConvertPoseidonSignalMutation();
   const scanMutation = useTriggerPoseidonScanMutation();
+  const reconcileMutation = useReconcilePoseidonSignalsMutation();
 
   const signals = data?.items ?? [];
   const total = data?.total ?? 0;
-  const pageCount = Math.ceil(total / pagination.pageSize) || 1;
 
   const scanning = scanStatus?.active || scanMutation.isPending;
 
@@ -268,9 +269,9 @@ export function InboxPage() {
       {scanning && <ScanProgressPanel scanStatus={scanStatus} scanning={scanning} />}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Nuevos" value={stats?.new ?? 0} highlight />
+        <StatCard label="Útiles (ES/LATAM)" value={stats?.actionable ?? 0} highlight />
+        <StatCard label="Alta intención (75+)" value={stats?.high_intent ?? 0} />
         <StatCard label="Contactados" value={stats?.contacted ?? 0} />
-        <StatCard label="Convertidos" value={stats?.converted ?? 0} />
         <StatCard
           label="Último scan"
           value={scanStatus?.last_scan_saved ?? 0}
@@ -278,6 +279,29 @@ export function InboxPage() {
           sub={formatWhen(scanStatus?.last_scan_at)}
         />
       </div>
+
+      {(stats?.new ?? 0) > (stats?.actionable ?? 0) && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-sm">
+          <p className="text-text-secondary">
+            Hay {(stats?.new ?? 0) - (stats?.actionable ?? 0)} señales de ruido (inglés, [Hiring],
+            subreddits fuera de LATAM). No aparecen en el inbox.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={reconcileMutation.isPending}
+            onClick={() =>
+              reconcileMutation.mutate(undefined, {
+                onSuccess: (res) =>
+                  notify.success(`Descartadas ${res.dismissed} señales de ruido`),
+                onError: () => notify.error("No se pudo limpiar el ruido"),
+              })
+            }
+          >
+            Limpiar ruido
+          </Button>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {STATUS_TABS.map((t) => (
@@ -313,7 +337,8 @@ export function InboxPage() {
         loading={isLoading}
         pagination={pagination}
         onPaginationChange={setPagination}
-        pageCount={pageCount}
+        pageCount={total === 0 ? 0 : Math.ceil(total / pagination.pageSize)}
+        rowCount={total}
         getRowId={(row) => row.id}
       />
     </div>

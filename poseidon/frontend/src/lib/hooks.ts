@@ -11,7 +11,8 @@ const keys = {
 export function usePoseidonRecentSignals() {
   return useQuery({
     queryKey: ["poseidon", "signals", "recent"],
-    queryFn: () => api.listPoseidonSignals({ limit: 200, min_score: 0 }),
+    queryFn: () =>
+      api.listPoseidonSignals({ limit: 200, min_score: 0, actionable_only: true }),
     refetchInterval: 30_000,
   });
 }
@@ -19,6 +20,7 @@ export function usePoseidonRecentSignals() {
 export function usePoseidonSignals(params?: {
   status?: PoseidonSignalStatus;
   min_score?: number;
+  actionable_only?: boolean;
   limit?: number;
   offset?: number;
 }) {
@@ -85,6 +87,16 @@ export function usePoseidonConfig() {
   return useQuery({
     queryKey: keys.config,
     queryFn: () => api.getPoseidonConfig(),
+  });
+}
+
+export function useReconcilePoseidonSignalsMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.reconcilePoseidonSignals(),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["poseidon"] });
+    },
   });
 }
 

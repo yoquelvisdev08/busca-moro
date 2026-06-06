@@ -12,6 +12,7 @@ from poseidon.arctic_shift_client import ArcticShiftClient
 from poseidon.config import Settings
 from poseidon.pullpush_client import PullPushClient
 from poseidon.runtime_config import ScanConfig
+from poseidon.quality_filters import is_discovery_hit_allowed
 from poseidon.searx_client import SearchHit, SearXNGClient
 
 logger = logging.getLogger(__name__)
@@ -31,9 +32,7 @@ def count_discovery_steps(scan: ScanConfig) -> int:
         steps += len(scan.subreddit_scans)
 
     if scan.use_searx:
-        steps += len(cleaned)
-        if scan.searx_domains:
-            steps += len(cleaned)
+        steps += len(cleaned) if scan.searx_domains else 0
 
     return max(steps, 1)
 
@@ -60,6 +59,8 @@ async def collect_hits(
         added = 0
         for hit in batch:
             if hit.url in seen:
+                continue
+            if not is_discovery_hit_allowed(hit):
                 continue
             seen.add(hit.url)
             merged.append(hit)
@@ -115,36 +116,27 @@ async def collect_hits(
             await report_progress(f"PullPush r/{subreddit}…")
             await _sleep(scan.query_delay_seconds)
 
-    if scan.use_searx:
+    if scan.use_searx and scan.searx_domains:
         searx = SearXNGClient(settings.searxng_url, http)
         for query in scan.search_queries:
             cleaned = query.strip()
             if not cleaned:
                 continue
             try:
-                batch = await searx.search(cleaned, limit=scan.results_per_query)
-                add_batch(batch, "searxng")
+                batch = await searx.search_sites(
+                    cleaned,
+                    scan.searx_domains,
+                    limit=scan.results_per_query,
+                )
+                add_batch(batch, "searxng:sites")
             except Exception as exc:
-                logger.warning("poseidon_searx_failed query=%s err=%s", cleaned, exc)
-            await report_progress(f"SearXNG «{cleaned[:40]}»…")
+                logger.warning(
+                    "poseidon_searx_sites_failed query=%s err=%s",
+                    cleaned,
+                    exc,
+                )
+            await report_progress(f"Foros «{cleaned[:32]}»…")
             await _sleep(scan.query_delay_seconds)
-
-            if scan.searx_domains:
-                try:
-                    batch = await searx.search_sites(
-                        cleaned,
-                        scan.searx_domains,
-                        limit=scan.results_per_query,
-                    )
-                    add_batch(batch, "searxng:sites")
-                except Exception as exc:
-                    logger.warning(
-                        "poseidon_searx_sites_failed query=%s err=%s",
-                        cleaned,
-                        exc,
-                    )
-                await report_progress(f"Foros «{cleaned[:32]}»…")
-                await _sleep(scan.query_delay_seconds)
 
     return merged
 

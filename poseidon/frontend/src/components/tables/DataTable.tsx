@@ -69,6 +69,8 @@ export interface DataTableProps<T> {
   columns: ColumnDef<T, unknown>[]
   loading?: boolean
   pageCount?: number
+  /** Total row count for server-side pagination */
+  rowCount?: number
   pagination?: PaginationState
   onPaginationChange?: (pagination: PaginationState) => void
   search?: {
@@ -122,6 +124,7 @@ function DataTable<T>({
   columns,
   loading = false,
   pageCount,
+  rowCount,
   pagination,
   onPaginationChange,
   search,
@@ -261,7 +264,7 @@ function DataTable<T>({
   )
 
   const selectedCount = Object.keys(table.getState().rowSelection).length
-  const totalRows = pageCount ? pageCount * (pagination?.pageSize ?? 25) : data.length
+  const totalRows = rowCount ?? (pageCount ? pageCount * (pagination?.pageSize ?? 25) : data.length)
   const pageIndex = table.getState().pagination.pageIndex
   const pageSize = table.getState().pagination.pageSize
   const showingFrom = totalRows === 0 ? 0 : pageIndex * pageSize + 1

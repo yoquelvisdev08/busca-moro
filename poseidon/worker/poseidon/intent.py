@@ -9,37 +9,54 @@ from typing import Optional
 
 from poseidon.language import looks_latam_or_spain, looks_spanish
 from poseidon.llm_client import LLMClient
+from poseidon.quality_filters import is_discovery_hit_allowed, url_is_stale_source
 from poseidon.pullpush_client import is_supply_side_title
 from poseidon.searx_client import SearchHit
 
 logger = logging.getLogger(__name__)
 
 _INTENT_PATTERNS: list[tuple[str, str, int]] = [
-    (r"^\[hiring\]", "web_dev", 46),
-    (r"^\[task\]", "web_dev", 44),
-    (r"necesito ayuda.*web|ayuda con mi (pagina|página|sitio)", "web_dev", 38),
-    (r"busco desarrollador|busco programador|busco freelancer", "web_dev", 34),
-    (r"busco.*(web|wordpress|shopify).*(español|espanol|latam|remoto)", "web_dev", 36),
-    (r"need help.*(website|web|wordpress)|help with my (website|site)", "web_dev", 28),
-    (r"looking for (a )?(web )?developer|looking for freelancer", "web_dev", 26),
-    (r"necesito (una )?pagina web|necesito (un )?sitio web|hacer mi web", "web_dev", 34),
-    (r"wordpress.*(roto|error|lento|ayuda|arreglar|help|fix|slow|ca[ií]do)", "wordpress", 36),
-    (r"shopify|tienda online|ecommerce|e-commerce", "web_dev", 30),
-    (r"scraping|scrapear|raspado|extraer datos|bot de datos", "scraping", 38),
-    (r"lento|velocidad|lighthouse|core web vitals|optimizar|slow|speed", "performance", 30),
-    (r"hosting|dominio|ssl|certificado|servidor ca[ií]do|hosting down", "hosting", 28),
-    (r"cotizaci[oó]n|presupuesto|cuanto cuesta|precio.*web|quote|presupuest", "web_dev", 28),
-    (r"no funciona|no carga|error 500|pantalla blanca|broken|fix my site", "web_dev", 26),
-    (r"freelance|proyecto web|remoto|urgente|rebuild.*site", "web_dev", 20),
+    (r"necesito ayuda.*web|ayuda con mi (pagina|página|sitio)", "web_dev", 40),
+    (r"busco desarrollador|busco programador|busco freelancer", "web_dev", 38),
+    (r"busco.*(web|wordpress|shopify).*(español|espanol|latam|remoto)", "web_dev", 38),
+    (r"necesito (una )?pagina web|necesito (un )?sitio web|hacer mi web", "web_dev", 38),
+    (r"wordpress.*(roto|error|lento|ayuda|arreglar|help|fix|slow|ca[ií]do)", "wordpress", 38),
+    (r"shopify|tienda online|ecommerce|e-commerce", "web_dev", 34),
+    (r"scraping.*(ayuda|help|necesito|busco)|necesito.*scraping|busco.*scraping", "scraping", 36),
+    (r"lento|velocidad|lighthouse|core web vitals|optimizar|slow|speed", "performance", 32),
+    (r"hosting|dominio|ssl|certificado|servidor ca[ií]do|hosting down", "hosting", 30),
+    (r"cotizaci[oó]n|presupuesto|cuanto cuesta|precio.*web|presupuest", "web_dev", 34),
+    (r"no funciona|no carga|error 500|pantalla blanca|broken|fix my site", "web_dev", 32),
+    (r"proyecto web|urgente|rebuild.*site", "web_dev", 28),
 ]
 
 _NOISE_PATTERNS = (
     r"curso de|tutorial|aprender a programar|como aprender|guia completa",
     r"we are hiring|vacante|contratamos|empresa busca empleado",
     r"vendo|compro dominio|oferta laboral",
-    r"^\[for hire\]|^\[offer\]|^\[promo\]",
+    r"^\[for hire\]|^\[offer\]|^\[promo\]|^\[hiring\]",
+    r"^\[task\].*(looking for freelance projects|for hire|hire me|available for work)",
     r"meme|shitpost|off topic|ot:",
     r"noticia|breaking news|politica|política",
+)
+
+_BLOCKED_SUBREDDITS = frozenset(
+    {
+        "slavelabour",
+        "forhire",
+        "hireahacker",
+        "jobs",
+        "jobbit",
+        "freelance",
+        "freelanceuk",
+        "workonline",
+        "digitalnomad",
+        "remotework",
+        "cscareerquestions",
+        "webdev",
+        "programming",
+        "learnprogramming",
+    }
 )
 
 
@@ -73,6 +90,14 @@ def keyword_score(hit: SearchHit) -> tuple[int, str]:
     return min(best_score, 100), category
 
 
+def _blocked_subreddit(url: str) -> bool:
+    lower = (url or "").lower()
+    if "reddit.com/r/" not in lower:
+        return False
+    sub = lower.split("reddit.com/r/", 1)[-1].split("/", 1)[0]
+    return sub in _BLOCKED_SUBREDDITS
+
+
 async def classify_hit(
     hit: SearchHit,
     *,
@@ -83,6 +108,9 @@ async def classify_hit(
     require_spanish: bool = True,
     require_latam_or_spain: bool = True,
 ) -> IntentVerdict:
+    if url_is_stale_source(hit.url) or not is_discovery_hit_allowed(hit):
+        return IntentVerdict(0, 0, "general", None, None, None, False)
+
     sample = f"{hit.title} {hit.snippet} {hit.query}"
     if require_spanish and not looks_spanish(sample):
         return IntentVerdict(0, 0, "general", None, None, None, False)

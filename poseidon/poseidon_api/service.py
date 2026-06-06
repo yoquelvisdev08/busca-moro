@@ -12,6 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from poseidon_api.models import PoseidonSignal, PoseidonSignalStatus
+from poseidon_api.quality import signal_is_actionable
 from poseidon_api.schemas import PoseidonSignalCreate, PoseidonSignalUpdate
 from app.schemas.lead import LeadCreate
 from app.services.lead_service import LeadService
@@ -123,6 +124,7 @@ class PoseidonService:
         status: Optional[PoseidonSignalStatus] = None,
         intent_category: Optional[str] = None,
         min_score: int = 0,
+        actionable_only: bool = False,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[PoseidonSignal], int]:
@@ -132,22 +134,32 @@ class PoseidonService:
         if intent_category:
             filters.append(PoseidonSignal.intent_category == intent_category)
 
-        total = (
-            await self._session.execute(
-                select(func.count()).select_from(PoseidonSignal).where(*filters)
-            )
-        ).scalar_one()
-
         rows = (
             await self._session.execute(
                 select(PoseidonSignal)
                 .where(*filters)
                 .order_by(PoseidonSignal.intent_score.desc(), PoseidonSignal.detected_at.desc())
-                .limit(limit)
-                .offset(offset)
             )
         ).scalars().all()
-        return list(rows), int(total)
+
+        if actionable_only:
+            rows = [
+                row
+                for row in rows
+                if signal_is_actionable(
+                    title=row.title,
+                    snippet=row.snippet,
+                    source_url=row.source_url,
+                    intent_score=row.intent_score,
+                    min_score=max(min_score, 32),
+                    max_age_days=45,
+                    detected_at=row.detected_at,
+                )
+            ]
+
+        total = len(rows)
+        page = rows[offset : offset + limit]
+        return page, total
 
     async def get(self, signal_id: uuid.UUID) -> Optional[PoseidonSignal]:
         return await self._session.get(PoseidonSignal, signal_id)
@@ -199,7 +211,7 @@ class PoseidonService:
         await self._session.refresh(signal)
         return signal, lead.id, business_url
 
-    async def stats(self) -> dict[str, int]:
+    async def stats(self, *, min_actionable_score: int = 32) -> dict[str, int]:
         rows = (
             await self._session.execute(
                 select(PoseidonSignal.status, func.count())
@@ -210,4 +222,52 @@ class PoseidonService:
         for status, count in rows:
             base[status.value] = int(count)
         base["total"] = sum(base.values())
+
+        all_signals = (
+            await self._session.execute(select(PoseidonSignal))
+        ).scalars().all()
+        actionable = 0
+        high_intent = 0
+        for signal in all_signals:
+            if signal.status != PoseidonSignalStatus.new:
+                continue
+            if signal.intent_score >= 75:
+                high_intent += 1
+            if signal_is_actionable(
+                title=signal.title,
+                snippet=signal.snippet,
+                source_url=signal.source_url,
+                intent_score=signal.intent_score,
+                min_score=min_actionable_score,
+                max_age_days=45,
+                detected_at=signal.detected_at,
+            ):
+                actionable += 1
+        base["actionable"] = actionable
+        base["high_intent"] = high_intent
         return base
+
+    async def dismiss_noise(self, *, min_score: int = 32) -> dict[str, int]:
+        rows = (
+            await self._session.execute(
+                select(PoseidonSignal).where(PoseidonSignal.status == PoseidonSignalStatus.new)
+            )
+        ).scalars().all()
+        dismissed = 0
+        kept = 0
+        for signal in rows:
+            if signal_is_actionable(
+                title=signal.title,
+                snippet=signal.snippet,
+                source_url=signal.source_url,
+                intent_score=signal.intent_score,
+                min_score=min_score,
+                max_age_days=45,
+                detected_at=signal.detected_at,
+            ):
+                kept += 1
+                continue
+            signal.status = PoseidonSignalStatus.dismissed
+            dismissed += 1
+        await self._session.commit()
+        return {"dismissed": dismissed, "kept": kept}

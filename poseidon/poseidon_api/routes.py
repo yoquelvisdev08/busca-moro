@@ -51,6 +51,7 @@ async def list_signals(
     status_filter: PoseidonSignalStatus | None = Query(default=None, alias="status"),
     intent_category: str | None = Query(default=None),
     min_score: int = Query(default=0, ge=0, le=100),
+    actionable_only: bool = Query(default=False),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_session),
@@ -60,6 +61,7 @@ async def list_signals(
         status=status_filter,
         intent_category=intent_category,
         min_score=min_score,
+        actionable_only=actionable_only,
         limit=limit,
         offset=offset,
     )
@@ -134,6 +136,13 @@ async def convert_signal_to_lead(
 async def poseidon_stats(session: AsyncSession = Depends(get_session)) -> dict[str, int]:
     service = PoseidonService(session)
     return await service.stats()
+
+
+@router.post("/signals/reconcile")
+async def reconcile_poseidon_signals(session: AsyncSession = Depends(get_session)) -> dict[str, int]:
+    """Descarta señales nuevas que no pasan calidad ES/LATAM."""
+    service = PoseidonService(session)
+    return await service.dismiss_noise()
 
 
 @router.get("/scan-status", response_model=PoseidonScanStatus)

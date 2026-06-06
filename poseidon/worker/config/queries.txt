@@ -9,4 +9,3 @@ cotizacion sitio web wordpress
 error 500 pagina web ayuda
 busco programador web remoto latam
 shopify tienda online ayuda
-scraping datos python ayuda

@@ -85,17 +85,14 @@ def default_search_queries() -> list[str]:
         "error 500 pagina web ayuda",
         "busco programador web remoto latam",
         "shopify tienda online ayuda",
-        "scraping datos python ayuda",
     ]
 
 
 def default_searx_domains() -> list[str]:
     return [
-        "reddit.com",
         "forocoches.com",
         "mediavida.com",
         "burbuja.info",
-        "workana.com",
         "quora.com",
     ]
 
@@ -110,7 +107,7 @@ class PoseidonConfigService:
             loop_interval_minutes=_env_int("POSEIDON_LOOP_INTERVAL_MINUTES", 45),
             query_delay_seconds=_env_float("POSEIDON_QUERY_DELAY_SECONDS", 1.0),
             results_per_query=_env_int("POSEIDON_RESULTS_PER_QUERY", 20),
-            max_post_age_days=_env_int("POSEIDON_MAX_POST_AGE_DAYS", 120),
+            max_post_age_days=_env_int("POSEIDON_MAX_POST_AGE_DAYS", 45),
             min_keyword_score=_env_int("POSEIDON_MIN_KEYWORD_SCORE", 25),
             min_intent_score=_env_int("POSEIDON_MIN_INTENT_SCORE", 45),
             min_intent_score_no_llm=_env_int("POSEIDON_MIN_INTENT_NO_LLM", 32),

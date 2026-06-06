@@ -104,6 +104,8 @@ class SearXNGClient:
                 continue
             if not _looks_like_post(url):
                 continue
+            if url_is_stale_result(url):
+                continue
             seen.add(url)
             hits.append(
                 SearchHit(
@@ -114,6 +116,17 @@ class SearXNGClient:
                 )
             )
         return hits
+
+
+def url_is_stale_result(url: str) -> bool:
+    lower = (url or "").lower()
+    if "?tl=" in lower or "&tl=" in lower:
+        return True
+    if "workana.com" in lower and "/jobs" in lower:
+        return True
+    if "reddit.com" in lower and "/comments/" not in lower:
+        return True
+    return False
 
 
 def _looks_like_post(url: str) -> bool:

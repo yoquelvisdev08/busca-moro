@@ -67,10 +67,10 @@ export function DashboardPage() {
 
   const signals = recentData?.items ?? [];
   const total = stats?.total ?? 0;
-  const nuevas = stats?.new ?? 0;
+  const utiles = stats?.actionable ?? 0;
   const contactadas = stats?.contacted ?? 0;
   const convertidas = stats?.converted ?? 0;
-  const hotCount = signals.filter((s) => s.intent_score >= 75 && s.status === "new").length;
+  const hotCount = stats?.high_intent ?? 0;
 
   const chartData = useMemo(() => weekChartData(signals), [signals]);
   const sparkline = chartData.map((d) => d.señales);
@@ -155,17 +155,17 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          label="Total señales"
-          value={total}
-          formattedValue={total.toLocaleString("es-ES")}
+          label="Útiles ES/LATAM"
+          value={utiles}
+          formattedValue={String(utiles)}
           variant="highlighted"
           icon={<Waves className="size-4" aria-hidden />}
           sparklineData={sparkline}
         />
         <MetricCard
-          label="Nuevas"
-          value={nuevas}
-          formattedValue={String(nuevas)}
+          label="Total histórico"
+          value={total}
+          formattedValue={total.toLocaleString("es-ES")}
           icon={<Inbox className="size-4" aria-hidden />}
         />
         <MetricCard
@@ -258,8 +258,8 @@ export function DashboardPage() {
             <h3 className="text-sm font-headline font-medium text-text">Inbox</h3>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-mono font-bold text-text">{nuevas}</div>
-            <p className="text-xs text-text-muted mt-2">Señales nuevas por revisar</p>
+            <div className="text-2xl font-mono font-bold text-text">{utiles}</div>
+            <p className="text-xs text-text-muted mt-2">Señales útiles ES/LATAM</p>
             <Button
               variant="outline"
               size="sm"

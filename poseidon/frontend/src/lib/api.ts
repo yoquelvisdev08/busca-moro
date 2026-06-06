@@ -128,6 +128,7 @@ export const api = {
     status?: PoseidonSignalStatus;
     intent_category?: string;
     min_score?: number;
+    actionable_only?: boolean;
     limit?: number;
     offset?: number;
   }) {
@@ -135,6 +136,7 @@ export const api = {
     if (params?.status) qs.set("status", params.status);
     if (params?.intent_category) qs.set("intent_category", params.intent_category);
     if (params?.min_score != null) qs.set("min_score", String(params.min_score));
+    if (params?.actionable_only) qs.set("actionable_only", "true");
     if (params?.limit != null) qs.set("limit", String(params.limit));
     if (params?.offset != null) qs.set("offset", String(params.offset));
     const q = qs.toString();
@@ -167,6 +169,11 @@ export const api = {
     return request<PoseidonConfig>("/v1/poseidon/config", {
       method: "PATCH",
       body: JSON.stringify(patch),
+    });
+  },
+  reconcilePoseidonSignals() {
+    return request<{ dismissed: number; kept: number }>("/v1/poseidon/signals/reconcile", {
+      method: "POST",
     });
   },
 };

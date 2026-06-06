@@ -28,7 +28,7 @@ class Settings(BaseSettings):
         default="/app/config/queries.txt", alias="POSEIDON_QUERIES_FILE"
     )
     results_per_query: int = Field(default=20, alias="POSEIDON_RESULTS_PER_QUERY")
-    max_post_age_days: int = Field(default=120, alias="POSEIDON_MAX_POST_AGE_DAYS")
+    max_post_age_days: int = Field(default=45, alias="POSEIDON_MAX_POST_AGE_DAYS")
     min_keyword_score: int = Field(default=25, alias="POSEIDON_MIN_KEYWORD_SCORE")
     min_intent_score: int = Field(default=45, alias="POSEIDON_MIN_INTENT_SCORE")
     min_intent_score_no_llm: int = Field(default=32, alias="POSEIDON_MIN_INTENT_NO_LLM")
